@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ResourcePulse.AppHost/ResourcePulse.AppHost.csproj" />
+    <Project Path="src/ResourcePulse.Common/ResourcePulse.Common.csproj" />
+    <Project Path="src/ResourcePulse.Domain/ResourcePulse.Domain.csproj" />
+    <Project Path="src/ResourcePulse.Hosting/ResourcePulse.Hosting.csproj" />
+    <Project Path="src/ResourcePulse.Http/ResourcePulse.Http.csproj" />
+    <Project Path="src/ResourcePulse.Persistence/ResourcePulse.Persistence.csproj" />
+    <Project Path="src/ResourcePulse.ServiceDefaults/ResourcePulse.ServiceDefaults.csproj" />
+    <Project Path="src/ResourcePulse.Services/ResourcePulse.Services.csproj" />
+  </Folder>
+</Solution>

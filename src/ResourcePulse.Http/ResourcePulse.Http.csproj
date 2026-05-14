@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ResourcePulse.Services\ResourcePulse.Services.csproj" />
+    <ProjectReference Include="..\ResourcePulse.Domain\ResourcePulse.Domain.csproj" />
+    <ProjectReference Include="..\ResourcePulse.Common\ResourcePulse.Common.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\ResourcePulse.Common\ResourcePulse.Common.csproj" />
+  </ItemGroup>
+</Project>

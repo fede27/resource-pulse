@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\ResourcePulse.Persistence\ResourcePulse.Persistence.csproj" />
+    <ProjectReference Include="..\ResourcePulse.Domain\ResourcePulse.Domain.csproj" />
+    <ProjectReference Include="..\ResourcePulse.Common\ResourcePulse.Common.csproj" />
+  </ItemGroup>
+</Project>

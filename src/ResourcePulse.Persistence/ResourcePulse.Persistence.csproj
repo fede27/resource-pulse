@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ResourcePulse.Domain\ResourcePulse.Domain.csproj" />
+    <ProjectReference Include="..\ResourcePulse.Common\ResourcePulse.Common.csproj" />
+  </ItemGroup>
+
+</Project>
