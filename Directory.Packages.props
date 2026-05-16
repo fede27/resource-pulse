@@ -23,5 +23,13 @@
     <PackageVersion Include="Serilog.Settings.Configuration" Version="10.0.0" />
     <!-- API docs -->
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="10.1.7" />
+    <!-- Mapping -->
+    <PackageVersion Include="Mapster" Version="10.0.7" />
+    <PackageVersion Include="Mapster.DependencyInjection" Version="10.0.7" />
+    <!-- Validation -->
+    <PackageVersion Include="FluentValidation" Version="11.11.0" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
+    <!-- DevExtreme data loading -->
+    <PackageVersion Include="DevExtreme.AspNet.Data" Version="5.1.0" />
   </ItemGroup>
 </Project>

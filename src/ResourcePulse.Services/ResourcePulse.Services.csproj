@@ -1,5 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="Mapster" />
+    <PackageReference Include="Mapster.DependencyInjection" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="DevExtreme.AspNet.Data" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\ResourcePulse.Persistence\ResourcePulse.Persistence.csproj" />
     <ProjectReference Include="..\ResourcePulse.Domain\ResourcePulse.Domain.csproj" />
     <ProjectReference Include="..\ResourcePulse.Common\ResourcePulse.Common.csproj" />
