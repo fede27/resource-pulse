@@ -52,3 +52,44 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# Rider / JetBrains
+.idea/
+*.DotSettings.user
+
+# VS Code (workspace folder; settings.json is intentionally not ignored — share if useful)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Claude Code local state
+.claude/
+
+# Rider / ReSharper caches
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local secrets / per-developer config
+appsettings.*.local.json
+appsettings.Local.json
+secrets/
+
+# Misc
+*.cache
+*.tmp
+*.bak

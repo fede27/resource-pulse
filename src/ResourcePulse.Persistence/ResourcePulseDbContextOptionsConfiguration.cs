@@ -8,6 +8,8 @@ public sealed class ResourcePulseDbContextOptionsConfiguration(AuditInterceptor 
 {
     public void Configure(IServiceProvider serviceProvider, DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.AddInterceptors(auditInterceptor);
+        optionsBuilder
+            .UseSnakeCaseNamingConvention()
+            .AddInterceptors(auditInterceptor);
     }
 }

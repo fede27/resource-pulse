@@ -10,7 +10,11 @@ using ResourcePulse.Hosting;
 using ResourcePulse.Hosting.Auth;
 using ResourcePulse.Http;
 using ResourcePulse.Persistence;
-using ResourcePulse.Services.Ping;
+using ResourcePulse.Services;
+using ResourcePulse.Services.BusinessCalendars;
+using ResourcePulse.Services.Capacity;
+using ResourcePulse.Services.CompanyClosures;
+using ResourcePulse.Services.Resources;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -49,12 +53,12 @@ builder.Services.AddSingleton<ICurrentUserAccessor, HttpContextCurrentUserAccess
 
 // Mapster — scan Services assembly for IRegister implementations
 var mapsterConfig = TypeAdapterConfig.GlobalSettings;
-mapsterConfig.Scan(typeof(IPingService).Assembly);
+mapsterConfig.Scan(typeof(ServicesAssemblyMarker).Assembly);
 builder.Services.AddSingleton(mapsterConfig);
 builder.Services.AddScoped<IMapper, ServiceMapper>();
 
 // FluentValidation — scan Services assembly for validators
-builder.Services.AddValidatorsFromAssembly(typeof(IPingService).Assembly);
+builder.Services.AddValidatorsFromAssembly(typeof(ServicesAssemblyMarker).Assembly);
 
 // Persistence
 // AuditInterceptor is singleton (safe — reads IHttpContextAccessor.HttpContext at call time).
@@ -67,7 +71,10 @@ builder.Services.AddScoped(typeof(IRepository<,>), typeof(Repository<,>));
 builder.AddNpgsqlDbContext<ResourcePulseDbContext>("resourcepulse-db");
 
 // Services
-builder.Services.AddScoped<IPingService, PingService>();
+builder.Services.AddScoped<IBusinessCalendarService, BusinessCalendarService>();
+builder.Services.AddScoped<ICompanyClosureService, CompanyClosureService>();
+builder.Services.AddScoped<IResourceService, ResourceService>();
+builder.Services.AddScoped<ICapacityQueryService, LiveCapacityQueryService>();
 
 // MVC + global validation filter
 builder.Services.AddControllers(opts => opts.Filters.Add<DtoValidationFilter>());

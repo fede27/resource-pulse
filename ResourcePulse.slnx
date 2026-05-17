@@ -9,4 +9,7 @@
     <Project Path="src/ResourcePulse.ServiceDefaults/ResourcePulse.ServiceDefaults.csproj" />
     <Project Path="src/ResourcePulse.Services/ResourcePulse.Services.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ResourcePulse.Domain.Tests/ResourcePulse.Domain.Tests.csproj" />
+  </Folder>
 </Solution>

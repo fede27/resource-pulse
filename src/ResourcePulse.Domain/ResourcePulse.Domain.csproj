@@ -2,4 +2,8 @@
   <ItemGroup>
     <ProjectReference Include="..\ResourcePulse.Common\ResourcePulse.Common.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="ResourcePulse.Services" />
+    <InternalsVisibleTo Include="ResourcePulse.Domain.Tests" />
+  </ItemGroup>
 </Project>

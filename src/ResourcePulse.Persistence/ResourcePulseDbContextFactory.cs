@@ -13,6 +13,7 @@ public sealed class ResourcePulseDbContextFactory : IDesignTimeDbContextFactory<
         var optionsBuilder = new DbContextOptionsBuilder<ResourcePulseDbContext>();
         optionsBuilder
             .UseNpgsql("Host=localhost;Database=resourcepulse;Username=postgres;Password=postgres")
+            .UseSnakeCaseNamingConvention()
             .AddInterceptors(new AuditInterceptor(new AnonymousAccessor()));
         return new ResourcePulseDbContext(optionsBuilder.Options);
     }

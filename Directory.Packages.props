@@ -14,6 +14,8 @@
     <!-- Aspire hosting (AppHost) -->
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.3.0" />
     <!-- Data access -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.7" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7" />
     <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.2.2" />
@@ -31,5 +33,13 @@
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
     <!-- DevExtreme data loading -->
     <PackageVersion Include="DevExtreme.AspNet.Data" Version="5.1.0" />
+    <!-- EF Core naming convention (snake_case for Postgres) -->
+    <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
+    <!-- Testing -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="FluentAssertions" Version="7.2.0" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
   </ItemGroup>
 </Project>
