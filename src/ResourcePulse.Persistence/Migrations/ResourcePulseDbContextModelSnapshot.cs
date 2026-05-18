@@ -20,6 +20,7 @@ namespace ResourcePulse.Persistence.Migrations
                 .HasAnnotation("ProductVersion", "10.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "citext");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("ResourcePulse.Domain.Calendars.BusinessCalendar", b =>
@@ -118,6 +119,140 @@ namespace ResourcePulse.Persistence.Migrations
                     b.ToTable("company_closures", (string)null);
                 });
 
+            modelBuilder.Entity("ResourcePulse.Domain.Projects.ProjectNode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly?>("ActualEnd")
+                        .HasColumnType("date")
+                        .HasColumnName("actual_end");
+
+                    b.Property<DateOnly?>("ActualStart")
+                        .HasColumnType("date")
+                        .HasColumnName("actual_start");
+
+                    b.Property<DateOnly?>("BaselineEnd")
+                        .HasColumnType("date")
+                        .HasColumnName("baseline_end");
+
+                    b.Property<DateOnly?>("BaselineStart")
+                        .HasColumnType("date")
+                        .HasColumnName("baseline_start");
+
+                    b.Property<DateTimeOffset?>("BaselinedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("baselined_at");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("CommitmentLevel")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("commitment_level");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("Depth")
+                        .HasColumnType("integer")
+                        .HasColumnName("depth");
+
+                    b.Property<Guid?>("LeadResourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lead_resource_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("NodeType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("node_type");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("path");
+
+                    b.Property<DateOnly?>("PlannedEnd")
+                        .HasColumnType("date")
+                        .HasColumnName("planned_end");
+
+                    b.Property<DateOnly?>("PlannedStart")
+                        .HasColumnType("date")
+                        .HasColumnName("planned_start");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_project_nodes");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_nodes_root_code")
+                        .HasFilter("parent_id IS NULL AND code IS NOT NULL");
+
+                    b.HasIndex("LeadResourceId")
+                        .HasDatabaseName("ix_project_nodes_lead_resource_id");
+
+                    b.HasIndex("ParentId")
+                        .HasDatabaseName("ix_project_nodes_parent_id");
+
+                    b.HasIndex("Path")
+                        .HasDatabaseName("ix_project_nodes_path");
+
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Path"), new[] { "text_pattern_ops" });
+
+                    b.HasIndex("NodeType", "Status")
+                        .HasDatabaseName("ix_project_nodes_node_type_status");
+
+                    b.HasIndex("ParentId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_nodes_parent_code")
+                        .HasFilter("parent_id IS NOT NULL AND code IS NOT NULL");
+
+                    b.ToTable("project_nodes", (string)null);
+                });
+
             modelBuilder.Entity("ResourcePulse.Domain.Resources.Resource", b =>
                 {
                     b.Property<Guid>("Id")
@@ -149,6 +284,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
+                    b.Property<Guid?>("TeamId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("team_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -164,7 +303,143 @@ namespace ResourcePulse.Persistence.Migrations
                     b.HasIndex("BusinessCalendarId")
                         .HasDatabaseName("ix_resources_business_calendar_id");
 
+                    b.HasIndex("TeamId")
+                        .HasDatabaseName("ix_resources_team_id");
+
                     b.ToTable("resources", (string)null);
+                });
+
+            modelBuilder.Entity("ResourcePulse.Domain.Skills.Skill", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("category");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("citext")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_skills");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_skills_name");
+
+                    b.ToTable("skills", (string)null);
+                });
+
+            modelBuilder.Entity("ResourcePulse.Domain.Tags.Tag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tags");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_tags_name");
+
+                    b.ToTable("tags", (string)null);
+                });
+
+            modelBuilder.Entity("ResourcePulse.Domain.Teams.Team", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("citext")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_teams");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_teams_name");
+
+                    b.ToTable("teams", (string)null);
                 });
 
             modelBuilder.Entity("ResourcePulse.Domain.Calendars.BusinessCalendar", b =>
@@ -215,6 +490,110 @@ namespace ResourcePulse.Persistence.Migrations
                     b.Navigation("WorkWindows");
                 });
 
+            modelBuilder.Entity("ResourcePulse.Domain.Projects.ProjectNode", b =>
+                {
+                    b.HasOne("ResourcePulse.Domain.Resources.Resource", null)
+                        .WithMany()
+                        .HasForeignKey("LeadResourceId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_project_nodes_resources_lead_resource_id");
+
+                    b.HasOne("ResourcePulse.Domain.Projects.ProjectNode", null)
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_project_nodes_project_nodes_parent_id");
+
+                    b.OwnsMany("ResourcePulse.Domain.Projects.ProjectNodeTag", "Tags", b1 =>
+                        {
+                            b1.Property<Guid>("ProjectNodeId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("project_node_id");
+
+                            b1.Property<Guid>("TagId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("tag_id");
+
+                            b1.HasKey("ProjectNodeId", "TagId")
+                                .HasName("pk_project_node_tags");
+
+                            b1.HasIndex("TagId")
+                                .HasDatabaseName("ix_project_node_tags_tag_id");
+
+                            b1.ToTable("project_node_tags", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("ProjectNodeId")
+                                .HasConstraintName("fk_project_node_tags_project_nodes_project_node_id");
+
+                            b1.HasOne("ResourcePulse.Domain.Tags.Tag", null)
+                                .WithMany()
+                                .HasForeignKey("TagId")
+                                .OnDelete(DeleteBehavior.Cascade)
+                                .IsRequired()
+                                .HasConstraintName("fk_project_node_tags_tags_tag_id");
+                        });
+
+                    b.OwnsMany("ResourcePulse.Domain.Projects.ProjectSkillRequirement", "SkillRequirements", b1 =>
+                        {
+                            b1.Property<Guid>("ProjectNodeId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("project_node_id");
+
+                            b1.Property<Guid>("SkillId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("skill_id");
+
+                            b1.Property<DateTime>("CreatedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("created_at");
+
+                            b1.Property<string>("CreatedBy")
+                                .IsRequired()
+                                .HasMaxLength(256)
+                                .HasColumnType("character varying(256)")
+                                .HasColumnName("created_by");
+
+                            b1.Property<string>("MinLevel")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("character varying(20)")
+                                .HasColumnName("min_level");
+
+                            b1.Property<DateTime?>("UpdatedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("updated_at");
+
+                            b1.Property<string>("UpdatedBy")
+                                .HasMaxLength(256)
+                                .HasColumnType("character varying(256)")
+                                .HasColumnName("updated_by");
+
+                            b1.HasKey("ProjectNodeId", "SkillId")
+                                .HasName("pk_project_skill_requirements");
+
+                            b1.HasIndex("SkillId")
+                                .HasDatabaseName("ix_project_skill_requirements_skill_id");
+
+                            b1.ToTable("project_skill_requirements", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("ProjectNodeId")
+                                .HasConstraintName("fk_project_skill_requirements_project_nodes_project_node_id");
+
+                            b1.HasOne("ResourcePulse.Domain.Skills.Skill", null)
+                                .WithMany()
+                                .HasForeignKey("SkillId")
+                                .OnDelete(DeleteBehavior.Restrict)
+                                .IsRequired()
+                                .HasConstraintName("fk_project_skill_requirements_skills_skill_id");
+                        });
+
+                    b.Navigation("SkillRequirements");
+
+                    b.Navigation("Tags");
+                });
+
             modelBuilder.Entity("ResourcePulse.Domain.Resources.Resource", b =>
                 {
                     b.HasOne("ResourcePulse.Domain.Calendars.BusinessCalendar", null)
@@ -223,6 +602,12 @@ namespace ResourcePulse.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_resources_business_calendars_business_calendar_id");
+
+                    b.HasOne("ResourcePulse.Domain.Teams.Team", null)
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_resources_teams_team_id");
 
                     b.OwnsMany("ResourcePulse.Domain.Resources.IndividualAdjustment", "Adjustments", b1 =>
                         {
@@ -321,7 +706,96 @@ namespace ResourcePulse.Persistence.Migrations
                                 .HasConstraintName("fk_resource_work_windows_resources_resource_id");
                         });
 
+                    b.OwnsMany("ResourcePulse.Domain.Resources.ResourceSkill", "Skills", b1 =>
+                        {
+                            b1.Property<Guid>("ResourceId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("resource_id");
+
+                            b1.Property<Guid>("SkillId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("skill_id");
+
+                            b1.Property<DateTime>("CreatedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("created_at");
+
+                            b1.Property<string>("CreatedBy")
+                                .IsRequired()
+                                .HasMaxLength(256)
+                                .HasColumnType("character varying(256)")
+                                .HasColumnName("created_by");
+
+                            b1.Property<string>("Level")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("character varying(20)")
+                                .HasColumnName("level");
+
+                            b1.Property<DateTime?>("UpdatedAt")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("updated_at");
+
+                            b1.Property<string>("UpdatedBy")
+                                .HasMaxLength(256)
+                                .HasColumnType("character varying(256)")
+                                .HasColumnName("updated_by");
+
+                            b1.HasKey("ResourceId", "SkillId")
+                                .HasName("pk_resource_skills");
+
+                            b1.HasIndex("SkillId")
+                                .HasDatabaseName("ix_resource_skills_skill_id");
+
+                            b1.ToTable("resource_skills", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("ResourceId")
+                                .HasConstraintName("fk_resource_skills_resources_resource_id");
+
+                            b1.HasOne("ResourcePulse.Domain.Skills.Skill", null)
+                                .WithMany()
+                                .HasForeignKey("SkillId")
+                                .OnDelete(DeleteBehavior.Restrict)
+                                .IsRequired()
+                                .HasConstraintName("fk_resource_skills_skills_skill_id");
+                        });
+
+                    b.OwnsMany("ResourcePulse.Domain.Resources.ResourceTag", "Tags", b1 =>
+                        {
+                            b1.Property<Guid>("ResourceId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("resource_id");
+
+                            b1.Property<Guid>("TagId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("tag_id");
+
+                            b1.HasKey("ResourceId", "TagId")
+                                .HasName("pk_resource_tags");
+
+                            b1.HasIndex("TagId")
+                                .HasDatabaseName("ix_resource_tags_tag_id");
+
+                            b1.ToTable("resource_tags", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("ResourceId")
+                                .HasConstraintName("fk_resource_tags_resources_resource_id");
+
+                            b1.HasOne("ResourcePulse.Domain.Tags.Tag", null)
+                                .WithMany()
+                                .HasForeignKey("TagId")
+                                .OnDelete(DeleteBehavior.Cascade)
+                                .IsRequired()
+                                .HasConstraintName("fk_resource_tags_tags_tag_id");
+                        });
+
                     b.Navigation("Adjustments");
+
+                    b.Navigation("Skills");
+
+                    b.Navigation("Tags");
 
                     b.Navigation("WorkWindows");
                 });

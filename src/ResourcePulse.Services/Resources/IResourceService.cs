@@ -17,4 +17,13 @@ public interface IResourceService
     Task<ServiceResult<Unit>> RemoveWorkWindowAsync(Guid resourceId, Guid windowId, CancellationToken ct = default);
     Task<ServiceResult<IndividualAdjustmentDto>> AddAdjustmentAsync(Guid resourceId, IndividualAdjustmentDto dto, CancellationToken ct = default);
     Task<ServiceResult<Unit>> RemoveAdjustmentAsync(Guid resourceId, Guid adjustmentId, CancellationToken ct = default);
+
+    Task<ServiceResult<Unit>> AssignTeamAsync(Guid resourceId, AssignTeamDto dto, CancellationToken ct = default);
+
+    Task<ServiceResult<ResourceSkillDto>> AddSkillAsync(Guid resourceId, AddOrUpdateResourceSkillDto dto, CancellationToken ct = default);
+    Task<ServiceResult<ResourceSkillDto>> UpdateSkillLevelAsync(Guid resourceId, Guid skillId, AddOrUpdateResourceSkillDto dto, CancellationToken ct = default);
+    Task<ServiceResult<Unit>> RemoveSkillAsync(Guid resourceId, Guid skillId, CancellationToken ct = default);
+
+    Task<ServiceResult<ResourceTagDto>> AddTagAsync(Guid resourceId, AddResourceTagDto dto, CancellationToken ct = default);
+    Task<ServiceResult<Unit>> RemoveTagAsync(Guid resourceId, Guid tagId, CancellationToken ct = default);
 }

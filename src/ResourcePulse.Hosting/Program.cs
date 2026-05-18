@@ -14,7 +14,11 @@ using ResourcePulse.Services;
 using ResourcePulse.Services.BusinessCalendars;
 using ResourcePulse.Services.Capacity;
 using ResourcePulse.Services.CompanyClosures;
+using ResourcePulse.Services.Projects;
 using ResourcePulse.Services.Resources;
+using ResourcePulse.Services.Skills;
+using ResourcePulse.Services.Tags;
+using ResourcePulse.Services.Teams;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -75,6 +79,10 @@ builder.Services.AddScoped<IBusinessCalendarService, BusinessCalendarService>();
 builder.Services.AddScoped<ICompanyClosureService, CompanyClosureService>();
 builder.Services.AddScoped<IResourceService, ResourceService>();
 builder.Services.AddScoped<ICapacityQueryService, LiveCapacityQueryService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
+builder.Services.AddScoped<ISkillService, SkillService>();
+builder.Services.AddScoped<ITagService, TagService>();
+builder.Services.AddScoped<IProjectNodeService, ProjectNodeService>();
 
 // MVC + global validation filter
 builder.Services.AddControllers(opts => opts.Filters.Add<DtoValidationFilter>());

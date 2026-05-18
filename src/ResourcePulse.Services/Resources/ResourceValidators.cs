@@ -30,6 +30,23 @@ public sealed class IndividualAdjustmentDtoValidator : AbstractValidator<Individ
     }
 }
 
+public sealed class ResourceSkillDtoValidator : AbstractValidator<ResourceSkillDto>
+{
+    public ResourceSkillDtoValidator()
+    {
+        RuleFor(x => x.SkillId).NotEqual(Guid.Empty);
+        RuleFor(x => x.Level).IsInEnum();
+    }
+}
+
+public sealed class ResourceTagDtoValidator : AbstractValidator<ResourceTagDto>
+{
+    public ResourceTagDtoValidator()
+    {
+        RuleFor(x => x.TagId).NotEqual(Guid.Empty);
+    }
+}
+
 public sealed class CreateResourceDtoValidator : AbstractValidator<CreateResourceDto>
 {
     public CreateResourceDtoValidator()
@@ -37,6 +54,8 @@ public sealed class CreateResourceDtoValidator : AbstractValidator<CreateResourc
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleForEach(x => x.Windows).SetValidator(new WorkWindowDtoValidator());
         RuleForEach(x => x.Adjustments).SetValidator(new IndividualAdjustmentDtoValidator());
+        RuleForEach(x => x.Skills).SetValidator(new ResourceSkillDtoValidator());
+        RuleForEach(x => x.Tags).SetValidator(new ResourceTagDtoValidator());
     }
 }
 
@@ -47,5 +66,22 @@ public sealed class UpdateResourceDtoValidator : AbstractValidator<UpdateResourc
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.BusinessCalendarId).NotEqual(Guid.Empty)
             .WithMessage("BusinessCalendarId is required.");
+    }
+}
+
+public sealed class AddOrUpdateResourceSkillDtoValidator : AbstractValidator<AddOrUpdateResourceSkillDto>
+{
+    public AddOrUpdateResourceSkillDtoValidator()
+    {
+        RuleFor(x => x.SkillId).NotEqual(Guid.Empty);
+        RuleFor(x => x.Level).IsInEnum();
+    }
+}
+
+public sealed class AddResourceTagDtoValidator : AbstractValidator<AddResourceTagDto>
+{
+    public AddResourceTagDtoValidator()
+    {
+        RuleFor(x => x.TagId).NotEqual(Guid.Empty);
     }
 }

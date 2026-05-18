@@ -1,5 +1,7 @@
 using ResourcePulse.Common.Domain;
 using ResourcePulse.Domain.Calendars;
+using ResourcePulse.Domain.Events;
+using ResourcePulse.Domain.Skills;
 
 namespace ResourcePulse.Domain.Resources;
 
@@ -7,13 +9,18 @@ public sealed class Resource : Entity<Guid>, IAuditable
 {
     private readonly List<WorkWindow> _workWindows = new();
     private readonly List<IndividualAdjustment> _adjustments = new();
+    private readonly List<ResourceSkill> _skills = new();
+    private readonly List<ResourceTag> _tags = new();
 
     public string Name { get; private set; } = string.Empty;
     public bool IsActive { get; private set; } = true;
     public Guid BusinessCalendarId { get; private set; }
+    public Guid? TeamId { get; private set; }
 
     public IReadOnlyCollection<WorkWindow> WorkWindows => _workWindows.AsReadOnly();
     public IReadOnlyCollection<IndividualAdjustment> Adjustments => _adjustments.AsReadOnly();
+    public IReadOnlyCollection<ResourceSkill> Skills => _skills.AsReadOnly();
+    public IReadOnlyCollection<ResourceTag> Tags => _tags.AsReadOnly();
 
     public DateTime CreatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
@@ -76,6 +83,63 @@ public sealed class Resource : Entity<Guid>, IAuditable
             throw new DomainException("Resource must reference a business calendar.");
         BusinessCalendarId = businessCalendarId;
     }
+
+    // ── Team ────────────────────────────────────────────────────────────────
+
+    public void AssignToTeam(Guid? teamId)
+    {
+        // Treat Guid.Empty as null for ergonomics on the wire.
+        var newTeamId = teamId == Guid.Empty ? (Guid?)null : teamId;
+        if (newTeamId == TeamId) return;
+
+        var oldTeamId = TeamId;
+        TeamId = newTeamId;
+        RaiseEvent(new ResourceTeamChanged(Id, oldTeamId, newTeamId, DateTimeOffset.UtcNow));
+    }
+
+    // ── Skills ──────────────────────────────────────────────────────────────
+
+    public void AddSkill(Guid skillId, SkillLevel level)
+    {
+        if (_skills.Any(s => s.SkillId == skillId))
+            throw new DomainException($"Resource already has skill {skillId}; use UpdateSkillLevel.");
+        _skills.Add(ResourceSkill.Create(Id, skillId, level));
+    }
+
+    public void UpdateSkillLevel(Guid skillId, SkillLevel level)
+    {
+        var existing = _skills.FirstOrDefault(s => s.SkillId == skillId);
+        if (existing is null)
+            throw new DomainException($"Resource does not have skill {skillId}.");
+        existing.SetLevel(level);
+    }
+
+    public void RemoveSkill(Guid skillId)
+    {
+        var existing = _skills.FirstOrDefault(s => s.SkillId == skillId);
+        if (existing is null)
+            throw new DomainException($"Resource does not have skill {skillId}.");
+        _skills.Remove(existing);
+    }
+
+    // ── Tags ────────────────────────────────────────────────────────────────
+
+    public void AddTag(Guid tagId)
+    {
+        if (_tags.Any(t => t.TagId == tagId))
+            throw new DomainException($"Resource already has tag {tagId}.");
+        _tags.Add(ResourceTag.Create(Id, tagId));
+    }
+
+    public void RemoveTag(Guid tagId)
+    {
+        var existing = _tags.FirstOrDefault(t => t.TagId == tagId);
+        if (existing is null)
+            throw new DomainException($"Resource does not have tag {tagId}.");
+        _tags.Remove(existing);
+    }
+
+    // ── Work windows / adjustments (unchanged) ──────────────────────────────
 
     public void AddWorkWindowOverride(WorkWindow window)
     {

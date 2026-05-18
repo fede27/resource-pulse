@@ -72,7 +72,48 @@ public sealed class ResourceService(
             }
         }
 
+        if (dto.TeamId is { } teamId && teamId != Guid.Empty)
+        {
+            var teamExists = await db.Teams.AnyAsync(t => t.Id == teamId, ct);
+            if (!teamExists)
+            {
+                return ServiceResult<ResourceReadDto>.Validation(new Dictionary<string, string[]>
+                {
+                    [nameof(CreateResourceDto.TeamId)] = [$"Team {teamId} does not exist."]
+                });
+            }
+        }
+
+        if (dto.Skills is { Count: > 0 } skills)
+        {
+            var skillIds = skills.Select(s => s.SkillId).Distinct().ToArray();
+            var foundCount = await db.Skills.CountAsync(s => skillIds.Contains(s.Id), ct);
+            if (foundCount != skillIds.Length)
+            {
+                return ServiceResult<ResourceReadDto>.Validation(new Dictionary<string, string[]>
+                {
+                    [nameof(CreateResourceDto.Skills)] = ["One or more referenced skills do not exist."]
+                });
+            }
+        }
+
+        if (dto.Tags is { Count: > 0 } tags)
+        {
+            var tagIds = tags.Select(t => t.TagId).Distinct().ToArray();
+            var foundCount = await db.Tags.CountAsync(t => tagIds.Contains(t.Id), ct);
+            if (foundCount != tagIds.Length)
+            {
+                return ServiceResult<ResourceReadDto>.Validation(new Dictionary<string, string[]>
+                {
+                    [nameof(CreateResourceDto.Tags)] = ["One or more referenced tags do not exist."]
+                });
+            }
+        }
+
         var resource = Resource.Create(dto.Name, calendarId);
+        if (dto.TeamId is { } tid && tid != Guid.Empty)
+            resource.AssignToTeam(tid);
+
         if (dto.Windows is not null)
         {
             foreach (var w in dto.Windows)
@@ -82,6 +123,16 @@ public sealed class ResourceService(
         {
             foreach (var a in dto.Adjustments)
                 resource.AddAdjustment(IndividualAdjustment.Create(a.DateFrom, a.DateTo, a.Type, a.Hours, a.Reason, a.Notes));
+        }
+        if (dto.Skills is not null)
+        {
+            foreach (var s in dto.Skills)
+                resource.AddSkill(s.SkillId, s.Level);
+        }
+        if (dto.Tags is not null)
+        {
+            foreach (var t in dto.Tags)
+                resource.AddTag(t.TagId);
         }
 
         await repository.AddAsync(resource, ct);
@@ -163,6 +214,137 @@ public sealed class ResourceService(
         if (resource is null) return ServiceResult.NotFound($"Resource {resourceId} not found.");
 
         resource.RemoveAdjustment(adjustmentId);
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult.Ok();
+    }
+
+    public async Task<ServiceResult<Unit>> AssignTeamAsync(Guid resourceId, AssignTeamDto dto, CancellationToken ct = default)
+    {
+        var resource = await repository.GetByIdAsync(resourceId, ct);
+        if (resource is null) return ServiceResult.NotFound($"Resource {resourceId} not found.");
+
+        if (dto.TeamId is { } teamId && teamId != Guid.Empty)
+        {
+            var teamExists = await db.Teams.AnyAsync(t => t.Id == teamId, ct);
+            if (!teamExists)
+                return ServiceResult.Validation(new Dictionary<string, string[]>
+                {
+                    [nameof(AssignTeamDto.TeamId)] = [$"Team {teamId} does not exist."]
+                });
+        }
+
+        resource.AssignToTeam(dto.TeamId);
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult.Ok();
+    }
+
+    public async Task<ServiceResult<ResourceSkillDto>> AddSkillAsync(Guid resourceId, AddOrUpdateResourceSkillDto dto, CancellationToken ct = default)
+    {
+        var resource = await repository.GetByIdAsync(resourceId, ct);
+        if (resource is null) return ServiceResult<ResourceSkillDto>.NotFound($"Resource {resourceId} not found.");
+
+        var skillExists = await db.Skills.AnyAsync(s => s.Id == dto.SkillId, ct);
+        if (!skillExists)
+            return ServiceResult<ResourceSkillDto>.Validation(new Dictionary<string, string[]>
+            {
+                [nameof(AddOrUpdateResourceSkillDto.SkillId)] = [$"Skill {dto.SkillId} does not exist."]
+            });
+
+        try
+        {
+            resource.AddSkill(dto.SkillId, dto.Level);
+        }
+        catch (Common.Domain.DomainException ex)
+        {
+            return ServiceResult<ResourceSkillDto>.Conflict(ex.Message);
+        }
+
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult<ResourceSkillDto>.Success(new ResourceSkillDto { SkillId = dto.SkillId, Level = dto.Level });
+    }
+
+    public async Task<ServiceResult<ResourceSkillDto>> UpdateSkillLevelAsync(
+        Guid resourceId, Guid skillId, AddOrUpdateResourceSkillDto dto, CancellationToken ct = default)
+    {
+        if (skillId != dto.SkillId)
+            return ServiceResult<ResourceSkillDto>.Validation(new Dictionary<string, string[]>
+            {
+                [nameof(AddOrUpdateResourceSkillDto.SkillId)] = ["SkillId in the route and body must match."]
+            });
+
+        var resource = await repository.GetByIdAsync(resourceId, ct);
+        if (resource is null) return ServiceResult<ResourceSkillDto>.NotFound($"Resource {resourceId} not found.");
+
+        try
+        {
+            resource.UpdateSkillLevel(skillId, dto.Level);
+        }
+        catch (Common.Domain.DomainException ex)
+        {
+            return ServiceResult<ResourceSkillDto>.NotFound(ex.Message);
+        }
+
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult<ResourceSkillDto>.Success(new ResourceSkillDto { SkillId = skillId, Level = dto.Level });
+    }
+
+    public async Task<ServiceResult<Unit>> RemoveSkillAsync(Guid resourceId, Guid skillId, CancellationToken ct = default)
+    {
+        var resource = await repository.GetByIdAsync(resourceId, ct);
+        if (resource is null) return ServiceResult.NotFound($"Resource {resourceId} not found.");
+
+        try
+        {
+            resource.RemoveSkill(skillId);
+        }
+        catch (Common.Domain.DomainException ex)
+        {
+            return ServiceResult.NotFound(ex.Message);
+        }
+
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult.Ok();
+    }
+
+    public async Task<ServiceResult<ResourceTagDto>> AddTagAsync(Guid resourceId, AddResourceTagDto dto, CancellationToken ct = default)
+    {
+        var resource = await repository.GetByIdAsync(resourceId, ct);
+        if (resource is null) return ServiceResult<ResourceTagDto>.NotFound($"Resource {resourceId} not found.");
+
+        var tagExists = await db.Tags.AnyAsync(t => t.Id == dto.TagId, ct);
+        if (!tagExists)
+            return ServiceResult<ResourceTagDto>.Validation(new Dictionary<string, string[]>
+            {
+                [nameof(AddResourceTagDto.TagId)] = [$"Tag {dto.TagId} does not exist."]
+            });
+
+        try
+        {
+            resource.AddTag(dto.TagId);
+        }
+        catch (Common.Domain.DomainException ex)
+        {
+            return ServiceResult<ResourceTagDto>.Conflict(ex.Message);
+        }
+
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult<ResourceTagDto>.Success(new ResourceTagDto { TagId = dto.TagId });
+    }
+
+    public async Task<ServiceResult<Unit>> RemoveTagAsync(Guid resourceId, Guid tagId, CancellationToken ct = default)
+    {
+        var resource = await repository.GetByIdAsync(resourceId, ct);
+        if (resource is null) return ServiceResult.NotFound($"Resource {resourceId} not found.");
+
+        try
+        {
+            resource.RemoveTag(tagId);
+        }
+        catch (Common.Domain.DomainException ex)
+        {
+            return ServiceResult.NotFound(ex.Message);
+        }
+
         await repository.SaveChangesAsync(ct);
         return ServiceResult.Ok();
     }

@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using ResourcePulse.Domain.Calendars;
 using ResourcePulse.Domain.Resources;
+using ResourcePulse.Domain.Skills;
+using ResourcePulse.Domain.Tags;
+using ResourcePulse.Domain.Teams;
 
 namespace ResourcePulse.Persistence.Configurations;
 
@@ -22,6 +25,15 @@ public sealed class ResourceConfiguration : IEntityTypeConfiguration<Resource>
             .WithMany()
             .HasForeignKey(r => r.BusinessCalendarId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Team FK is nullable: resources without a team are legal.
+        // Restrict prevents deleting a team that still has resources.
+        builder.HasOne<Team>()
+            .WithMany()
+            .HasForeignKey(r => r.TeamId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(r => r.TeamId).HasDatabaseName("ix_resources_team_id");
 
         builder.OwnsMany(r => r.WorkWindows, w =>
         {
@@ -50,11 +62,46 @@ public sealed class ResourceConfiguration : IEntityTypeConfiguration<Resource>
             a.HasIndex("ResourceId", "DateFrom", "DateTo");
         });
 
+        // ResourceSkill — owned join, composite PK, FK to Skill (Restrict).
+        builder.OwnsMany(r => r.Skills, s =>
+        {
+            s.ToTable("resource_skills");
+            s.WithOwner().HasForeignKey(x => x.ResourceId);
+            s.HasKey(x => new { x.ResourceId, x.SkillId });
+            s.Property(x => x.Level).HasConversion<string>().HasMaxLength(20).IsRequired();
+            s.Property(x => x.CreatedBy).HasMaxLength(256).IsRequired();
+            s.Property(x => x.UpdatedBy).HasMaxLength(256);
+            s.HasOne<Skill>()
+                .WithMany()
+                .HasForeignKey(x => x.SkillId)
+                .OnDelete(DeleteBehavior.Restrict);
+            s.HasIndex(x => x.SkillId).HasDatabaseName("ix_resource_skills_skill_id");
+        });
+
+        // ResourceTag — owned join, composite PK, FK to Tag (Cascade).
+        builder.OwnsMany(r => r.Tags, t =>
+        {
+            t.ToTable("resource_tags");
+            t.WithOwner().HasForeignKey(x => x.ResourceId);
+            t.HasKey(x => new { x.ResourceId, x.TagId });
+            t.HasOne<Tag>()
+                .WithMany()
+                .HasForeignKey(x => x.TagId)
+                .OnDelete(DeleteBehavior.Cascade);
+            t.HasIndex(x => x.TagId).HasDatabaseName("ix_resource_tags_tag_id");
+        });
+
         builder.Metadata
             .FindNavigation(nameof(Resource.WorkWindows))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
         builder.Metadata
             .FindNavigation(nameof(Resource.Adjustments))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        builder.Metadata
+            .FindNavigation(nameof(Resource.Skills))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        builder.Metadata
+            .FindNavigation(nameof(Resource.Tags))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 }

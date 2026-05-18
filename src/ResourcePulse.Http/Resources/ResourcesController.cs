@@ -48,6 +48,30 @@ public sealed class ResourcesController(
     public async Task<IActionResult> RemoveAdjustmentAsync(Guid id, Guid adjustmentId, CancellationToken ct) =>
         FromResult(await service.RemoveAdjustmentAsync(id, adjustmentId, ct));
 
+    [HttpPut("{id}/team")]
+    public async Task<IActionResult> AssignTeamAsync(Guid id, [FromBody] AssignTeamDto dto, CancellationToken ct) =>
+        FromResult(await service.AssignTeamAsync(id, dto, ct));
+
+    [HttpPost("{id}/skills")]
+    public async Task<IActionResult> AddSkillAsync(Guid id, [FromBody] AddOrUpdateResourceSkillDto dto, CancellationToken ct) =>
+        FromCreateResult(await service.AddSkillAsync(id, dto, ct), x => x.SkillId);
+
+    [HttpPut("{id}/skills/{skillId}")]
+    public async Task<IActionResult> UpdateSkillLevelAsync(Guid id, Guid skillId, [FromBody] AddOrUpdateResourceSkillDto dto, CancellationToken ct) =>
+        FromResult(await service.UpdateSkillLevelAsync(id, skillId, dto, ct));
+
+    [HttpDelete("{id}/skills/{skillId}")]
+    public async Task<IActionResult> RemoveSkillAsync(Guid id, Guid skillId, CancellationToken ct) =>
+        FromResult(await service.RemoveSkillAsync(id, skillId, ct));
+
+    [HttpPost("{id}/tags")]
+    public async Task<IActionResult> AddTagAsync(Guid id, [FromBody] AddResourceTagDto dto, CancellationToken ct) =>
+        FromCreateResult(await service.AddTagAsync(id, dto, ct), x => x.TagId);
+
+    [HttpDelete("{id}/tags/{tagId}")]
+    public async Task<IActionResult> RemoveTagAsync(Guid id, Guid tagId, CancellationToken ct) =>
+        FromResult(await service.RemoveTagAsync(id, tagId, ct));
+
     [HttpGet("{id}/capacity")]
     public async Task<IActionResult> GetCapacityAsync(
         Guid id,
