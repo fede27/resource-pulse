@@ -24,6 +24,9 @@ public interface IProjectNodeService
     Task<ServiceResult<Unit>> RecalculatePlannedFromChildrenAsync(Guid id, CancellationToken ct = default);
     Task<ServiceResult<Unit>> RecalculateBaselineFromChildrenAsync(Guid id, CancellationToken ct = default);
 
+    Task<ServiceResult<Unit>> SetPlanningModeAsync(Guid id, SetPlanningModeDto dto, CancellationToken ct = default);
+    Task<ServiceResult<Unit>> UpdateEstimatedWorkAsync(Guid id, UpdateEstimatedWorkDto dto, CancellationToken ct = default);
+
     // Tags — allowed at any node level.
     Task<ServiceResult<ProjectNodeTagDto>> AddTagAsync(Guid id, AddProjectNodeTagDto dto, CancellationToken ct = default);
     Task<ServiceResult<Unit>> RemoveTagAsync(Guid id, Guid tagId, CancellationToken ct = default);

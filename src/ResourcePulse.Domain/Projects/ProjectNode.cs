@@ -26,6 +26,12 @@ public sealed class ProjectNode : Entity<Guid>, IAuditable
     public Guid? LeadResourceId { get; private set; }
     public ProjectStatus? Status { get; private set; }
 
+    // ── Planning (Project|Phase only) ───────────────────────────────────────
+    // Initialized to Unspecified by CreateRoot/CreateChild for Project|Phase;
+    // null on WorkPackage (gated by the same capacity-planning rule).
+    public PlanningMode? PlanningMode { get; private set; }
+    public TimeSpan? EstimatedWork { get; private set; }
+
     // ── Dates (active for Project|Phase per capacity-planning level rule) ───
     public DateOnly? BaselineStart { get; private set; }
     public DateOnly? BaselineEnd { get; private set; }
@@ -75,7 +81,8 @@ public sealed class ProjectNode : Entity<Guid>, IAuditable
             Type = type,
             CommitmentLevel = commitmentLevel,
             LeadResourceId = leadResourceId == Guid.Empty ? null : leadResourceId,
-            Status = ProjectStatus.Draft
+            Status = ProjectStatus.Draft,
+            PlanningMode = Projects.PlanningMode.Unspecified
         };
 
         node.RaiseEvent(new ProjectNodeCreated(id, null, ProjectNodeType.Project, DateTimeOffset.UtcNow));
@@ -112,7 +119,11 @@ public sealed class ProjectNode : Entity<Guid>, IAuditable
             Name = trimmedName,
             Code = trimmedCode,
             Path = parent.Path + "/" + id.ToString("D"),
-            Depth = parent.Depth + 1
+            Depth = parent.Depth + 1,
+            // Phase is at the capacity-planning level; WorkPackage is not.
+            PlanningMode = nodeType == ProjectNodeType.Phase
+                ? Projects.PlanningMode.Unspecified
+                : null
         };
 
         node.RaiseEvent(new ProjectNodeCreated(id, parent.Id, nodeType, DateTimeOffset.UtcNow));
@@ -236,6 +247,43 @@ public sealed class ProjectNode : Entity<Guid>, IAuditable
 
         if (minStart is null || maxEnd is null) return; // baseline requires both ends; partial rollup is a no-op
         BaselineCore(minStart.Value, maxEnd.Value, isRebaseline: BaselineStart is not null);
+    }
+
+    // ── Planning (Project|Phase) ────────────────────────────────────────────
+
+    public void SetPlanningMode(PlanningMode mode, TimeSpan? estimatedWork = null)
+    {
+        AssertCanHaveCapacityArtifacts();
+        if (!Enum.IsDefined(mode))
+            throw new DomainException($"Invalid planning mode '{mode}'.");
+
+        if (mode == Projects.PlanningMode.FixedWork)
+        {
+            if (estimatedWork is null)
+                throw new DomainException("FixedWork requires an EstimatedWork value.");
+            if (estimatedWork <= TimeSpan.Zero)
+                throw new DomainException("EstimatedWork must be greater than zero.");
+        }
+        else if (estimatedWork is not null)
+        {
+            throw new DomainException(
+                $"EstimatedWork is only valid when PlanningMode is FixedWork (got {mode}).");
+        }
+
+        PlanningMode = mode;
+        EstimatedWork = mode == Projects.PlanningMode.FixedWork ? estimatedWork : null;
+    }
+
+    public void UpdateEstimatedWork(TimeSpan newEstimate)
+    {
+        AssertCanHaveCapacityArtifacts();
+        if (PlanningMode != Projects.PlanningMode.FixedWork)
+            throw new DomainException(
+                $"UpdateEstimatedWork is only valid when PlanningMode is FixedWork (current: {PlanningMode}).");
+        if (newEstimate <= TimeSpan.Zero)
+            throw new DomainException("EstimatedWork must be greater than zero.");
+
+        EstimatedWork = newEstimate;
     }
 
     // ── Dates ───────────────────────────────────────────────────────────────

@@ -33,6 +33,10 @@ public sealed class ProjectNodeConfiguration : IEntityTypeConfiguration<ProjectN
         builder.Property(p => p.CommitmentLevel).HasConversion<string>().HasMaxLength(20);
         builder.Property(p => p.Status).HasConversion<string>().HasMaxLength(20);
 
+        // ── Planning (Project|Phase only) ───────────────────────────────────
+        builder.Property(p => p.PlanningMode).HasConversion<string>().HasMaxLength(20);
+        builder.Property(p => p.EstimatedWork).HasColumnType("interval");
+
         // Lead can be cleared when the resource is deleted (we don't want to block resource cleanup).
         builder.HasOne<Resource>()
             .WithMany()

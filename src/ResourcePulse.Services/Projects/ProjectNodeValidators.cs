@@ -116,3 +116,35 @@ public sealed class AddProjectNodeTagDtoValidator : AbstractValidator<AddProject
         RuleFor(x => x.TagId).NotEqual(Guid.Empty);
     }
 }
+
+public sealed class SetPlanningModeDtoValidator : AbstractValidator<SetPlanningModeDto>
+{
+    public SetPlanningModeDtoValidator()
+    {
+        RuleFor(x => x.Mode).IsInEnum();
+        // FixedWork ⇒ EstimatedWork required and positive; otherwise must be null.
+        // Domain re-checks; this catches obvious shape errors at the boundary.
+        When(x => x.Mode == PlanningMode.FixedWork, () =>
+        {
+            RuleFor(x => x.EstimatedWork).NotNull()
+                .WithMessage("EstimatedWork is required when Mode is FixedWork.");
+            RuleFor(x => x.EstimatedWork!.Value).GreaterThan(TimeSpan.Zero)
+                .When(x => x.EstimatedWork.HasValue)
+                .WithMessage("EstimatedWork must be greater than zero.");
+        });
+        When(x => x.Mode != PlanningMode.FixedWork, () =>
+        {
+            RuleFor(x => x.EstimatedWork).Null()
+                .WithMessage("EstimatedWork is only allowed when Mode is FixedWork.");
+        });
+    }
+}
+
+public sealed class UpdateEstimatedWorkDtoValidator : AbstractValidator<UpdateEstimatedWorkDto>
+{
+    public UpdateEstimatedWorkDtoValidator()
+    {
+        RuleFor(x => x.EstimatedWork).GreaterThan(TimeSpan.Zero)
+            .WithMessage("EstimatedWork must be greater than zero.");
+    }
+}

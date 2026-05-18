@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Calendars;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Resources;
@@ -17,6 +18,7 @@ public class ResourcePulseDbContext(DbContextOptions<ResourcePulseDbContext> opt
     public DbSet<Skill> Skills => Set<Skill>();
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<ProjectNode> ProjectNodes => Set<ProjectNode>();
+    public DbSet<Allocation> Allocations => Set<Allocation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -63,6 +63,14 @@ public sealed class ProjectNodesController(IProjectNodeService service)
     public async Task<IActionResult> RecalculateBaselineFromChildrenAsync(Guid id, CancellationToken ct) =>
         FromResult(await service.RecalculateBaselineFromChildrenAsync(id, ct));
 
+    [HttpPost("{id}/planning-mode")]
+    public async Task<IActionResult> SetPlanningModeAsync(Guid id, [FromBody] SetPlanningModeDto dto, CancellationToken ct) =>
+        FromResult(await service.SetPlanningModeAsync(id, dto, ct));
+
+    [HttpPut("{id}/estimated-work")]
+    public async Task<IActionResult> UpdateEstimatedWorkAsync(Guid id, [FromBody] UpdateEstimatedWorkDto dto, CancellationToken ct) =>
+        FromResult(await service.UpdateEstimatedWorkAsync(id, dto, ct));
+
     [HttpPost("{id}/tags")]
     public async Task<IActionResult> AddTagAsync(Guid id, [FromBody] AddProjectNodeTagDto dto, CancellationToken ct) =>
         FromCreateResult(await service.AddTagAsync(id, dto, ct), x => x.TagId);

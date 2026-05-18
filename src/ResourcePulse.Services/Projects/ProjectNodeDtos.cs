@@ -39,6 +39,9 @@ public sealed class ProjectNodeReadDto
     public DateOnly? ActualStart { get; init; }
     public DateOnly? ActualEnd { get; init; }
 
+    public PlanningMode? PlanningMode { get; init; }
+    public TimeSpan? EstimatedWork { get; init; }
+
     // Derived — populated on detail reads (GetByIdAsync, GetSubtreeAsync). Listing
     // endpoints that go through DevExtreme projection leave these null; clients can
     // compute them locally with the same formulas.
@@ -126,4 +129,15 @@ public sealed class AddOrUpdateProjectSkillRequirementDto
 public sealed class AddProjectNodeTagDto
 {
     public Guid TagId { get; init; }
+}
+
+public sealed class SetPlanningModeDto
+{
+    public PlanningMode Mode { get; init; }
+    public TimeSpan? EstimatedWork { get; init; }
+}
+
+public sealed class UpdateEstimatedWorkDto
+{
+    public TimeSpan EstimatedWork { get; init; }
 }

@@ -195,6 +195,12 @@ public sealed class ProjectNodeService(
     public Task<ServiceResult<Unit>> BackfillActualsAsync(Guid id, BackfillActualsDto dto, CancellationToken ct = default) =>
         MutateAsync(id, n => n.BackfillActuals(dto.Start, dto.End), ct);
 
+    public Task<ServiceResult<Unit>> SetPlanningModeAsync(Guid id, SetPlanningModeDto dto, CancellationToken ct = default) =>
+        MutateAsync(id, n => n.SetPlanningMode(dto.Mode, dto.EstimatedWork), ct);
+
+    public Task<ServiceResult<Unit>> UpdateEstimatedWorkAsync(Guid id, UpdateEstimatedWorkDto dto, CancellationToken ct = default) =>
+        MutateAsync(id, n => n.UpdateEstimatedWork(dto.EstimatedWork), ct);
+
     public async Task<ServiceResult<Unit>> RecalculatePlannedFromChildrenAsync(Guid id, CancellationToken ct = default)
     {
         var node = await repository.GetByIdAsync(id, ct);

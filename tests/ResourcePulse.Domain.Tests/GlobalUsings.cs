@@ -1,5 +1,6 @@
 global using FluentAssertions;
 global using ResourcePulse.Common.Domain;
+global using ResourcePulse.Domain.Allocations;
 global using ResourcePulse.Domain.Calendars;
 global using ResourcePulse.Domain.Capacity;
 global using ResourcePulse.Domain.Projects;

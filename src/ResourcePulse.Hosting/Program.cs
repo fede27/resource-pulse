@@ -11,9 +11,11 @@ using ResourcePulse.Hosting.Auth;
 using ResourcePulse.Http;
 using ResourcePulse.Persistence;
 using ResourcePulse.Services;
+using ResourcePulse.Services.Allocations;
 using ResourcePulse.Services.BusinessCalendars;
 using ResourcePulse.Services.Capacity;
 using ResourcePulse.Services.CompanyClosures;
+using ResourcePulse.Services.Load;
 using ResourcePulse.Services.Projects;
 using ResourcePulse.Services.Resources;
 using ResourcePulse.Services.Skills;
@@ -83,6 +85,8 @@ builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<ISkillService, SkillService>();
 builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IProjectNodeService, ProjectNodeService>();
+builder.Services.AddScoped<IAllocationService, AllocationService>();
+builder.Services.AddScoped<ILoadQueryService, LiveLoadQueryService>();
 
 // MVC + global validation filter
 builder.Services.AddControllers(opts => opts.Filters.Add<DtoValidationFilter>());
