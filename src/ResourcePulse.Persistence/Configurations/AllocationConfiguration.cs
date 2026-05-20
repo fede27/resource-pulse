@@ -18,9 +18,12 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
         builder.Property(a => a.PeriodStart).HasColumnType("date").IsRequired();
         builder.Property(a => a.PeriodEnd).HasColumnType("date").IsRequired();
 
-        // decimal(5,2): max 100.00, min 0.01.
+        // decimal(6,2): max 9999.99, but domain caps at 1000.00. Widened from
+        // numeric(5,2) in the WidenAllocationPercentBound migration (Phase 4.1)
+        // so the cap of 1000.00 (overcommitment-as-signal — ADR-0013) fits.
+        // The explicit ck_allocations_percent_range CHECK is the real range gate.
         builder.Property(a => a.AllocationPercent)
-            .HasColumnType("numeric(5,2)")
+            .HasColumnType("numeric(6,2)")
             .IsRequired();
 
         builder.Property(a => a.Notes).HasMaxLength(2000);

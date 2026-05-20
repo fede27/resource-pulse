@@ -77,20 +77,23 @@ public class AllocationFactoryTests
     [InlineData(0.0)]
     [InlineData(-0.01)]
     [InlineData(-50)]
-    [InlineData(100.01)]
-    [InlineData(101)]
-    [InlineData(150)]
+    [InlineData(1000.01)]
+    [InlineData(1001)]
+    [InlineData(5000)]
     public void Create_PercentOutOfRange_Throws(double percent)
     {
         var act = () => Allocation.Create(Resource, Node, Start, End, (decimal)percent);
 
-        act.Should().Throw<DomainException>().WithMessage("*range (0, 100]*");
+        act.Should().Throw<DomainException>().WithMessage("*range (0, 1000]*");
     }
 
     [Theory]
     [InlineData(0.01)]
     [InlineData(50)]
     [InlineData(100)]
+    [InlineData(150)]    // overcommitment is legal (see ADR-0013)
+    [InlineData(500)]
+    [InlineData(1000)]   // boundary
     public void Create_PercentInRange_OK(double percent)
     {
         var a = Allocation.Create(Resource, Node, Start, End, (decimal)percent);

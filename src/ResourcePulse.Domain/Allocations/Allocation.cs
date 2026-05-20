@@ -87,10 +87,16 @@ public sealed class Allocation : Entity<Guid>, IAuditable
     public void MarkDeleted() =>
         RaiseEvent(new AllocationDeleted(Id, DateTimeOffset.UtcNow));
 
+    // Upper bound is 1000% — a deliberate overcommitment signal for a single
+    // allocation (see ADR-0013). The cap is a typo safeguard, not a domain
+    // ceiling on overcommitment severity.
+    public const decimal MaxAllocationPercent = 1000m;
+
     private static void AssertPercentInRange(decimal percent)
     {
-        if (percent <= 0m || percent > 100m)
-            throw new DomainException("AllocationPercent must be in the range (0, 100].");
+        if (percent <= 0m || percent > MaxAllocationPercent)
+            throw new DomainException(
+                $"AllocationPercent must be in the range (0, {MaxAllocationPercent}].");
     }
 
     private static string? NormalizeNotes(string? notes)

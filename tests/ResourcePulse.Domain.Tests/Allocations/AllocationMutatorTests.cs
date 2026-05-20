@@ -79,15 +79,28 @@ public class AllocationMutatorTests
     [Theory]
     [InlineData(0.0)]
     [InlineData(-1)]
-    [InlineData(100.01)]
-    [InlineData(101)]
+    [InlineData(1000.01)]
+    [InlineData(1001)]
     public void ChangePercent_OutOfRange_Throws(double percent)
     {
         var a = Fresh();
 
         var act = () => a.ChangePercent((decimal)percent);
 
-        act.Should().Throw<DomainException>().WithMessage("*range (0, 100]*");
+        act.Should().Throw<DomainException>().WithMessage("*range (0, 1000]*");
+    }
+
+    [Theory]
+    [InlineData(150)]
+    [InlineData(500)]
+    [InlineData(1000)]
+    public void ChangePercent_OvercommitmentInRange_OK(double percent)
+    {
+        var a = Fresh(percent: 50m);
+
+        a.ChangePercent((decimal)percent);
+
+        a.AllocationPercent.Should().Be((decimal)percent);
     }
 
     [Fact]
