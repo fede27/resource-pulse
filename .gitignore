@@ -93,3 +93,6 @@ secrets/
 *.cache
 *.tmp
 *.bak
+
+*.md
+.VSCodeCounter/

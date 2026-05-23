@@ -13,6 +13,7 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
     <!-- Aspire hosting (AppHost) -->
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.3.0" />
+    <PackageVersion Include="Aspire.Hosting.NodeJs" Version="9.5.2" />
     <!-- Data access -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.7" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.7" />

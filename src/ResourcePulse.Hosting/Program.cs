@@ -94,7 +94,17 @@ builder.Services.AddControllers(opts => opts.Filters.Add<DtoValidationFilter>())
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
+    builder.Services.AddSwaggerGen(c =>
+    {
+        // Required for orval/openapi codegen: default operationIds collide
+        // across controllers (every CRUD controller has GetAll/GetById/...).
+        c.CustomOperationIds(api =>
+            $"{api.ActionDescriptor.RouteValues["controller"]}_{api.ActionDescriptor.RouteValues["action"]}");
+
+        // Drop request bodies from GET operations (DataSourceLoadOptionsBase
+        // would otherwise be emitted as a body, breaking GET semantics).
+        c.OperationFilter<StripBodyFromGetOperationFilter>();
+    });
 }
 
 var app = builder.Build();
