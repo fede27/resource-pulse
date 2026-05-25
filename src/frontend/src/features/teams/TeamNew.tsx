@@ -1,6 +1,7 @@
 import { App, Typography } from 'antd';
 import { useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
   useTeamsCreate,
   getTeamsGetAllQueryKey,
@@ -11,6 +12,7 @@ import { TeamForm, type TeamFormValues } from './TeamForm';
 const { Title } = Typography;
 
 export function TeamNew() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
@@ -19,7 +21,7 @@ export function TeamNew() {
   const createMutation = useTeamsCreate({
     mutation: {
       onSuccess: () => {
-        message.success('Team creato');
+        message.success(t('teams.createSuccess'));
         queryClient.invalidateQueries({ queryKey: getTeamsGetAllQueryKey() });
         void navigate({ to: '/teams' });
       },
@@ -33,7 +35,7 @@ export function TeamNew() {
 
   return (
     <div>
-      <Title level={2}>Nuovo Team</Title>
+      <Title level={2}>{t('teams.newTitle')}</Title>
       <TeamForm
         mode="create"
         submitting={createMutation.isPending}

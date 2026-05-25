@@ -9,6 +9,6 @@ export type MoveMode = typeof MoveMode[keyof typeof MoveMode];
 
 
 export const MoveMode = {
-  NUMBER_0: 0,
-  NUMBER_1: 1,
+  KeepPercent: 0,
+  KeepHours: 1,
 } as const;

@@ -24,8 +24,12 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BusinessCalendarReadDto,
   CreateBusinessCalendarDto,
+  LoadResult,
+  ProblemDetails,
   UpdateBusinessCalendarDto,
+  ValidationProblemDetails,
   WorkWindowDto
 } from '../schemas';
 
@@ -43,7 +47,7 @@ export const businessCalendarsGetAll = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<LoadResult>(
       {url: `/api/business-calendars`, method: 'GET', signal
     },
       options);
@@ -129,7 +133,7 @@ export const businessCalendarsCreate = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<BusinessCalendarReadDto>(
       {url: `/api/business-calendars`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
       data: createBusinessCalendarDto, signal
@@ -139,7 +143,7 @@ export const businessCalendarsCreate = (
 
 
 
-export const getBusinessCalendarsCreateMutationOptions = <TError = ErrorType<unknown>,
+export const getBusinessCalendarsCreateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsCreate>>, TError,{data?: BodyType<CreateBusinessCalendarDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsCreate>>, TError,{data?: BodyType<CreateBusinessCalendarDto>}, TContext> => {
 
@@ -168,9 +172,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type BusinessCalendarsCreateMutationResult = NonNullable<Awaited<ReturnType<typeof businessCalendarsCreate>>>
     export type BusinessCalendarsCreateMutationBody = BodyType<CreateBusinessCalendarDto> | undefined
-    export type BusinessCalendarsCreateMutationError = ErrorType<unknown>
+    export type BusinessCalendarsCreateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
 
-    export const useBusinessCalendarsCreate = <TError = ErrorType<unknown>,
+    export const useBusinessCalendarsCreate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsCreate>>, TError,{data?: BodyType<CreateBusinessCalendarDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof businessCalendarsCreate>>,
@@ -186,7 +190,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<BusinessCalendarReadDto>(
       {url: `/api/business-calendars/${id}`, method: 'GET', signal
     },
       options);
@@ -202,7 +206,7 @@ export const getBusinessCalendarsGetByIdQueryKey = (id: string,) => {
     }
 
 
-export const getBusinessCalendarsGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof businessCalendarsGetById>>, TError = ErrorType<unknown>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof businessCalendarsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+export const getBusinessCalendarsGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof businessCalendarsGetById>>, TError = ErrorType<ProblemDetails>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof businessCalendarsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -221,10 +225,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type BusinessCalendarsGetByIdQueryResult = NonNullable<Awaited<ReturnType<typeof businessCalendarsGetById>>>
-export type BusinessCalendarsGetByIdQueryError = ErrorType<unknown>
+export type BusinessCalendarsGetByIdQueryError = ErrorType<ProblemDetails>
 
 
-export function useBusinessCalendarsGetById<TData = Awaited<ReturnType<typeof businessCalendarsGetById>>, TError = ErrorType<unknown>>(
+export function useBusinessCalendarsGetById<TData = Awaited<ReturnType<typeof businessCalendarsGetById>>, TError = ErrorType<ProblemDetails>>(
  id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof businessCalendarsGetById>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof businessCalendarsGetById>>,
@@ -234,7 +238,7 @@ export function useBusinessCalendarsGetById<TData = Awaited<ReturnType<typeof bu
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useBusinessCalendarsGetById<TData = Awaited<ReturnType<typeof businessCalendarsGetById>>, TError = ErrorType<unknown>>(
+export function useBusinessCalendarsGetById<TData = Awaited<ReturnType<typeof businessCalendarsGetById>>, TError = ErrorType<ProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof businessCalendarsGetById>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof businessCalendarsGetById>>,
@@ -244,12 +248,12 @@ export function useBusinessCalendarsGetById<TData = Awaited<ReturnType<typeof bu
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useBusinessCalendarsGetById<TData = Awaited<ReturnType<typeof businessCalendarsGetById>>, TError = ErrorType<unknown>>(
+export function useBusinessCalendarsGetById<TData = Awaited<ReturnType<typeof businessCalendarsGetById>>, TError = ErrorType<ProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof businessCalendarsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useBusinessCalendarsGetById<TData = Awaited<ReturnType<typeof businessCalendarsGetById>>, TError = ErrorType<unknown>>(
+export function useBusinessCalendarsGetById<TData = Awaited<ReturnType<typeof businessCalendarsGetById>>, TError = ErrorType<ProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof businessCalendarsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -273,7 +277,7 @@ export const businessCalendarsUpdate = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<BusinessCalendarReadDto>(
       {url: `/api/business-calendars/${id}`, method: 'PUT',
       headers: {'Content-Type': 'application/json', },
       data: updateBusinessCalendarDto, signal
@@ -283,7 +287,7 @@ export const businessCalendarsUpdate = (
 
 
 
-export const getBusinessCalendarsUpdateMutationOptions = <TError = ErrorType<unknown>,
+export const getBusinessCalendarsUpdateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsUpdate>>, TError,{id: string;data?: BodyType<UpdateBusinessCalendarDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsUpdate>>, TError,{id: string;data?: BodyType<UpdateBusinessCalendarDto>}, TContext> => {
 
@@ -312,9 +316,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type BusinessCalendarsUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof businessCalendarsUpdate>>>
     export type BusinessCalendarsUpdateMutationBody = BodyType<UpdateBusinessCalendarDto> | undefined
-    export type BusinessCalendarsUpdateMutationError = ErrorType<unknown>
+    export type BusinessCalendarsUpdateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
 
-    export const useBusinessCalendarsUpdate = <TError = ErrorType<unknown>,
+    export const useBusinessCalendarsUpdate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsUpdate>>, TError,{id: string;data?: BodyType<UpdateBusinessCalendarDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof businessCalendarsUpdate>>,
@@ -338,7 +342,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getBusinessCalendarsDeleteMutationOptions = <TError = ErrorType<unknown>,
+export const getBusinessCalendarsDeleteMutationOptions = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsDelete>>, TError,{id: string}, TContext> => {
 
@@ -367,9 +371,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type BusinessCalendarsDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof businessCalendarsDelete>>>
 
-    export type BusinessCalendarsDeleteMutationError = ErrorType<unknown>
+    export type BusinessCalendarsDeleteMutationError = ErrorType<ProblemDetails>
 
-    export const useBusinessCalendarsDelete = <TError = ErrorType<unknown>,
+    export const useBusinessCalendarsDelete = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof businessCalendarsDelete>>,
@@ -386,7 +390,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<WorkWindowDto>(
       {url: `/api/business-calendars/${id}/work-windows`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
       data: workWindowDto, signal
@@ -396,7 +400,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getBusinessCalendarsAddWorkWindowMutationOptions = <TError = ErrorType<unknown>,
+export const getBusinessCalendarsAddWorkWindowMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsAddWorkWindow>>, TError,{id: string;data?: BodyType<WorkWindowDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsAddWorkWindow>>, TError,{id: string;data?: BodyType<WorkWindowDto>}, TContext> => {
 
@@ -425,9 +429,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type BusinessCalendarsAddWorkWindowMutationResult = NonNullable<Awaited<ReturnType<typeof businessCalendarsAddWorkWindow>>>
     export type BusinessCalendarsAddWorkWindowMutationBody = BodyType<WorkWindowDto> | undefined
-    export type BusinessCalendarsAddWorkWindowMutationError = ErrorType<unknown>
+    export type BusinessCalendarsAddWorkWindowMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
 
-    export const useBusinessCalendarsAddWorkWindow = <TError = ErrorType<unknown>,
+    export const useBusinessCalendarsAddWorkWindow = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsAddWorkWindow>>, TError,{id: string;data?: BodyType<WorkWindowDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof businessCalendarsAddWorkWindow>>,
@@ -452,7 +456,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getBusinessCalendarsRemoveWorkWindowMutationOptions = <TError = ErrorType<unknown>,
+export const getBusinessCalendarsRemoveWorkWindowMutationOptions = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsRemoveWorkWindow>>, TError,{id: string;windowId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsRemoveWorkWindow>>, TError,{id: string;windowId: string}, TContext> => {
 
@@ -481,9 +485,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type BusinessCalendarsRemoveWorkWindowMutationResult = NonNullable<Awaited<ReturnType<typeof businessCalendarsRemoveWorkWindow>>>
 
-    export type BusinessCalendarsRemoveWorkWindowMutationError = ErrorType<unknown>
+    export type BusinessCalendarsRemoveWorkWindowMutationError = ErrorType<ProblemDetails>
 
-    export const useBusinessCalendarsRemoveWorkWindow = <TError = ErrorType<unknown>,
+    export const useBusinessCalendarsRemoveWorkWindow = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsRemoveWorkWindow>>, TError,{id: string;windowId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof businessCalendarsRemoveWorkWindow>>,
@@ -507,7 +511,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getBusinessCalendarsMarkAsDefaultMutationOptions = <TError = ErrorType<unknown>,
+export const getBusinessCalendarsMarkAsDefaultMutationOptions = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsMarkAsDefault>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsMarkAsDefault>>, TError,{id: string}, TContext> => {
 
@@ -536,9 +540,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type BusinessCalendarsMarkAsDefaultMutationResult = NonNullable<Awaited<ReturnType<typeof businessCalendarsMarkAsDefault>>>
 
-    export type BusinessCalendarsMarkAsDefaultMutationError = ErrorType<unknown>
+    export type BusinessCalendarsMarkAsDefaultMutationError = ErrorType<ProblemDetails>
 
-    export const useBusinessCalendarsMarkAsDefault = <TError = ErrorType<unknown>,
+    export const useBusinessCalendarsMarkAsDefault = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof businessCalendarsMarkAsDefault>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof businessCalendarsMarkAsDefault>>,

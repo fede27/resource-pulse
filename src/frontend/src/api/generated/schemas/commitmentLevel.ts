@@ -9,8 +9,8 @@ export type CommitmentLevel = typeof CommitmentLevel[keyof typeof CommitmentLeve
 
 
 export const CommitmentLevel = {
-  NUMBER_1: 1,
-  NUMBER_2: 2,
-  NUMBER_3: 3,
-  NUMBER_4: 4,
+  Exploratory: 1,
+  Planned: 2,
+  Committed: 3,
+  Critical: 4,
 } as const;

@@ -91,25 +91,38 @@ public sealed class BusinessCalendarService(
 
     public async Task<ServiceResult<WorkWindowDto>> AddWorkWindowAsync(Guid calendarId, WorkWindowDto dto, CancellationToken ct = default)
     {
-        var calendar = await repository.GetByIdAsync(calendarId, ct);
+        // Mutating an OwnsMany collection requires the collection to be loaded with the
+        // owner. The generic repository uses DbSet.FindAsync, which only fetches the
+        // owner row — it does NOT include owned navigations. Without the original
+        // collection state, EF's change tracker can emit a stray UPDATE/DELETE on a
+        // shadow row when it tries to "reconcile" the owned table, surfacing as a
+        // DbUpdateConcurrencyException (0 rows affected). Loading via a regular tracked
+        // query eagerly hydrates OwnsMany collections and avoids the issue. It also
+        // means EnsureNoOverlap actually validates against the persisted rows.
+        var calendar = await LoadWithWindowsAsync(calendarId, ct);
         if (calendar is null)
             return ServiceResult<WorkWindowDto>.NotFound($"BusinessCalendar {calendarId} not found.");
 
         var window = WorkWindow.Create(dto.DayOfWeek, dto.StartTime, dto.EndTime, dto.ValidFrom, dto.ValidTo);
         calendar.AddWorkWindow(window);
+        db.MarkOwnedAdded(calendar, c => c.WorkWindows, window);
+
         await repository.SaveChangesAsync(ct);
         return ServiceResult<WorkWindowDto>.Success(mapper.Map<WorkWindowDto>(window));
     }
 
     public async Task<ServiceResult<Unit>> RemoveWorkWindowAsync(Guid calendarId, Guid windowId, CancellationToken ct = default)
     {
-        var calendar = await repository.GetByIdAsync(calendarId, ct);
+        var calendar = await LoadWithWindowsAsync(calendarId, ct);
         if (calendar is null) return ServiceResult.NotFound($"BusinessCalendar {calendarId} not found.");
 
         calendar.RemoveWorkWindow(windowId);
         await repository.SaveChangesAsync(ct);
         return ServiceResult.Ok();
     }
+
+    private Task<BusinessCalendar?> LoadWithWindowsAsync(Guid id, CancellationToken ct) =>
+        db.BusinessCalendars.FirstOrDefaultAsync(c => c.Id == id, ct);
 
     public async Task<ServiceResult<Unit>> MarkAsDefaultAsync(Guid calendarId, CancellationToken ct = default)
     {

@@ -1,6 +1,7 @@
 import { Alert, App, Skeleton, Typography } from 'antd';
 import { useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
   useTeamsGetById,
   useTeamsUpdate,
@@ -15,6 +16,7 @@ const { Title } = Typography;
 type TeamDetailProps = { teamId: string };
 
 export function TeamDetail({ teamId }: TeamDetailProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
@@ -25,7 +27,7 @@ export function TeamDetail({ teamId }: TeamDetailProps) {
   const updateMutation = useTeamsUpdate({
     mutation: {
       onSuccess: () => {
-        message.success('Team aggiornato');
+        message.success(t('teams.updateSuccess'));
         queryClient.invalidateQueries({ queryKey: getTeamsGetAllQueryKey() });
         queryClient.invalidateQueries({ queryKey: getTeamsGetByIdQueryKey(teamId) });
         void navigate({ to: '/teams' });
@@ -40,8 +42,8 @@ export function TeamDetail({ teamId }: TeamDetailProps) {
     return (
       <Alert
         type="error"
-        message="Team non trovato"
-        description="Il team richiesto non esiste o è stato eliminato."
+        message={t('teams.notFoundTitle')}
+        description={t('teams.notFoundDescription')}
         showIcon
       />
     );
@@ -56,7 +58,7 @@ export function TeamDetail({ teamId }: TeamDetailProps) {
 
   return (
     <div>
-      <Title level={2}>Modifica Team</Title>
+      <Title level={2}>{t('teams.editTitle')}</Title>
       <TeamForm
         mode="edit"
         initialValues={{

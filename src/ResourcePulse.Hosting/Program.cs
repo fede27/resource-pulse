@@ -72,6 +72,12 @@ builder.Services.AddValidatorsFromAssembly(typeof(ServicesAssemblyMarker).Assemb
 // which is the EF Core-supported way to add interceptors when pooling is active.
 builder.Services.AddSingleton<AuditInterceptor>();
 builder.Services.AddSingleton<IDbContextOptionsConfiguration<ResourcePulseDbContext>, ResourcePulseDbContextOptionsConfiguration>();
+if (builder.Environment.IsDevelopment())
+{
+    // Adds EnableSensitiveDataLogging + EnableDetailedErrors. Composes with the
+    // base configuration above. Lives in Hosting because the env decision belongs here.
+    builder.Services.AddSingleton<IDbContextOptionsConfiguration<ResourcePulseDbContext>, DevDiagnosticsDbContextOptionsConfiguration>();
+}
 builder.Services.AddScoped(typeof(IRepository<,>), typeof(Repository<,>));
 
 builder.AddNpgsqlDbContext<ResourcePulseDbContext>("resourcepulse-db");
@@ -104,6 +110,11 @@ if (builder.Environment.IsDevelopment())
         // Drop request bodies from GET operations (DataSourceLoadOptionsBase
         // would otherwise be emitted as a body, breaking GET semantics).
         c.OperationFilter<StripBodyFromGetOperationFilter>();
+
+        // Annotate enum schemas with x-enum-varnames so codegen tools (orval,
+        // NSwag, ...) emit meaningful member names instead of NUMBER_0,
+        // NUMBER_1, ... The wire format stays integer.
+        c.SchemaFilter<EnumVarnamesSchemaFilter>();
     });
 }
 

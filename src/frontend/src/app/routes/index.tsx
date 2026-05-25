@@ -1,17 +1,15 @@
 import { Typography } from 'antd';
+import { useTranslation } from 'react-i18next';
 
 const { Title, Paragraph } = Typography;
 
 export function HomePage() {
+  const { t } = useTranslation();
   return (
-    <div>
-      <Title level={2}>Benvenuto</Title>
-      <Paragraph>
-        Resource Pulse — pianificazione di capacità per team e progetti.
-      </Paragraph>
-      <Paragraph type="secondary">
-        Seleziona "Team" dal menu per gestire la rubrica dei team.
-      </Paragraph>
+    <div style={{ padding: 24, maxWidth: 1440 }}>
+      <Title level={2}>{t('home.title')}</Title>
+      <Paragraph>{t('home.intro')}</Paragraph>
+      <Paragraph type="secondary">{t('home.hint')}</Paragraph>
     </div>
   );
 }

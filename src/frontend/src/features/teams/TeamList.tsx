@@ -2,6 +2,7 @@ import { Button, Popconfirm, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
   useTeamsGetAll,
   useTeamsDelete,
@@ -14,6 +15,7 @@ import { App } from 'antd';
 const { Title } = Typography;
 
 export function TeamList() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { message } = App.useApp();
@@ -23,7 +25,7 @@ export function TeamList() {
   const deleteMutation = useTeamsDelete({
     mutation: {
       onSuccess: () => {
-        message.success('Team eliminato');
+        message.success(t('teams.deleteSuccess'));
         queryClient.invalidateQueries({ queryKey: getTeamsGetAllQueryKey() });
       },
       onError: (e) => showApiError(e),
@@ -34,7 +36,7 @@ export function TeamList() {
 
   const columns: ColumnsType<TeamReadDto> = [
     {
-      title: 'Nome',
+      title: t('common.name'),
       dataIndex: 'name',
       key: 'name',
       sorter: (a, b) => (a.name ?? '').localeCompare(b.name ?? ''),
@@ -45,20 +47,24 @@ export function TeamList() {
       ),
     },
     {
-      title: 'Stato',
+      title: t('common.state'),
       dataIndex: 'isActive',
       key: 'isActive',
       width: 120,
       filters: [
-        { text: 'Attivo', value: true },
-        { text: 'Inattivo', value: false },
+        { text: t('teams.active'), value: true },
+        { text: t('teams.inactive'), value: false },
       ],
       onFilter: (value, record) => record.isActive === value,
       render: (isActive: boolean | undefined) =>
-        isActive ? <Tag color="green">Attivo</Tag> : <Tag>Inattivo</Tag>,
+        isActive ? (
+          <Tag color="green">{t('teams.active')}</Tag>
+        ) : (
+          <Tag>{t('teams.inactive')}</Tag>
+        ),
     },
     {
-      title: 'Azioni',
+      title: t('common.actions'),
       key: 'actions',
       width: 200,
       render: (_, record) => (
@@ -69,18 +75,18 @@ export function TeamList() {
               navigate({ to: '/teams/$teamId', params: { teamId: record.id ?? '' } })
             }
           >
-            Modifica
+            {t('common.edit')}
           </Button>
           <Popconfirm
-            title="Eliminare il team?"
-            description="L'operazione non è reversibile."
-            okText="Elimina"
-            cancelText="Annulla"
+            title={t('teams.deletePrompt')}
+            description={t('common.irreversibleAction')}
+            okText={t('common.delete')}
+            cancelText={t('common.cancel')}
             okButtonProps={{ danger: true }}
             onConfirm={() => deleteMutation.mutate({ id: record.id ?? '' })}
           >
             <Button size="small" danger loading={deleteMutation.isPending}>
-              Elimina
+              {t('common.delete')}
             </Button>
           </Popconfirm>
         </Space>
@@ -99,10 +105,10 @@ export function TeamList() {
         }}
       >
         <Title level={2} style={{ margin: 0 }}>
-          Team
+          {t('teams.listTitle')}
         </Title>
         <Button type="primary" onClick={() => navigate({ to: '/teams/new' })}>
-          Nuovo Team
+          {t('teams.newTitle')}
         </Button>
       </div>
       <Table<TeamReadDto>
@@ -111,7 +117,7 @@ export function TeamList() {
         dataSource={teams}
         loading={isLoading || isFetching}
         pagination={{ pageSize: 20, showSizeChanger: true }}
-        locale={{ emptyText: 'Nessun team' }}
+        locale={{ emptyText: t('teams.emptyText') }}
       />
     </div>
   );

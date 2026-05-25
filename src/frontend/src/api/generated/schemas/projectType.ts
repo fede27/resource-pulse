@@ -9,8 +9,8 @@ export type ProjectType = typeof ProjectType[keyof typeof ProjectType];
 
 
 export const ProjectType = {
-  NUMBER_1: 1,
-  NUMBER_2: 2,
-  NUMBER_3: 3,
-  NUMBER_4: 4,
+  Internal: 1,
+  Customer: 2,
+  Investment: 3,
+  Maintenance: 4,
 } as const;

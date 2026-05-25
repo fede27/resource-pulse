@@ -9,7 +9,7 @@ export type SkillLevel = typeof SkillLevel[keyof typeof SkillLevel];
 
 
 export const SkillLevel = {
-  NUMBER_1: 1,
-  NUMBER_2: 2,
-  NUMBER_3: 3,
+  Basic: 1,
+  Proficient: 2,
+  Expert: 3,
 } as const;

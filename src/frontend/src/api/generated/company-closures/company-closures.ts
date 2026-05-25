@@ -24,8 +24,12 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  CompanyClosureReadDto,
   CreateCompanyClosureDto,
-  UpdateCompanyClosureDto
+  LoadResult,
+  ProblemDetails,
+  UpdateCompanyClosureDto,
+  ValidationProblemDetails
 } from '../schemas';
 
 import { apiClient } from '../../client';
@@ -42,7 +46,7 @@ export const companyClosuresGetAll = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<LoadResult>(
       {url: `/api/company-closures`, method: 'GET', signal
     },
       options);
@@ -128,7 +132,7 @@ export const companyClosuresCreate = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<CompanyClosureReadDto>(
       {url: `/api/company-closures`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
       data: createCompanyClosureDto, signal
@@ -138,7 +142,7 @@ export const companyClosuresCreate = (
 
 
 
-export const getCompanyClosuresCreateMutationOptions = <TError = ErrorType<unknown>,
+export const getCompanyClosuresCreateMutationOptions = <TError = ErrorType<ValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof companyClosuresCreate>>, TError,{data?: BodyType<CreateCompanyClosureDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof companyClosuresCreate>>, TError,{data?: BodyType<CreateCompanyClosureDto>}, TContext> => {
 
@@ -167,9 +171,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CompanyClosuresCreateMutationResult = NonNullable<Awaited<ReturnType<typeof companyClosuresCreate>>>
     export type CompanyClosuresCreateMutationBody = BodyType<CreateCompanyClosureDto> | undefined
-    export type CompanyClosuresCreateMutationError = ErrorType<unknown>
+    export type CompanyClosuresCreateMutationError = ErrorType<ValidationProblemDetails>
 
-    export const useCompanyClosuresCreate = <TError = ErrorType<unknown>,
+    export const useCompanyClosuresCreate = <TError = ErrorType<ValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof companyClosuresCreate>>, TError,{data?: BodyType<CreateCompanyClosureDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof companyClosuresCreate>>,
@@ -185,7 +189,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<CompanyClosureReadDto>(
       {url: `/api/company-closures/${id}`, method: 'GET', signal
     },
       options);
@@ -201,7 +205,7 @@ export const getCompanyClosuresGetByIdQueryKey = (id: string,) => {
     }
 
 
-export const getCompanyClosuresGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof companyClosuresGetById>>, TError = ErrorType<unknown>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof companyClosuresGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+export const getCompanyClosuresGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof companyClosuresGetById>>, TError = ErrorType<ProblemDetails>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof companyClosuresGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -220,10 +224,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type CompanyClosuresGetByIdQueryResult = NonNullable<Awaited<ReturnType<typeof companyClosuresGetById>>>
-export type CompanyClosuresGetByIdQueryError = ErrorType<unknown>
+export type CompanyClosuresGetByIdQueryError = ErrorType<ProblemDetails>
 
 
-export function useCompanyClosuresGetById<TData = Awaited<ReturnType<typeof companyClosuresGetById>>, TError = ErrorType<unknown>>(
+export function useCompanyClosuresGetById<TData = Awaited<ReturnType<typeof companyClosuresGetById>>, TError = ErrorType<ProblemDetails>>(
  id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof companyClosuresGetById>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof companyClosuresGetById>>,
@@ -233,7 +237,7 @@ export function useCompanyClosuresGetById<TData = Awaited<ReturnType<typeof comp
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useCompanyClosuresGetById<TData = Awaited<ReturnType<typeof companyClosuresGetById>>, TError = ErrorType<unknown>>(
+export function useCompanyClosuresGetById<TData = Awaited<ReturnType<typeof companyClosuresGetById>>, TError = ErrorType<ProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof companyClosuresGetById>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof companyClosuresGetById>>,
@@ -243,12 +247,12 @@ export function useCompanyClosuresGetById<TData = Awaited<ReturnType<typeof comp
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useCompanyClosuresGetById<TData = Awaited<ReturnType<typeof companyClosuresGetById>>, TError = ErrorType<unknown>>(
+export function useCompanyClosuresGetById<TData = Awaited<ReturnType<typeof companyClosuresGetById>>, TError = ErrorType<ProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof companyClosuresGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useCompanyClosuresGetById<TData = Awaited<ReturnType<typeof companyClosuresGetById>>, TError = ErrorType<unknown>>(
+export function useCompanyClosuresGetById<TData = Awaited<ReturnType<typeof companyClosuresGetById>>, TError = ErrorType<ProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof companyClosuresGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -272,7 +276,7 @@ export const companyClosuresUpdate = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<CompanyClosureReadDto>(
       {url: `/api/company-closures/${id}`, method: 'PUT',
       headers: {'Content-Type': 'application/json', },
       data: updateCompanyClosureDto, signal
@@ -282,7 +286,7 @@ export const companyClosuresUpdate = (
 
 
 
-export const getCompanyClosuresUpdateMutationOptions = <TError = ErrorType<unknown>,
+export const getCompanyClosuresUpdateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof companyClosuresUpdate>>, TError,{id: string;data?: BodyType<UpdateCompanyClosureDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof companyClosuresUpdate>>, TError,{id: string;data?: BodyType<UpdateCompanyClosureDto>}, TContext> => {
 
@@ -311,9 +315,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CompanyClosuresUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof companyClosuresUpdate>>>
     export type CompanyClosuresUpdateMutationBody = BodyType<UpdateCompanyClosureDto> | undefined
-    export type CompanyClosuresUpdateMutationError = ErrorType<unknown>
+    export type CompanyClosuresUpdateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
 
-    export const useCompanyClosuresUpdate = <TError = ErrorType<unknown>,
+    export const useCompanyClosuresUpdate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof companyClosuresUpdate>>, TError,{id: string;data?: BodyType<UpdateCompanyClosureDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof companyClosuresUpdate>>,
@@ -337,7 +341,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getCompanyClosuresDeleteMutationOptions = <TError = ErrorType<unknown>,
+export const getCompanyClosuresDeleteMutationOptions = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof companyClosuresDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof companyClosuresDelete>>, TError,{id: string}, TContext> => {
 
@@ -366,9 +370,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CompanyClosuresDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof companyClosuresDelete>>>
 
-    export type CompanyClosuresDeleteMutationError = ErrorType<unknown>
+    export type CompanyClosuresDeleteMutationError = ErrorType<ProblemDetails>
 
-    export const useCompanyClosuresDelete = <TError = ErrorType<unknown>,
+    export const useCompanyClosuresDelete = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof companyClosuresDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof companyClosuresDelete>>,

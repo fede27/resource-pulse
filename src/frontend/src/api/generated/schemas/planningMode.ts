@@ -9,7 +9,7 @@ export type PlanningMode = typeof PlanningMode[keyof typeof PlanningMode];
 
 
 export const PlanningMode = {
-  NUMBER_0: 0,
-  NUMBER_1: 1,
-  NUMBER_2: 2,
+  Unspecified: 0,
+  FixedWork: 1,
+  FixedDuration: 2,
 } as const;

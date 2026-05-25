@@ -9,7 +9,7 @@ export type DateSource = typeof DateSource[keyof typeof DateSource];
 
 
 export const DateSource = {
-  NUMBER_0: 0,
-  NUMBER_1: 1,
-  NUMBER_2: 2,
+  Planned: 0,
+  Baseline: 1,
+  Effective: 2,
 } as const;

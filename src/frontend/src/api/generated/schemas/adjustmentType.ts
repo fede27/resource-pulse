@@ -9,6 +9,6 @@ export type AdjustmentType = typeof AdjustmentType[keyof typeof AdjustmentType];
 
 
 export const AdjustmentType = {
-  NUMBER_0: 0,
-  NUMBER_1: 1,
+  Absence: 0,
+  ExtraTime: 1,
 } as const;

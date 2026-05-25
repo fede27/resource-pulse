@@ -1,4 +1,5 @@
 import { Button, Form, Input, Space, Switch } from 'antd';
+import { useTranslation } from 'react-i18next';
 
 export type TeamFormValues = {
   name: string;
@@ -14,6 +15,7 @@ type TeamFormProps = {
 };
 
 export function TeamForm({ initialValues, mode, submitting, onSubmit, onCancel }: TeamFormProps) {
+  const { t } = useTranslation();
   const [form] = Form.useForm<TeamFormValues>();
 
   return (
@@ -26,18 +28,18 @@ export function TeamForm({ initialValues, mode, submitting, onSubmit, onCancel }
       style={{ maxWidth: 480 }}
     >
       <Form.Item
-        label="Nome"
+        label={t('common.name')}
         name="name"
         rules={[
-          { required: true, message: 'Il nome è obbligatorio' },
-          { max: 100, message: 'Massimo 100 caratteri' },
+          { required: true, message: t('teams.nameRequired') },
+          { max: 100, message: t('teams.nameMaxLength') },
         ]}
       >
-        <Input placeholder="es. Platform Engineering" />
+        <Input placeholder={t('teams.namePlaceholder')} />
       </Form.Item>
 
       {mode === 'edit' && (
-        <Form.Item label="Attivo" name="isActive" valuePropName="checked">
+        <Form.Item label={t('common.active')} name="isActive" valuePropName="checked">
           <Switch />
         </Form.Item>
       )}
@@ -45,10 +47,10 @@ export function TeamForm({ initialValues, mode, submitting, onSubmit, onCancel }
       <Form.Item>
         <Space>
           <Button type="primary" htmlType="submit" loading={submitting}>
-            {mode === 'create' ? 'Crea' : 'Salva'}
+            {mode === 'create' ? t('common.create') : t('common.save')}
           </Button>
           <Button onClick={onCancel} disabled={submitting}>
-            Annulla
+            {t('common.cancel')}
           </Button>
         </Space>
       </Form.Item>

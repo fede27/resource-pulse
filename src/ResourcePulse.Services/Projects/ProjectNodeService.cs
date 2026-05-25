@@ -241,7 +241,7 @@ public sealed class ProjectNodeService(
 
     public async Task<ServiceResult<ProjectNodeTagDto>> AddTagAsync(Guid id, AddProjectNodeTagDto dto, CancellationToken ct = default)
     {
-        var node = await repository.GetByIdAsync(id, ct);
+        var node = await LoadWithOwnedAsync(id, ct);
         if (node is null) return ServiceResult<ProjectNodeTagDto>.NotFound($"ProjectNode {id} not found.");
 
         var tagExists = await db.Tags.AnyAsync(t => t.Id == dto.TagId, ct);
@@ -260,13 +260,16 @@ public sealed class ProjectNodeService(
             return ServiceResult<ProjectNodeTagDto>.Conflict(ex.Message);
         }
 
+        var added = node.Tags.Single(t => t.TagId == dto.TagId);
+        db.MarkOwnedAdded(node, n => n.Tags, added);
+
         await repository.SaveChangesAsync(ct);
         return ServiceResult<ProjectNodeTagDto>.Success(new ProjectNodeTagDto { TagId = dto.TagId });
     }
 
     public async Task<ServiceResult<Unit>> RemoveTagAsync(Guid id, Guid tagId, CancellationToken ct = default)
     {
-        var node = await repository.GetByIdAsync(id, ct);
+        var node = await LoadWithOwnedAsync(id, ct);
         if (node is null) return ServiceResult.NotFound($"ProjectNode {id} not found.");
 
         try
@@ -338,7 +341,7 @@ public sealed class ProjectNodeService(
     public async Task<ServiceResult<ProjectSkillRequirementDto>> AddSkillRequirementAsync(
         Guid id, AddOrUpdateProjectSkillRequirementDto dto, CancellationToken ct = default)
     {
-        var node = await repository.GetByIdAsync(id, ct);
+        var node = await LoadWithOwnedAsync(id, ct);
         if (node is null) return ServiceResult<ProjectSkillRequirementDto>.NotFound($"ProjectNode {id} not found.");
         if (node.NodeType != ProjectNodeType.Project)
             return ServiceResult<ProjectSkillRequirementDto>.NotFound($"ProjectNode {id} is not a Project root.");
@@ -359,6 +362,9 @@ public sealed class ProjectNodeService(
             return ServiceResult<ProjectSkillRequirementDto>.Conflict(ex.Message);
         }
 
+        var added = node.SkillRequirements.Single(r => r.SkillId == dto.SkillId);
+        db.MarkOwnedAdded(node, n => n.SkillRequirements, added);
+
         await repository.SaveChangesAsync(ct);
         return ServiceResult<ProjectSkillRequirementDto>.Success(
             new ProjectSkillRequirementDto { SkillId = dto.SkillId, MinLevel = dto.MinLevel });
@@ -373,7 +379,7 @@ public sealed class ProjectNodeService(
                 [nameof(AddOrUpdateProjectSkillRequirementDto.SkillId)] = ["SkillId in route and body must match."]
             });
 
-        var node = await repository.GetByIdAsync(id, ct);
+        var node = await LoadWithOwnedAsync(id, ct);
         if (node is null) return ServiceResult<ProjectSkillRequirementDto>.NotFound($"ProjectNode {id} not found.");
         if (node.NodeType != ProjectNodeType.Project)
             return ServiceResult<ProjectSkillRequirementDto>.NotFound($"ProjectNode {id} is not a Project root.");
@@ -394,7 +400,7 @@ public sealed class ProjectNodeService(
 
     public async Task<ServiceResult<Unit>> RemoveSkillRequirementAsync(Guid id, Guid skillId, CancellationToken ct = default)
     {
-        var node = await repository.GetByIdAsync(id, ct);
+        var node = await LoadWithOwnedAsync(id, ct);
         if (node is null) return ServiceResult.NotFound($"ProjectNode {id} not found.");
         if (node.NodeType != ProjectNodeType.Project)
             return ServiceResult.NotFound($"ProjectNode {id} is not a Project root.");
@@ -501,6 +507,14 @@ public sealed class ProjectNodeService(
         dto.DerivedStatus = ProjectNodeMetrics.DerivedStatus(node);
         return dto;
     }
+
+    // FindAsync (used by the generic repository) does not include OwnsMany
+    // navigations. Operations that mutate the owned graph (tags, skill
+    // requirements) need the collections populated so the domain can enforce
+    // invariants and EF can correctly diff change tracking. Use this loader
+    // anywhere we touch owned state.
+    private Task<ProjectNode?> LoadWithOwnedAsync(Guid id, CancellationToken ct) =>
+        db.ProjectNodes.FirstOrDefaultAsync(n => n.Id == id, ct);
 
     private static bool IsUniqueViolation(DbUpdateException ex) =>
         ex.InnerException?.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) == true ||

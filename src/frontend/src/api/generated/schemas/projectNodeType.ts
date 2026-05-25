@@ -9,7 +9,7 @@ export type ProjectNodeType = typeof ProjectNodeType[keyof typeof ProjectNodeTyp
 
 
 export const ProjectNodeType = {
-  NUMBER_1: 1,
-  NUMBER_2: 2,
-  NUMBER_3: 3,
+  Project: 1,
+  Phase: 2,
+  WorkPackage: 3,
 } as const;

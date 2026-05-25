@@ -178,18 +178,20 @@ public sealed class ResourceService(
 
     public async Task<ServiceResult<WorkWindowDto>> AddWorkWindowAsync(Guid resourceId, WorkWindowDto dto, CancellationToken ct = default)
     {
-        var resource = await repository.GetByIdAsync(resourceId, ct);
+        var resource = await LoadWithOwnedAsync(resourceId, ct);
         if (resource is null) return ServiceResult<WorkWindowDto>.NotFound($"Resource {resourceId} not found.");
 
         var window = WorkWindow.Create(dto.DayOfWeek, dto.StartTime, dto.EndTime, dto.ValidFrom, dto.ValidTo);
         resource.AddWorkWindowOverride(window);
+        db.MarkOwnedAdded(resource, r => r.WorkWindows, window);
+
         await repository.SaveChangesAsync(ct);
         return ServiceResult<WorkWindowDto>.Success(mapper.Map<WorkWindowDto>(window));
     }
 
     public async Task<ServiceResult<Unit>> RemoveWorkWindowAsync(Guid resourceId, Guid windowId, CancellationToken ct = default)
     {
-        var resource = await repository.GetByIdAsync(resourceId, ct);
+        var resource = await LoadWithOwnedAsync(resourceId, ct);
         if (resource is null) return ServiceResult.NotFound($"Resource {resourceId} not found.");
 
         resource.RemoveWorkWindowOverride(windowId);
@@ -199,18 +201,20 @@ public sealed class ResourceService(
 
     public async Task<ServiceResult<IndividualAdjustmentDto>> AddAdjustmentAsync(Guid resourceId, IndividualAdjustmentDto dto, CancellationToken ct = default)
     {
-        var resource = await repository.GetByIdAsync(resourceId, ct);
+        var resource = await LoadWithOwnedAsync(resourceId, ct);
         if (resource is null) return ServiceResult<IndividualAdjustmentDto>.NotFound($"Resource {resourceId} not found.");
 
         var adjustment = IndividualAdjustment.Create(dto.DateFrom, dto.DateTo, dto.Type, dto.Hours, dto.Reason, dto.Notes);
         resource.AddAdjustment(adjustment);
+        db.MarkOwnedAdded(resource, r => r.Adjustments, adjustment);
+
         await repository.SaveChangesAsync(ct);
         return ServiceResult<IndividualAdjustmentDto>.Success(mapper.Map<IndividualAdjustmentDto>(adjustment));
     }
 
     public async Task<ServiceResult<Unit>> RemoveAdjustmentAsync(Guid resourceId, Guid adjustmentId, CancellationToken ct = default)
     {
-        var resource = await repository.GetByIdAsync(resourceId, ct);
+        var resource = await LoadWithOwnedAsync(resourceId, ct);
         if (resource is null) return ServiceResult.NotFound($"Resource {resourceId} not found.");
 
         resource.RemoveAdjustment(adjustmentId);
@@ -240,7 +244,7 @@ public sealed class ResourceService(
 
     public async Task<ServiceResult<ResourceSkillDto>> AddSkillAsync(Guid resourceId, AddOrUpdateResourceSkillDto dto, CancellationToken ct = default)
     {
-        var resource = await repository.GetByIdAsync(resourceId, ct);
+        var resource = await LoadWithOwnedAsync(resourceId, ct);
         if (resource is null) return ServiceResult<ResourceSkillDto>.NotFound($"Resource {resourceId} not found.");
 
         var skillExists = await db.Skills.AnyAsync(s => s.Id == dto.SkillId, ct);
@@ -259,6 +263,9 @@ public sealed class ResourceService(
             return ServiceResult<ResourceSkillDto>.Conflict(ex.Message);
         }
 
+        var added = resource.Skills.Single(s => s.SkillId == dto.SkillId);
+        db.MarkOwnedAdded(resource, r => r.Skills, added);
+
         await repository.SaveChangesAsync(ct);
         return ServiceResult<ResourceSkillDto>.Success(new ResourceSkillDto { SkillId = dto.SkillId, Level = dto.Level });
     }
@@ -272,7 +279,7 @@ public sealed class ResourceService(
                 [nameof(AddOrUpdateResourceSkillDto.SkillId)] = ["SkillId in the route and body must match."]
             });
 
-        var resource = await repository.GetByIdAsync(resourceId, ct);
+        var resource = await LoadWithOwnedAsync(resourceId, ct);
         if (resource is null) return ServiceResult<ResourceSkillDto>.NotFound($"Resource {resourceId} not found.");
 
         try
@@ -290,7 +297,7 @@ public sealed class ResourceService(
 
     public async Task<ServiceResult<Unit>> RemoveSkillAsync(Guid resourceId, Guid skillId, CancellationToken ct = default)
     {
-        var resource = await repository.GetByIdAsync(resourceId, ct);
+        var resource = await LoadWithOwnedAsync(resourceId, ct);
         if (resource is null) return ServiceResult.NotFound($"Resource {resourceId} not found.");
 
         try
@@ -308,7 +315,7 @@ public sealed class ResourceService(
 
     public async Task<ServiceResult<ResourceTagDto>> AddTagAsync(Guid resourceId, AddResourceTagDto dto, CancellationToken ct = default)
     {
-        var resource = await repository.GetByIdAsync(resourceId, ct);
+        var resource = await LoadWithOwnedAsync(resourceId, ct);
         if (resource is null) return ServiceResult<ResourceTagDto>.NotFound($"Resource {resourceId} not found.");
 
         var tagExists = await db.Tags.AnyAsync(t => t.Id == dto.TagId, ct);
@@ -327,13 +334,16 @@ public sealed class ResourceService(
             return ServiceResult<ResourceTagDto>.Conflict(ex.Message);
         }
 
+        var added = resource.Tags.Single(t => t.TagId == dto.TagId);
+        db.MarkOwnedAdded(resource, r => r.Tags, added);
+
         await repository.SaveChangesAsync(ct);
         return ServiceResult<ResourceTagDto>.Success(new ResourceTagDto { TagId = dto.TagId });
     }
 
     public async Task<ServiceResult<Unit>> RemoveTagAsync(Guid resourceId, Guid tagId, CancellationToken ct = default)
     {
-        var resource = await repository.GetByIdAsync(resourceId, ct);
+        var resource = await LoadWithOwnedAsync(resourceId, ct);
         if (resource is null) return ServiceResult.NotFound($"Resource {resourceId} not found.");
 
         try
@@ -348,4 +358,12 @@ public sealed class ResourceService(
         await repository.SaveChangesAsync(ct);
         return ServiceResult.Ok();
     }
+
+    // FindAsync (used by the generic repository) does not include OwnsMany
+    // navigations. Operations that mutate the owned graph (work windows,
+    // adjustments, skills, tags) need the collections populated so the domain
+    // can enforce invariants and EF can correctly diff change tracking. Use
+    // this loader anywhere we touch owned state.
+    private Task<Resource?> LoadWithOwnedAsync(Guid id, CancellationToken ct) =>
+        db.Resources.FirstOrDefaultAsync(r => r.Id == id, ct);
 }

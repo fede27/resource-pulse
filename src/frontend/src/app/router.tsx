@@ -4,6 +4,7 @@ import { HomePage } from '@/app/routes/index';
 import { TeamListPage } from '@/app/routes/teams/index';
 import { TeamNewPage } from '@/app/routes/teams/new';
 import { TeamDetailPage } from '@/app/routes/teams/$teamId';
+import { TimeConfigRoutePage } from '@/app/routes/time-config/index';
 
 const rootRoute = createRootRoute({ component: AppLayout });
 
@@ -34,11 +35,18 @@ const teamDetailRoute = createRoute({
   },
 });
 
+const timeConfigRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/time-config',
+  component: TimeConfigRoutePage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   teamListRoute,
   teamNewRoute,
   teamDetailRoute,
+  timeConfigRoute,
 ]);
 
 export const router = createRouter({ routeTree });
