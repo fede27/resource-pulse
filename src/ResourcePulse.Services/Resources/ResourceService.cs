@@ -3,6 +3,7 @@ using DevExtreme.AspNet.Data.ResponseModel;
 using Mapster;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
+using ResourcePulse.Common.Auth;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
 using ResourcePulse.Domain.Calendars;
@@ -15,7 +16,8 @@ namespace ResourcePulse.Services.Resources;
 public sealed class ResourceService(
     IRepository<Resource, Guid> repository,
     ResourcePulseDbContext db,
-    IMapper mapper) : IResourceService
+    IMapper mapper,
+    ICurrentUserAccessor currentUserAccessor) : IResourceService
 {
     public async Task<ServiceResult<LoadResult>> GetAllAsync(
         DataSourceLoadOptionsBase? loadOptions = null,
@@ -113,6 +115,8 @@ public sealed class ResourceService(
         var resource = Resource.Create(dto.Name, calendarId);
         if (dto.TeamId is { } tid && tid != Guid.Empty)
             resource.AssignToTeam(tid);
+        if (!string.IsNullOrWhiteSpace(dto.UserSub))
+            resource.LinkToUser(dto.UserSub);
 
         if (dto.Windows is not null)
         {
@@ -136,7 +140,14 @@ public sealed class ResourceService(
         }
 
         await repository.AddAsync(resource, ct);
-        await repository.SaveChangesAsync(ct);
+        try
+        {
+            await repository.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        {
+            return ServiceResult<ResourceReadDto>.Conflict("Another resource is already linked to this user.");
+        }
         return ServiceResult<ResourceReadDto>.Success(mapper.Map<ResourceReadDto>(resource));
     }
 
@@ -161,8 +172,16 @@ public sealed class ResourceService(
 
         resource.Rename(dto.Name);
         if (dto.IsActive) resource.Activate(); else resource.Deactivate();
+        resource.LinkToUser(dto.UserSub);
 
-        await repository.SaveChangesAsync(ct);
+        try
+        {
+            await repository.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        {
+            return ServiceResult<ResourceReadDto>.Conflict("Another resource is already linked to this user.");
+        }
         return ServiceResult<ResourceReadDto>.Success(mapper.Map<ResourceReadDto>(resource));
     }
 
@@ -267,7 +286,7 @@ public sealed class ResourceService(
         db.MarkOwnedAdded(resource, r => r.Skills, added);
 
         await repository.SaveChangesAsync(ct);
-        return ServiceResult<ResourceSkillDto>.Success(new ResourceSkillDto { SkillId = dto.SkillId, Level = dto.Level });
+        return ServiceResult<ResourceSkillDto>.Success(mapper.Map<ResourceSkillDto>(added));
     }
 
     public async Task<ServiceResult<ResourceSkillDto>> UpdateSkillLevelAsync(
@@ -292,7 +311,9 @@ public sealed class ResourceService(
         }
 
         await repository.SaveChangesAsync(ct);
-        return ServiceResult<ResourceSkillDto>.Success(new ResourceSkillDto { SkillId = skillId, Level = dto.Level });
+
+        var updated = resource.Skills.Single(s => s.SkillId == skillId);
+        return ServiceResult<ResourceSkillDto>.Success(mapper.Map<ResourceSkillDto>(updated));
     }
 
     public async Task<ServiceResult<Unit>> RemoveSkillAsync(Guid resourceId, Guid skillId, CancellationToken ct = default)
@@ -358,6 +379,81 @@ public sealed class ResourceService(
         await repository.SaveChangesAsync(ct);
         return ServiceResult.Ok();
     }
+
+    public Task<ServiceResult<ResourceSkillDto>> ApproveSkillAsync(Guid resourceId, Guid skillId, CancellationToken ct = default) =>
+        TransitionSkillAsync(resourceId, skillId, (resource, reviewerId, now) =>
+            resource.ApproveSkill(skillId, reviewerId, now), ct);
+
+    public Task<ServiceResult<ResourceSkillDto>> RejectSkillAsync(Guid resourceId, Guid skillId, CancellationToken ct = default) =>
+        TransitionSkillAsync(resourceId, skillId, (resource, reviewerId, now) =>
+            resource.RejectSkill(skillId, reviewerId, now), ct);
+
+    public Task<ServiceResult<ResourceSkillDto>> ReturnSkillToPendingAsync(Guid resourceId, Guid skillId, CancellationToken ct = default) =>
+        TransitionSkillAsync(resourceId, skillId, (resource, _, _) =>
+            resource.ReturnSkillToPending(skillId), ct);
+
+    private async Task<ServiceResult<ResourceSkillDto>> TransitionSkillAsync(
+        Guid resourceId,
+        Guid skillId,
+        Action<Resource, Guid, DateTime> transition,
+        CancellationToken ct)
+    {
+        // Reviewer identity comes from the auth subject, then mapped to a
+        // Resource via UserSub. The mapping is required so approval provenance
+        // is tracked as a Resource FK (the supervisor's resource record), not
+        // an opaque sub string.
+        var reviewerResult = await ResolveReviewerResourceIdAsync(ct);
+        if (!reviewerResult.IsSuccess)
+            return ServiceResult<ResourceSkillDto>.Forbidden(reviewerResult.Error!.Message);
+
+        var resource = await LoadWithOwnedAsync(resourceId, ct);
+        if (resource is null)
+            return ServiceResult<ResourceSkillDto>.NotFound($"Resource {resourceId} not found.");
+
+        if (!resource.Skills.Any(s => s.SkillId == skillId))
+            return ServiceResult<ResourceSkillDto>.NotFound(
+                $"Resource {resourceId} does not have skill {skillId}.");
+
+        try
+        {
+            transition(resource, reviewerResult.Value, DateTime.UtcNow);
+        }
+        catch (Common.Domain.DomainException ex)
+        {
+            // The skill exists on this resource (checked above), so any
+            // DomainException raised by the transition is an illegal state
+            // change — surface it as Conflict.
+            return ServiceResult<ResourceSkillDto>.Conflict(ex.Message);
+        }
+
+        await repository.SaveChangesAsync(ct);
+
+        var updated = resource.Skills.Single(s => s.SkillId == skillId);
+        return ServiceResult<ResourceSkillDto>.Success(mapper.Map<ResourceSkillDto>(updated));
+    }
+
+    private async Task<ServiceResult<Guid>> ResolveReviewerResourceIdAsync(CancellationToken ct)
+    {
+        if (!currentUserAccessor.IsAuthenticated)
+            return ServiceResult<Guid>.Forbidden("Authentication is required to review skills.");
+
+        var sub = currentUserAccessor.User.Sub;
+        if (string.IsNullOrEmpty(sub))
+            return ServiceResult<Guid>.Forbidden("Current user has no subject identifier.");
+
+        var reviewerId = await db.Resources
+            .Where(r => r.UserSub == sub)
+            .Select(r => (Guid?)r.Id)
+            .FirstOrDefaultAsync(ct);
+
+        return reviewerId is null
+            ? ServiceResult<Guid>.Forbidden("Current user is not linked to a resource and cannot review skills.")
+            : ServiceResult<Guid>.Success(reviewerId.Value);
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException ex) =>
+        ex.InnerException?.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) == true ||
+        ex.InnerException?.Message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase) == true;
 
     // FindAsync (used by the generic repository) does not include OwnsMany
     // navigations. Operations that mutate the owned graph (work windows,

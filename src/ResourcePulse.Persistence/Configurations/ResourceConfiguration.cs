@@ -18,8 +18,14 @@ public sealed class ResourceConfiguration : IEntityTypeConfiguration<Resource>
 
         builder.Property(r => r.Name).HasMaxLength(200).IsRequired();
         builder.Property(r => r.IsActive).IsRequired();
+        builder.Property(r => r.UserSub).HasMaxLength(256);
         builder.Property(r => r.CreatedBy).HasMaxLength(256).IsRequired();
         builder.Property(r => r.UpdatedBy).HasMaxLength(256);
+
+        builder.HasIndex(r => r.UserSub)
+            .IsUnique()
+            .HasFilter("user_sub IS NOT NULL")
+            .HasDatabaseName("ux_resources_user_sub");
 
         builder.HasOne<BusinessCalendar>()
             .WithMany()
@@ -69,13 +75,23 @@ public sealed class ResourceConfiguration : IEntityTypeConfiguration<Resource>
             s.WithOwner().HasForeignKey(x => x.ResourceId);
             s.HasKey(x => new { x.ResourceId, x.SkillId });
             s.Property(x => x.Level).HasConversion<string>().HasMaxLength(20).IsRequired();
+            s.Property(x => x.ApprovalStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
+            s.Property(x => x.ReviewedByResourceId);
+            s.Property(x => x.ReviewedAt).HasColumnType("timestamp with time zone");
             s.Property(x => x.CreatedBy).HasMaxLength(256).IsRequired();
             s.Property(x => x.UpdatedBy).HasMaxLength(256);
             s.HasOne<Skill>()
                 .WithMany()
                 .HasForeignKey(x => x.SkillId)
                 .OnDelete(DeleteBehavior.Restrict);
+            // Reviewer is itself a Resource. Restrict: deleting a supervisor
+            // must not silently strip approval provenance from history.
+            s.HasOne<Resource>()
+                .WithMany()
+                .HasForeignKey(x => x.ReviewedByResourceId)
+                .OnDelete(DeleteBehavior.Restrict);
             s.HasIndex(x => x.SkillId).HasDatabaseName("ix_resource_skills_skill_id");
+            s.HasIndex(x => x.ReviewedByResourceId).HasDatabaseName("ix_resource_skills_reviewed_by_resource_id");
         });
 
         // ResourceTag — owned join, composite PK, FK to Tag (Cascade).

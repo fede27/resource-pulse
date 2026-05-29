@@ -19,6 +19,9 @@ public sealed class ResourceSkillDto
 {
     public Guid SkillId { get; init; }
     public SkillLevel Level { get; init; }
+    public SkillApprovalStatus ApprovalStatus { get; init; } = SkillApprovalStatus.Pending;
+    public Guid? ReviewedByResourceId { get; init; }
+    public DateTime? ReviewedAt { get; init; }
 }
 
 public sealed class ResourceTagDto
@@ -33,6 +36,7 @@ public sealed class ResourceReadDto
     public bool IsActive { get; init; }
     public Guid BusinessCalendarId { get; init; }
     public Guid? TeamId { get; init; }
+    public string? UserSub { get; init; }
     public IReadOnlyList<WorkWindowDto> WorkWindows { get; init; } = Array.Empty<WorkWindowDto>();
     public IReadOnlyList<IndividualAdjustmentDto> Adjustments { get; init; } = Array.Empty<IndividualAdjustmentDto>();
     public IReadOnlyList<ResourceSkillDto> Skills { get; init; } = Array.Empty<ResourceSkillDto>();
@@ -44,6 +48,7 @@ public sealed class CreateResourceDto
     public string Name { get; init; } = string.Empty;
     public Guid? BusinessCalendarId { get; init; }
     public Guid? TeamId { get; init; }
+    public string? UserSub { get; init; }
     public IReadOnlyList<WorkWindowDto>? Windows { get; init; }
     public IReadOnlyList<IndividualAdjustmentDto>? Adjustments { get; init; }
     public IReadOnlyList<ResourceSkillDto>? Skills { get; init; }
@@ -55,6 +60,7 @@ public sealed class UpdateResourceDto
     public string Name { get; init; } = string.Empty;
     public bool IsActive { get; init; }
     public Guid BusinessCalendarId { get; init; }
+    public string? UserSub { get; init; }
 }
 
 public sealed class AssignTeamDto

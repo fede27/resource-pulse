@@ -8,6 +8,7 @@ using ResourcePulse.Common.Auth;
 using ResourcePulse.Domain;
 using ResourcePulse.Hosting;
 using ResourcePulse.Hosting.Auth;
+using ResourcePulse.Hosting.Seeding;
 using ResourcePulse.Http;
 using ResourcePulse.Persistence;
 using ResourcePulse.Services;
@@ -124,9 +125,13 @@ var app = builder.Build();
 // (Production migrations are applied out-of-band via CI/CD)
 if (app.Environment.IsDevelopment())
 {
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<ResourcePulseDbContext>();
-    await db.Database.MigrateAsync();
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<ResourcePulseDbContext>();
+        await db.Database.MigrateAsync();
+    }
+
+    await DevSeeder.SeedAsync(app.Services, app.Logger);
 }
 
 app.UseExceptionHandler();

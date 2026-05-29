@@ -64,6 +64,18 @@ public sealed class ResourcesController(
     public async Task<IActionResult> RemoveSkillAsync(Guid id, Guid skillId, CancellationToken ct) =>
         FromResult(await service.RemoveSkillAsync(id, skillId, ct));
 
+    [HttpPost("{id}/skills/{skillId}/approve")]
+    public async Task<IActionResult> ApproveSkillAsync(Guid id, Guid skillId, CancellationToken ct) =>
+        FromResult(await service.ApproveSkillAsync(id, skillId, ct));
+
+    [HttpPost("{id}/skills/{skillId}/reject")]
+    public async Task<IActionResult> RejectSkillAsync(Guid id, Guid skillId, CancellationToken ct) =>
+        FromResult(await service.RejectSkillAsync(id, skillId, ct));
+
+    [HttpPost("{id}/skills/{skillId}/return-to-pending")]
+    public async Task<IActionResult> ReturnSkillToPendingAsync(Guid id, Guid skillId, CancellationToken ct) =>
+        FromResult(await service.ReturnSkillToPendingAsync(id, skillId, ct));
+
     [HttpPost("{id}/tags")]
     public async Task<IActionResult> AddTagAsync(Guid id, [FromBody] AddResourceTagDto dto, CancellationToken ct) =>
         FromCreateResult(await service.AddTagAsync(id, dto, ct), x => x.TagId);

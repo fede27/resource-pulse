@@ -24,6 +24,10 @@ public interface IResourceService
     Task<ServiceResult<ResourceSkillDto>> UpdateSkillLevelAsync(Guid resourceId, Guid skillId, AddOrUpdateResourceSkillDto dto, CancellationToken ct = default);
     Task<ServiceResult<Unit>> RemoveSkillAsync(Guid resourceId, Guid skillId, CancellationToken ct = default);
 
+    Task<ServiceResult<ResourceSkillDto>> ApproveSkillAsync(Guid resourceId, Guid skillId, CancellationToken ct = default);
+    Task<ServiceResult<ResourceSkillDto>> RejectSkillAsync(Guid resourceId, Guid skillId, CancellationToken ct = default);
+    Task<ServiceResult<ResourceSkillDto>> ReturnSkillToPendingAsync(Guid resourceId, Guid skillId, CancellationToken ct = default);
+
     Task<ServiceResult<ResourceTagDto>> AddTagAsync(Guid resourceId, AddResourceTagDto dto, CancellationToken ct = default);
     Task<ServiceResult<Unit>> RemoveTagAsync(Guid resourceId, Guid tagId, CancellationToken ct = default);
 }

@@ -17,6 +17,11 @@ public sealed class Resource : Entity<Guid>, IAuditable
     public Guid BusinessCalendarId { get; private set; }
     public Guid? TeamId { get; private set; }
 
+    // Optional link to an auth subject (ClaimTypes.NameIdentifier). When set,
+    // ICurrentUserAccessor.User.Sub can be resolved to this resource — used
+    // e.g. to attribute skill-approval reviews to the acting supervisor.
+    public string? UserSub { get; private set; }
+
     public IReadOnlyCollection<WorkWindow> WorkWindows => _workWindows.AsReadOnly();
     public IReadOnlyCollection<IndividualAdjustment> Adjustments => _adjustments.AsReadOnly();
     public IReadOnlyCollection<ResourceSkill> Skills => _skills.AsReadOnly();
@@ -84,6 +89,17 @@ public sealed class Resource : Entity<Guid>, IAuditable
         BusinessCalendarId = businessCalendarId;
     }
 
+    public void LinkToUser(string? userSub)
+    {
+        if (userSub is null)
+        {
+            UserSub = null;
+            return;
+        }
+        var trimmed = userSub.Trim();
+        UserSub = trimmed.Length == 0 ? null : trimmed;
+    }
+
     // ── Team ────────────────────────────────────────────────────────────────
 
     public void AssignToTeam(Guid? teamId)
@@ -120,6 +136,30 @@ public sealed class Resource : Entity<Guid>, IAuditable
         if (existing is null)
             throw new DomainException($"Resource does not have skill {skillId}.");
         _skills.Remove(existing);
+    }
+
+    public void ApproveSkill(Guid skillId, Guid reviewerResourceId, DateTime reviewedAt)
+    {
+        var existing = _skills.FirstOrDefault(s => s.SkillId == skillId);
+        if (existing is null)
+            throw new DomainException($"Resource does not have skill {skillId}.");
+        existing.Approve(reviewerResourceId, reviewedAt);
+    }
+
+    public void RejectSkill(Guid skillId, Guid reviewerResourceId, DateTime reviewedAt)
+    {
+        var existing = _skills.FirstOrDefault(s => s.SkillId == skillId);
+        if (existing is null)
+            throw new DomainException($"Resource does not have skill {skillId}.");
+        existing.Reject(reviewerResourceId, reviewedAt);
+    }
+
+    public void ReturnSkillToPending(Guid skillId)
+    {
+        var existing = _skills.FirstOrDefault(s => s.SkillId == skillId);
+        if (existing is null)
+            throw new DomainException($"Resource does not have skill {skillId}.");
+        existing.ReturnToPending();
     }
 
     // ── Tags ────────────────────────────────────────────────────────────────
