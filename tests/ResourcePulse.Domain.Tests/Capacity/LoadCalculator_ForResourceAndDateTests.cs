@@ -48,6 +48,19 @@ public class LoadCalculator_ForResourceAndDateTests
     }
 
     [Fact]
+    public void TwoOverlappingAllocations_SameNode_Sum()
+    {
+        // ADR-0014: overlapping blocks on the same (resource, project_node)
+        // sum just like the cross-project case. 60% + 30% on N1 vs 8h -> 7.2h.
+        var a1 = Allocation.Create(R1, N1, D, D, 60m);
+        var a2 = Allocation.Create(R1, N1, D, D, 30m);
+
+        var hours = LoadCalculator.ForResourceAndDate(R1, [a1, a2], TimeSpan.FromHours(8), D);
+
+        hours.Should().Be(TimeSpan.FromHours(7.2));
+    }
+
+    [Fact]
     public void OtherResource_Ignored()
     {
         var mine = Allocation.Create(R1, N1, D, D, 50m);

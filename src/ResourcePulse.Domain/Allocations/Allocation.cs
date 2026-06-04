@@ -5,8 +5,9 @@ namespace ResourcePulse.Domain.Allocations;
 
 // A resource committed to a project node at a given percentage over an inclusive
 // date window. Aggregate root with its own lifecycle. Local invariants only —
-// node-type, no-overlap, resource-active, and project-status checks live in the
-// service layer (see AllocationService). The DB EXCLUDE constraint backstops I2.
+// node-type, resource-active, and project-status checks live in the service
+// layer (see AllocationService). Overlapping allocations on the same
+// (resource, project_node) are first-class and sum (see ADR-0014).
 public sealed class Allocation : Entity<Guid>, IAuditable
 {
     public Guid ResourceId { get; private set; }

@@ -48,8 +48,8 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
         builder.HasIndex(a => new { a.ProjectNodeId, a.PeriodStart, a.PeriodEnd })
             .HasDatabaseName("ix_allocations_project_node_id_period");
 
-        // The no-overlap EXCLUDE constraint (per (ResourceId, ProjectNodeId)) is
-        // added via raw SQL in the migration — EF has no first-class support for
-        // EXCLUDE USING gist constraints.
+        // No DB-level overlap constraint: overlapping allocations on the same
+        // (ResourceId, ProjectNodeId) are first-class and their rate% sums —
+        // see ADR-0014.
     }
 }

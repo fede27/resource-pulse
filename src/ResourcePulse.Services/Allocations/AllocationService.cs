@@ -14,9 +14,11 @@ namespace ResourcePulse.Services.Allocations;
 
 // Cross-aggregate invariants enforced here (see Phase 4 plan §2):
 //   I1  ProjectNode is at capacity-planning level (Project or Phase).
-//   I2  No-overlap on (ResourceId, ProjectNodeId) — service check + DB EXCLUDE.
 //   I3  Resource is active.
 //   I4  Root project is not Closed or Cancelled.
+// I2 (no-overlap on (ResourceId, ProjectNodeId)) is removed: overlapping
+// blocks on the same (resource, project_node) are first-class and their rate%
+// sums — see ADR-0014.
 // I5 (cross-project + single-allocation overallocation up to 1000%) is
 // permitted by design — see ADR-0011 and ADR-0013.
 //
@@ -114,8 +116,7 @@ public sealed class AllocationService(
     public async Task<ServiceResult<AllocationReadDto>> CreateByPercentAsync(
         CreateByPercentDto dto, CancellationToken ct = default)
     {
-        var pre = await ValidateCreatePreconditionsAsync(
-            dto.ResourceId, dto.ProjectNodeId, dto.PeriodStart, dto.PeriodEnd, ct);
+        var pre = await ValidateCreatePreconditionsAsync(dto.ResourceId, dto.ProjectNodeId, ct);
         if (pre.IsFailure)
             return ServiceResult<AllocationReadDto>.Failure(pre.Error!);
 
@@ -128,8 +129,7 @@ public sealed class AllocationService(
     public async Task<ServiceResult<AllocationReadDto>> CreateByHoursAsync(
         CreateByHoursDto dto, CancellationToken ct = default)
     {
-        var pre = await ValidateCreatePreconditionsAsync(
-            dto.ResourceId, dto.ProjectNodeId, dto.PeriodStart, dto.PeriodEnd, ct);
+        var pre = await ValidateCreatePreconditionsAsync(dto.ResourceId, dto.ProjectNodeId, ct);
         if (pre.IsFailure)
             return ServiceResult<AllocationReadDto>.Failure(pre.Error!);
 
@@ -170,12 +170,6 @@ public sealed class AllocationService(
         if (allocation is null)
             return ServiceResult<AllocationReadDto>.NotFound($"Allocation {id} not found.");
 
-        // I2 with new dates, excluding self.
-        if (await OverlapsAsync(allocation.ResourceId, allocation.ProjectNodeId,
-                dto.PeriodStart, dto.PeriodEnd, excludeId: id, ct))
-            return ServiceResult<AllocationReadDto>.Conflict(
-                "Updated period overlaps another allocation on the same resource and project node.");
-
         try
         {
             allocation.ChangePeriod(dto.PeriodStart, dto.PeriodEnd);
@@ -187,15 +181,7 @@ public sealed class AllocationService(
             return ServiceResult<AllocationReadDto>.Conflict(ex.Message);
         }
 
-        try
-        {
-            await repository.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateException ex) when (IsNoOverlapViolation(ex))
-        {
-            return ServiceResult<AllocationReadDto>.Conflict(
-                "Updated period overlaps another allocation on the same resource and project node.");
-        }
+        await repository.SaveChangesAsync(ct);
 
         return await GetByIdAsync(id, ct);
     }
@@ -206,13 +192,6 @@ public sealed class AllocationService(
         var allocation = await repository.GetByIdAsync(id, ct);
         if (allocation is null)
             return ServiceResult<AllocationReadDto>.NotFound($"Allocation {id} not found.");
-
-        // I2 against the new window first — cheaper to bail than to compute
-        // capacity and resolver math we'll throw away.
-        if (await OverlapsAsync(allocation.ResourceId, allocation.ProjectNodeId,
-                dto.NewPeriodStart, dto.NewPeriodEnd, excludeId: id, ct))
-            return ServiceResult<AllocationReadDto>.Conflict(
-                "Moved period overlaps another allocation on the same resource and project node.");
 
         // I4 may have shifted if the root project's status changed; re-check.
         var nodePath = await db.ProjectNodes
@@ -297,15 +276,7 @@ public sealed class AllocationService(
             return ServiceResult<AllocationReadDto>.Conflict(ex.Message);
         }
 
-        try
-        {
-            await repository.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateException ex) when (IsNoOverlapViolation(ex))
-        {
-            return ServiceResult<AllocationReadDto>.Conflict(
-                "Moved period overlaps another allocation on the same resource and project node.");
-        }
+        await repository.SaveChangesAsync(ct);
 
         return await GetByIdAsync(id, ct);
     }
@@ -392,11 +363,11 @@ public sealed class AllocationService(
         return ServiceResult<TimeSpan>.Success(total);
     }
 
-    // Runs the four cross-aggregate gates (I1, I2, I3, I4) common to both
-    // create paths. Returns a Unit success if all pass.
+    // Runs the cross-aggregate gates (I1, I3, I4) common to both create paths.
+    // I2 (no-overlap) was removed by ADR-0014; overlap is legal and sums.
+    // Returns a Unit success if all pass.
     private async Task<ServiceResult<Unit>> ValidateCreatePreconditionsAsync(
         Guid resourceId, Guid projectNodeId,
-        DateOnly periodStart, DateOnly periodEnd,
         CancellationToken ct)
     {
         // I1
@@ -439,11 +410,6 @@ public sealed class AllocationService(
         var statusCheck = await ValidateProjectStatusAsync<Unit>(nodeInfo.Path, ct);
         if (statusCheck is { } sc) return sc;
 
-        // I2
-        if (await OverlapsAsync(resourceId, projectNodeId, periodStart, periodEnd, excludeId: null, ct))
-            return ServiceResult.Conflict(
-                $"Resource {resourceId} already has an overlapping allocation on project node {projectNodeId}.");
-
         return ServiceResult.Ok();
     }
 
@@ -464,16 +430,7 @@ public sealed class AllocationService(
         }
 
         await repository.AddAsync(allocation, ct);
-        try
-        {
-            await repository.SaveChangesAsync(ct);
-        }
-        catch (DbUpdateException ex) when (IsNoOverlapViolation(ex))
-        {
-            // Race lost between service-level check and DB EXCLUDE constraint.
-            return ServiceResult<AllocationReadDto>.Conflict(
-                "Allocation overlaps an existing allocation on the same resource and project node.");
-        }
+        await repository.SaveChangesAsync(ct);
 
         return await GetByIdAsync(allocation.Id, ct);
     }
@@ -497,25 +454,9 @@ public sealed class AllocationService(
         return null;
     }
 
-    private async Task<bool> OverlapsAsync(
-        Guid resourceId, Guid projectNodeId,
-        DateOnly newStart, DateOnly newEnd,
-        Guid? excludeId, CancellationToken ct) =>
-        await db.Allocations
-            .AsNoTracking()
-            .Where(a => a.ResourceId == resourceId
-                     && a.ProjectNodeId == projectNodeId
-                     && a.PeriodStart <= newEnd
-                     && a.PeriodEnd >= newStart
-                     && (excludeId == null || a.Id != excludeId))
-            .AnyAsync(ct);
-
     private static ServiceResult<T> RangeValidation<T>() =>
         ServiceResult<T>.Validation(new Dictionary<string, string[]>
         {
             ["range"] = ["'from' must be on or before 'to'."]
         });
-
-    private static bool IsNoOverlapViolation(DbUpdateException ex) =>
-        ex.InnerException?.Message.Contains("allocations_no_overlap", StringComparison.OrdinalIgnoreCase) == true;
 }

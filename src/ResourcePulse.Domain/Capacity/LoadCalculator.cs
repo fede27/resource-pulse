@@ -13,7 +13,12 @@ namespace ResourcePulse.Domain.Capacity;
 // The calculator trusts its inputs:
 //   - allocations must reference valid project nodes (caller's responsibility)
 //   - capacity dictionaries must cover the requested range (missing dates default to TimeSpan.Zero)
-//   - no overlap or activeness checks — those are service-layer invariants
+//   - no activeness checks — that is a service-layer invariant
+//
+// Overlapping allocations on the same (resource, project_node) are first-class
+// and their rate% sums per ADR-0014. The summation loop already handles this:
+// every active allocation contributes; there is no special case for same-node
+// overlap. The same rule applies cross-project (ADR-0011, I5).
 //
 // Determinism: allocations iterated in OrderBy(Id). Current logic is a sum so
 // order doesn't change the result, but the contract is documented for callers

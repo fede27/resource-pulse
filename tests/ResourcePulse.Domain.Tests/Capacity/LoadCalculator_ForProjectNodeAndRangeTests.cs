@@ -120,6 +120,30 @@ public class LoadCalculator_ForProjectNodeAndRangeTests
     }
 
     [Fact]
+    public void SameResource_TwoOverlappingBlocks_SameNode_SumInTotalAndByResource()
+    {
+        // ADR-0014: overlapping blocks on the same (resource, project_node)
+        // sum. R1 has two blocks on Node: 50% Mon-Fri + 30% Wed-Thu, 8h capacity.
+        // Mon/Tue/Fri -> 4h (50% only). Wed/Thu -> 4 + 2.4 = 6.4h.
+        var baseBlock = Allocation.Create(R1, Node, Mon, Fri, 50m);
+        var bump = Allocation.Create(R1, Node, Mon.AddDays(2), Mon.AddDays(3), 30m);
+        var capacity = Capacity(new() { [R1] = TimeSpan.FromHours(8) });
+
+        var result = LoadCalculator.ForProjectNodeAndRange(Node, [baseBlock, bump], capacity, Mon, Fri).ToList();
+
+        result[0].TotalHours.Should().Be(TimeSpan.FromHours(4));
+        result[1].TotalHours.Should().Be(TimeSpan.FromHours(4));
+        result[2].TotalHours.Should().Be(TimeSpan.FromHours(6.4));
+        result[3].TotalHours.Should().Be(TimeSpan.FromHours(6.4));
+        result[4].TotalHours.Should().Be(TimeSpan.FromHours(4));
+
+        // The two contributions for R1 collapse into a single ByResource entry
+        // (sum), not two separate entries. ADR-0014: composition is uniform.
+        result[2].ByResource.Should().HaveCount(1);
+        result[2].ByResource[R1].Should().Be(TimeSpan.FromHours(6.4));
+    }
+
+    [Fact]
     public void ZeroCapacityForResource_ContributesNothing()
     {
         var a = Allocation.Create(R1, Node, Mon, Mon, 100m);
