@@ -9,13 +9,14 @@ import type { ResourceSkillDto } from './resourceSkillDto';
 import type { ResourceTagDto } from './resourceTagDto';
 import type { WorkWindowDto } from './workWindowDto';
 
-export interface CreateResourceDto {
+export interface ResourceReadDto {
+  id?: string;
   /** @nullable */
   name?: string | null;
   /** @nullable */
   email?: string | null;
-  /** @nullable */
-  businessCalendarId?: string | null;
+  isActive?: boolean;
+  businessCalendarId?: string;
   /** @nullable */
   teamId?: string | null;
   /** @nullable */
@@ -23,7 +24,7 @@ export interface CreateResourceDto {
   /** @nullable */
   userSub?: string | null;
   /** @nullable */
-  windows?: WorkWindowDto[] | null;
+  workWindows?: WorkWindowDto[] | null;
   /** @nullable */
   adjustments?: IndividualAdjustmentDto[] | null;
   /** @nullable */

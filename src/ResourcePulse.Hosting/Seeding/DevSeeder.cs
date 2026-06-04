@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Domain.Calendars;
 using ResourcePulse.Domain.Resources;
+using ResourcePulse.Domain.Roles;
 using ResourcePulse.Domain.Skills;
 using ResourcePulse.Domain.Tags;
 using ResourcePulse.Persistence;
@@ -26,6 +27,12 @@ public static class DevSeeder
     [
         "senior", "junior", "remote", "onsite", "frontend",
         "backend", "fullstack", "mobile", "lead", "contractor"
+    ];
+
+    private static readonly string[] RoleNames =
+    [
+        "Sviluppatore", "Designer", "Project Manager", "QA Engineer",
+        "Data Analyst", "DevOps Engineer", "Team Lead", "Product Owner"
     ];
 
     public static async Task SeedAsync(IServiceProvider services, ILogger logger)
@@ -54,6 +61,7 @@ public static class DevSeeder
             var calendarId = await EnsureDefaultCalendarAsync(db);
             await EnsureSkillsAsync(db);
             await EnsureTagsAsync(db);
+            await EnsureRolesAsync(db);
             await EnsureResourcesAsync(db, calendarId);
 
             logger.LogInformation("Dev seeding complete (calendar={CalendarId}).", calendarId);
@@ -121,6 +129,21 @@ public static class DevSeeder
 
         if (toAdd.Count == 0) return;
         db.Tags.AddRange(toAdd);
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task EnsureRolesAsync(ResourcePulseDbContext db)
+    {
+        var existing = await db.Roles.Select(r => r.Name).ToListAsync();
+        var existingSet = new HashSet<string>(existing, StringComparer.OrdinalIgnoreCase);
+
+        var toAdd = RoleNames
+            .Where(n => !existingSet.Contains(n))
+            .Select(n => Role.Create(n))
+            .ToList();
+
+        if (toAdd.Count == 0) return;
+        db.Roles.AddRange(toAdd);
         await db.SaveChangesAsync();
     }
 

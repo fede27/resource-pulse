@@ -34,10 +34,9 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
         label: <Link to="/">{t('nav.dashboard')}</Link>,
       },
       {
-        key: 'resources',
+        key: 'people',
         icon: <TeamOutlined />,
-        label: t('nav.resources'),
-        disabled: true,
+        label: <Link to="/people">{t('nav.people')}</Link>,
       },
       {
         key: 'projects',
@@ -142,6 +141,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
 }
 
 function resolveSelectedKey(pathname: string): string {
+  if (pathname.startsWith('/people')) return 'people';
   if (pathname.startsWith('/teams')) return 'teams';
   if (pathname.startsWith('/time-config')) return 'time-config';
   return 'home';

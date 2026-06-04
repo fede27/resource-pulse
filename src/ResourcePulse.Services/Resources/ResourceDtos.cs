@@ -33,9 +33,11 @@ public sealed class ResourceReadDto
 {
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
+    public string? Email { get; init; }
     public bool IsActive { get; init; }
     public Guid BusinessCalendarId { get; init; }
     public Guid? TeamId { get; init; }
+    public Guid? RoleId { get; init; }
     public string? UserSub { get; init; }
     public IReadOnlyList<WorkWindowDto> WorkWindows { get; init; } = Array.Empty<WorkWindowDto>();
     public IReadOnlyList<IndividualAdjustmentDto> Adjustments { get; init; } = Array.Empty<IndividualAdjustmentDto>();
@@ -46,8 +48,10 @@ public sealed class ResourceReadDto
 public sealed class CreateResourceDto
 {
     public string Name { get; init; } = string.Empty;
+    public string? Email { get; init; }
     public Guid? BusinessCalendarId { get; init; }
     public Guid? TeamId { get; init; }
+    public Guid? RoleId { get; init; }
     public string? UserSub { get; init; }
     public IReadOnlyList<WorkWindowDto>? Windows { get; init; }
     public IReadOnlyList<IndividualAdjustmentDto>? Adjustments { get; init; }
@@ -58,8 +62,10 @@ public sealed class CreateResourceDto
 public sealed class UpdateResourceDto
 {
     public string Name { get; init; } = string.Empty;
+    public string? Email { get; init; }
     public bool IsActive { get; init; }
     public Guid BusinessCalendarId { get; init; }
+    public Guid? RoleId { get; init; }
     public string? UserSub { get; init; }
 }
 
@@ -67,6 +73,12 @@ public sealed class AssignTeamDto
 {
     // Null clears the assignment.
     public Guid? TeamId { get; init; }
+}
+
+public sealed class AssignRoleDto
+{
+    // Null clears the assignment.
+    public Guid? RoleId { get; init; }
 }
 
 public sealed class AddOrUpdateResourceSkillDto

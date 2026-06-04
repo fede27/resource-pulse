@@ -4,9 +4,15 @@
  * ResourcePulse.Hosting
  * OpenAPI spec version: 1.0
  */
+import type { SkillApprovalStatus } from './skillApprovalStatus';
 import type { SkillLevel } from './skillLevel';
 
 export interface ResourceSkillDto {
   skillId?: string;
   level?: SkillLevel;
+  approvalStatus?: SkillApprovalStatus;
+  /** @nullable */
+  reviewedByResourceId?: string | null;
+  /** @nullable */
+  reviewedAt?: string | null;
 }

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using ResourcePulse.Domain.Calendars;
 using ResourcePulse.Domain.Resources;
+using ResourcePulse.Domain.Roles;
 using ResourcePulse.Domain.Skills;
 using ResourcePulse.Domain.Tags;
 using ResourcePulse.Domain.Teams;
@@ -19,6 +20,9 @@ public sealed class ResourceConfiguration : IEntityTypeConfiguration<Resource>
         builder.Property(r => r.Name).HasMaxLength(200).IsRequired();
         builder.Property(r => r.IsActive).IsRequired();
         builder.Property(r => r.UserSub).HasMaxLength(256);
+        // Email uses citext so a single unique index handles case-insensitive
+        // duplicates ("user@x" vs "User@X"). Filtered to allow many NULLs.
+        builder.Property(r => r.Email).HasColumnType("citext");
         builder.Property(r => r.CreatedBy).HasMaxLength(256).IsRequired();
         builder.Property(r => r.UpdatedBy).HasMaxLength(256);
 
@@ -26,6 +30,11 @@ public sealed class ResourceConfiguration : IEntityTypeConfiguration<Resource>
             .IsUnique()
             .HasFilter("user_sub IS NOT NULL")
             .HasDatabaseName("ux_resources_user_sub");
+
+        builder.HasIndex(r => r.Email)
+            .IsUnique()
+            .HasFilter("email IS NOT NULL")
+            .HasDatabaseName("ux_resources_email");
 
         builder.HasOne<BusinessCalendar>()
             .WithMany()
@@ -40,6 +49,15 @@ public sealed class ResourceConfiguration : IEntityTypeConfiguration<Resource>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(r => r.TeamId).HasDatabaseName("ix_resources_team_id");
+
+        // Role FK is nullable. Restrict so deleting a role used by resources
+        // surfaces as a 409 rather than silently nulling the assignment.
+        builder.HasOne<Role>()
+            .WithMany()
+            .HasForeignKey(r => r.RoleId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(r => r.RoleId).HasDatabaseName("ix_resources_role_id");
 
         builder.OwnsMany(r => r.WorkWindows, w =>
         {

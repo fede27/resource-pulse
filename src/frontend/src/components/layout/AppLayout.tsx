@@ -108,6 +108,8 @@ export function AppLayout() {
 
 function resolveBreadcrumb(pathname: string, t: TFunction): string[] {
   if (pathname === '/' || pathname === '') return [t('breadcrumb.dashboard')];
+  if (pathname.startsWith('/people'))
+    return [t('breadcrumb.planning'), t('breadcrumb.people')];
   if (pathname.startsWith('/teams/new'))
     return [t('breadcrumb.configuration'), t('breadcrumb.teams'), t('breadcrumb.teamNew')];
   if (pathname.startsWith('/teams/'))

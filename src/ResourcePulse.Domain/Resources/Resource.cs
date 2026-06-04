@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using ResourcePulse.Common.Domain;
 using ResourcePulse.Domain.Calendars;
 using ResourcePulse.Domain.Events;
@@ -5,7 +6,7 @@ using ResourcePulse.Domain.Skills;
 
 namespace ResourcePulse.Domain.Resources;
 
-public sealed class Resource : Entity<Guid>, IAuditable
+public sealed partial class Resource : Entity<Guid>, IAuditable
 {
     private readonly List<WorkWindow> _workWindows = new();
     private readonly List<IndividualAdjustment> _adjustments = new();
@@ -16,6 +17,11 @@ public sealed class Resource : Entity<Guid>, IAuditable
     public bool IsActive { get; private set; } = true;
     public Guid BusinessCalendarId { get; private set; }
     public Guid? TeamId { get; private set; }
+    public Guid? RoleId { get; private set; }
+
+    // Optional contact email. Stored as-typed; unique enforced case-insensitively
+    // at the DB level via citext + filtered unique index (null is multi-valued).
+    public string? Email { get; private set; }
 
     // Optional link to an auth subject (ClaimTypes.NameIdentifier). When set,
     // ICurrentUserAccessor.User.Sub can be resolved to this resource — used
@@ -99,6 +105,41 @@ public sealed class Resource : Entity<Guid>, IAuditable
         var trimmed = userSub.Trim();
         UserSub = trimmed.Length == 0 ? null : trimmed;
     }
+
+    // ── Email ───────────────────────────────────────────────────────────────
+
+    public void SetEmail(string? email)
+    {
+        if (email is null)
+        {
+            Email = null;
+            return;
+        }
+        var trimmed = email.Trim();
+        if (trimmed.Length == 0)
+        {
+            Email = null;
+            return;
+        }
+        if (trimmed.Length > 256)
+            throw new DomainException("Email must be 256 characters or fewer.");
+        if (!EmailPattern().IsMatch(trimmed))
+            throw new DomainException($"'{trimmed}' is not a valid email address.");
+        Email = trimmed;
+    }
+
+    // ── Role ────────────────────────────────────────────────────────────────
+
+    public void AssignToRole(Guid? roleId)
+    {
+        // Treat Guid.Empty as null for ergonomics on the wire.
+        RoleId = roleId == Guid.Empty ? (Guid?)null : roleId;
+    }
+
+    // Pragmatic email check: a single '@' separating non-empty local + domain
+    // with at least one '.' in the domain. Matches the design's frontend regex.
+    [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.CultureInvariant)]
+    private static partial Regex EmailPattern();
 
     // ── Team ────────────────────────────────────────────────────────────────
 

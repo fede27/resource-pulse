@@ -2,13 +2,13 @@ using DevExtreme.AspNet.Data;
 using DevExtreme.AspNet.Data.ResponseModel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using ResourcePulse.Services.Tags;
+using ResourcePulse.Services.Roles;
 
-namespace ResourcePulse.Http.Tags;
+namespace ResourcePulse.Http.Roles;
 
-[Route("api/tags")]
-public sealed class TagsController(ITagService service)
-    : CrudController<CreateTagDto, UpdateTagDto, TagReadDto, Guid>
+[Route("api/roles")]
+public sealed class RolesController(IRoleService service)
+    : CrudController<CreateRoleDto, UpdateRoleDto, RoleReadDto, Guid>
 {
     [HttpGet]
     [ProducesResponseType<LoadResult>(StatusCodes.Status200OK)]
@@ -16,24 +16,24 @@ public sealed class TagsController(ITagService service)
         FromResult(await service.GetAllAsync(loadOptions, ct));
 
     [HttpGet("{id}")]
-    [ProducesResponseType<TagReadDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<RoleReadDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public override async Task<IActionResult> GetByIdAsync(Guid id, CancellationToken ct) =>
         FromResult(await service.GetByIdAsync(id, ct));
 
     [HttpPost]
-    [ProducesResponseType<TagReadDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<RoleReadDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    public override async Task<IActionResult> CreateAsync([FromBody] CreateTagDto dto, CancellationToken ct) =>
+    public override async Task<IActionResult> CreateAsync([FromBody] CreateRoleDto dto, CancellationToken ct) =>
         FromCreateResult(await service.CreateAsync(dto, ct), x => x.Id);
 
     [HttpPut("{id}")]
-    [ProducesResponseType<TagReadDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<RoleReadDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    public override async Task<IActionResult> UpdateAsync(Guid id, [FromBody] UpdateTagDto dto, CancellationToken ct) =>
+    public override async Task<IActionResult> UpdateAsync(Guid id, [FromBody] UpdateRoleDto dto, CancellationToken ct) =>
         FromResult(await service.UpdateAsync(id, dto, ct));
 
     [HttpDelete("{id}")]

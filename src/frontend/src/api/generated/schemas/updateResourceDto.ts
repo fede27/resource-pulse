@@ -8,6 +8,12 @@
 export interface UpdateResourceDto {
   /** @nullable */
   name?: string | null;
+  /** @nullable */
+  email?: string | null;
   isActive?: boolean;
   businessCalendarId?: string;
+  /** @nullable */
+  roleId?: string | null;
+  /** @nullable */
+  userSub?: string | null;
 }

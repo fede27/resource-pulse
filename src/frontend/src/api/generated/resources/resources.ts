@@ -26,11 +26,19 @@ import type {
 import type {
   AddOrUpdateResourceSkillDto,
   AddResourceTagDto,
+  AssignRoleDto,
   AssignTeamDto,
   CreateResourceDto,
+  DailyCapacityDto,
   IndividualAdjustmentDto,
+  LoadResult,
+  ProblemDetails,
+  ResourceReadDto,
+  ResourceSkillDto,
+  ResourceTagDto,
   ResourcesGetCapacityParams,
   UpdateResourceDto,
+  ValidationProblemDetails,
   WorkWindowDto
 } from '../schemas';
 
@@ -48,7 +56,7 @@ export const resourcesGetAll = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<LoadResult>(
       {url: `/api/resources`, method: 'GET', signal
     },
       options);
@@ -134,7 +142,7 @@ export const resourcesCreate = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<ResourceReadDto>(
       {url: `/api/resources`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
       data: createResourceDto, signal
@@ -144,7 +152,7 @@ export const resourcesCreate = (
 
 
 
-export const getResourcesCreateMutationOptions = <TError = ErrorType<unknown>,
+export const getResourcesCreateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesCreate>>, TError,{data?: BodyType<CreateResourceDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resourcesCreate>>, TError,{data?: BodyType<CreateResourceDto>}, TContext> => {
 
@@ -173,9 +181,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResourcesCreateMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesCreate>>>
     export type ResourcesCreateMutationBody = BodyType<CreateResourceDto> | undefined
-    export type ResourcesCreateMutationError = ErrorType<unknown>
+    export type ResourcesCreateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
 
-    export const useResourcesCreate = <TError = ErrorType<unknown>,
+    export const useResourcesCreate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesCreate>>, TError,{data?: BodyType<CreateResourceDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resourcesCreate>>,
@@ -191,7 +199,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<ResourceReadDto>(
       {url: `/api/resources/${id}`, method: 'GET', signal
     },
       options);
@@ -207,7 +215,7 @@ export const getResourcesGetByIdQueryKey = (id: string,) => {
     }
 
 
-export const getResourcesGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof resourcesGetById>>, TError = ErrorType<unknown>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+export const getResourcesGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof resourcesGetById>>, TError = ErrorType<ProblemDetails>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -226,10 +234,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ResourcesGetByIdQueryResult = NonNullable<Awaited<ReturnType<typeof resourcesGetById>>>
-export type ResourcesGetByIdQueryError = ErrorType<unknown>
+export type ResourcesGetByIdQueryError = ErrorType<ProblemDetails>
 
 
-export function useResourcesGetById<TData = Awaited<ReturnType<typeof resourcesGetById>>, TError = ErrorType<unknown>>(
+export function useResourcesGetById<TData = Awaited<ReturnType<typeof resourcesGetById>>, TError = ErrorType<ProblemDetails>>(
  id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetById>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof resourcesGetById>>,
@@ -239,7 +247,7 @@ export function useResourcesGetById<TData = Awaited<ReturnType<typeof resourcesG
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useResourcesGetById<TData = Awaited<ReturnType<typeof resourcesGetById>>, TError = ErrorType<unknown>>(
+export function useResourcesGetById<TData = Awaited<ReturnType<typeof resourcesGetById>>, TError = ErrorType<ProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetById>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof resourcesGetById>>,
@@ -249,12 +257,12 @@ export function useResourcesGetById<TData = Awaited<ReturnType<typeof resourcesG
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useResourcesGetById<TData = Awaited<ReturnType<typeof resourcesGetById>>, TError = ErrorType<unknown>>(
+export function useResourcesGetById<TData = Awaited<ReturnType<typeof resourcesGetById>>, TError = ErrorType<ProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useResourcesGetById<TData = Awaited<ReturnType<typeof resourcesGetById>>, TError = ErrorType<unknown>>(
+export function useResourcesGetById<TData = Awaited<ReturnType<typeof resourcesGetById>>, TError = ErrorType<ProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -278,7 +286,7 @@ export const resourcesUpdate = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<ResourceReadDto>(
       {url: `/api/resources/${id}`, method: 'PUT',
       headers: {'Content-Type': 'application/json', },
       data: updateResourceDto, signal
@@ -288,7 +296,7 @@ export const resourcesUpdate = (
 
 
 
-export const getResourcesUpdateMutationOptions = <TError = ErrorType<unknown>,
+export const getResourcesUpdateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesUpdate>>, TError,{id: string;data?: BodyType<UpdateResourceDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resourcesUpdate>>, TError,{id: string;data?: BodyType<UpdateResourceDto>}, TContext> => {
 
@@ -317,9 +325,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResourcesUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesUpdate>>>
     export type ResourcesUpdateMutationBody = BodyType<UpdateResourceDto> | undefined
-    export type ResourcesUpdateMutationError = ErrorType<unknown>
+    export type ResourcesUpdateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
 
-    export const useResourcesUpdate = <TError = ErrorType<unknown>,
+    export const useResourcesUpdate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesUpdate>>, TError,{id: string;data?: BodyType<UpdateResourceDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resourcesUpdate>>,
@@ -343,7 +351,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getResourcesDeleteMutationOptions = <TError = ErrorType<unknown>,
+export const getResourcesDeleteMutationOptions = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resourcesDelete>>, TError,{id: string}, TContext> => {
 
@@ -372,9 +380,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResourcesDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesDelete>>>
 
-    export type ResourcesDeleteMutationError = ErrorType<unknown>
+    export type ResourcesDeleteMutationError = ErrorType<ProblemDetails>
 
-    export const useResourcesDelete = <TError = ErrorType<unknown>,
+    export const useResourcesDelete = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resourcesDelete>>,
@@ -391,7 +399,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<WorkWindowDto>(
       {url: `/api/resources/${id}/work-windows`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
       data: workWindowDto, signal
@@ -401,7 +409,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getResourcesAddWorkWindowMutationOptions = <TError = ErrorType<unknown>,
+export const getResourcesAddWorkWindowMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAddWorkWindow>>, TError,{id: string;data?: BodyType<WorkWindowDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resourcesAddWorkWindow>>, TError,{id: string;data?: BodyType<WorkWindowDto>}, TContext> => {
 
@@ -430,9 +438,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResourcesAddWorkWindowMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesAddWorkWindow>>>
     export type ResourcesAddWorkWindowMutationBody = BodyType<WorkWindowDto> | undefined
-    export type ResourcesAddWorkWindowMutationError = ErrorType<unknown>
+    export type ResourcesAddWorkWindowMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
 
-    export const useResourcesAddWorkWindow = <TError = ErrorType<unknown>,
+    export const useResourcesAddWorkWindow = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAddWorkWindow>>, TError,{id: string;data?: BodyType<WorkWindowDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resourcesAddWorkWindow>>,
@@ -457,7 +465,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getResourcesRemoveWorkWindowMutationOptions = <TError = ErrorType<unknown>,
+export const getResourcesRemoveWorkWindowMutationOptions = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesRemoveWorkWindow>>, TError,{id: string;windowId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resourcesRemoveWorkWindow>>, TError,{id: string;windowId: string}, TContext> => {
 
@@ -486,9 +494,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResourcesRemoveWorkWindowMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesRemoveWorkWindow>>>
 
-    export type ResourcesRemoveWorkWindowMutationError = ErrorType<unknown>
+    export type ResourcesRemoveWorkWindowMutationError = ErrorType<ProblemDetails>
 
-    export const useResourcesRemoveWorkWindow = <TError = ErrorType<unknown>,
+    export const useResourcesRemoveWorkWindow = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesRemoveWorkWindow>>, TError,{id: string;windowId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resourcesRemoveWorkWindow>>,
@@ -505,7 +513,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<IndividualAdjustmentDto>(
       {url: `/api/resources/${id}/adjustments`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
       data: individualAdjustmentDto, signal
@@ -515,7 +523,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getResourcesAddAdjustmentMutationOptions = <TError = ErrorType<unknown>,
+export const getResourcesAddAdjustmentMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAddAdjustment>>, TError,{id: string;data?: BodyType<IndividualAdjustmentDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resourcesAddAdjustment>>, TError,{id: string;data?: BodyType<IndividualAdjustmentDto>}, TContext> => {
 
@@ -544,9 +552,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResourcesAddAdjustmentMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesAddAdjustment>>>
     export type ResourcesAddAdjustmentMutationBody = BodyType<IndividualAdjustmentDto> | undefined
-    export type ResourcesAddAdjustmentMutationError = ErrorType<unknown>
+    export type ResourcesAddAdjustmentMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
 
-    export const useResourcesAddAdjustment = <TError = ErrorType<unknown>,
+    export const useResourcesAddAdjustment = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAddAdjustment>>, TError,{id: string;data?: BodyType<IndividualAdjustmentDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resourcesAddAdjustment>>,
@@ -571,7 +579,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getResourcesRemoveAdjustmentMutationOptions = <TError = ErrorType<unknown>,
+export const getResourcesRemoveAdjustmentMutationOptions = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesRemoveAdjustment>>, TError,{id: string;adjustmentId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resourcesRemoveAdjustment>>, TError,{id: string;adjustmentId: string}, TContext> => {
 
@@ -600,9 +608,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResourcesRemoveAdjustmentMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesRemoveAdjustment>>>
 
-    export type ResourcesRemoveAdjustmentMutationError = ErrorType<unknown>
+    export type ResourcesRemoveAdjustmentMutationError = ErrorType<ProblemDetails>
 
-    export const useResourcesRemoveAdjustment = <TError = ErrorType<unknown>,
+    export const useResourcesRemoveAdjustment = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesRemoveAdjustment>>, TError,{id: string;adjustmentId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resourcesRemoveAdjustment>>,
@@ -629,7 +637,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getResourcesAssignTeamMutationOptions = <TError = ErrorType<unknown>,
+export const getResourcesAssignTeamMutationOptions = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAssignTeam>>, TError,{id: string;data?: BodyType<AssignTeamDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resourcesAssignTeam>>, TError,{id: string;data?: BodyType<AssignTeamDto>}, TContext> => {
 
@@ -658,9 +666,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResourcesAssignTeamMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesAssignTeam>>>
     export type ResourcesAssignTeamMutationBody = BodyType<AssignTeamDto> | undefined
-    export type ResourcesAssignTeamMutationError = ErrorType<unknown>
+    export type ResourcesAssignTeamMutationError = ErrorType<ProblemDetails>
 
-    export const useResourcesAssignTeam = <TError = ErrorType<unknown>,
+    export const useResourcesAssignTeam = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAssignTeam>>, TError,{id: string;data?: BodyType<AssignTeamDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resourcesAssignTeam>>,
@@ -670,6 +678,64 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getResourcesAssignTeamMutationOptions(options), queryClient);
     }
+    export const resourcesAssignRole = (
+    id: string,
+    assignRoleDto?: BodyType<AssignRoleDto>,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<void>(
+      {url: `/api/resources/${id}/role`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: assignRoleDto, signal
+    },
+      options);
+    }
+
+
+
+export const getResourcesAssignRoleMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAssignRole>>, TError,{id: string;data?: BodyType<AssignRoleDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof resourcesAssignRole>>, TError,{id: string;data?: BodyType<AssignRoleDto>}, TContext> => {
+
+const mutationKey = ['resourcesAssignRole'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resourcesAssignRole>>, {id: string;data?: BodyType<AssignRoleDto>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resourcesAssignRole(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResourcesAssignRoleMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesAssignRole>>>
+    export type ResourcesAssignRoleMutationBody = BodyType<AssignRoleDto> | undefined
+    export type ResourcesAssignRoleMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
+
+    export const useResourcesAssignRole = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAssignRole>>, TError,{id: string;data?: BodyType<AssignRoleDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resourcesAssignRole>>,
+        TError,
+        {id: string;data?: BodyType<AssignRoleDto>},
+        TContext
+      > => {
+      return useMutation(getResourcesAssignRoleMutationOptions(options), queryClient);
+    }
     export const resourcesAddSkill = (
     id: string,
     addOrUpdateResourceSkillDto?: BodyType<AddOrUpdateResourceSkillDto>,
@@ -677,7 +743,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<ResourceSkillDto>(
       {url: `/api/resources/${id}/skills`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
       data: addOrUpdateResourceSkillDto, signal
@@ -687,7 +753,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getResourcesAddSkillMutationOptions = <TError = ErrorType<unknown>,
+export const getResourcesAddSkillMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAddSkill>>, TError,{id: string;data?: BodyType<AddOrUpdateResourceSkillDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resourcesAddSkill>>, TError,{id: string;data?: BodyType<AddOrUpdateResourceSkillDto>}, TContext> => {
 
@@ -716,9 +782,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResourcesAddSkillMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesAddSkill>>>
     export type ResourcesAddSkillMutationBody = BodyType<AddOrUpdateResourceSkillDto> | undefined
-    export type ResourcesAddSkillMutationError = ErrorType<unknown>
+    export type ResourcesAddSkillMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
 
-    export const useResourcesAddSkill = <TError = ErrorType<unknown>,
+    export const useResourcesAddSkill = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAddSkill>>, TError,{id: string;data?: BodyType<AddOrUpdateResourceSkillDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resourcesAddSkill>>,
@@ -736,7 +802,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<ResourceSkillDto>(
       {url: `/api/resources/${id}/skills/${skillId}`, method: 'PUT',
       headers: {'Content-Type': 'application/json', },
       data: addOrUpdateResourceSkillDto, signal
@@ -746,7 +812,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getResourcesUpdateSkillLevelMutationOptions = <TError = ErrorType<unknown>,
+export const getResourcesUpdateSkillLevelMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesUpdateSkillLevel>>, TError,{id: string;skillId: string;data?: BodyType<AddOrUpdateResourceSkillDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resourcesUpdateSkillLevel>>, TError,{id: string;skillId: string;data?: BodyType<AddOrUpdateResourceSkillDto>}, TContext> => {
 
@@ -775,9 +841,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResourcesUpdateSkillLevelMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesUpdateSkillLevel>>>
     export type ResourcesUpdateSkillLevelMutationBody = BodyType<AddOrUpdateResourceSkillDto> | undefined
-    export type ResourcesUpdateSkillLevelMutationError = ErrorType<unknown>
+    export type ResourcesUpdateSkillLevelMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
 
-    export const useResourcesUpdateSkillLevel = <TError = ErrorType<unknown>,
+    export const useResourcesUpdateSkillLevel = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesUpdateSkillLevel>>, TError,{id: string;skillId: string;data?: BodyType<AddOrUpdateResourceSkillDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resourcesUpdateSkillLevel>>,
@@ -802,7 +868,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getResourcesRemoveSkillMutationOptions = <TError = ErrorType<unknown>,
+export const getResourcesRemoveSkillMutationOptions = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesRemoveSkill>>, TError,{id: string;skillId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resourcesRemoveSkill>>, TError,{id: string;skillId: string}, TContext> => {
 
@@ -831,9 +897,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResourcesRemoveSkillMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesRemoveSkill>>>
 
-    export type ResourcesRemoveSkillMutationError = ErrorType<unknown>
+    export type ResourcesRemoveSkillMutationError = ErrorType<ProblemDetails>
 
-    export const useResourcesRemoveSkill = <TError = ErrorType<unknown>,
+    export const useResourcesRemoveSkill = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesRemoveSkill>>, TError,{id: string;skillId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resourcesRemoveSkill>>,
@@ -843,6 +909,174 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getResourcesRemoveSkillMutationOptions(options), queryClient);
     }
+    export const resourcesApproveSkill = (
+    id: string,
+    skillId: string,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<ResourceSkillDto>(
+      {url: `/api/resources/${id}/skills/${skillId}/approve`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+export const getResourcesApproveSkillMutationOptions = <TError = ErrorType<ProblemDetails>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesApproveSkill>>, TError,{id: string;skillId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof resourcesApproveSkill>>, TError,{id: string;skillId: string}, TContext> => {
+
+const mutationKey = ['resourcesApproveSkill'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resourcesApproveSkill>>, {id: string;skillId: string}> = (props) => {
+          const {id,skillId} = props ?? {};
+
+          return  resourcesApproveSkill(id,skillId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResourcesApproveSkillMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesApproveSkill>>>
+
+    export type ResourcesApproveSkillMutationError = ErrorType<ProblemDetails>
+
+    export const useResourcesApproveSkill = <TError = ErrorType<ProblemDetails>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesApproveSkill>>, TError,{id: string;skillId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resourcesApproveSkill>>,
+        TError,
+        {id: string;skillId: string},
+        TContext
+      > => {
+      return useMutation(getResourcesApproveSkillMutationOptions(options), queryClient);
+    }
+    export const resourcesRejectSkill = (
+    id: string,
+    skillId: string,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<ResourceSkillDto>(
+      {url: `/api/resources/${id}/skills/${skillId}/reject`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+export const getResourcesRejectSkillMutationOptions = <TError = ErrorType<ProblemDetails>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesRejectSkill>>, TError,{id: string;skillId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof resourcesRejectSkill>>, TError,{id: string;skillId: string}, TContext> => {
+
+const mutationKey = ['resourcesRejectSkill'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resourcesRejectSkill>>, {id: string;skillId: string}> = (props) => {
+          const {id,skillId} = props ?? {};
+
+          return  resourcesRejectSkill(id,skillId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResourcesRejectSkillMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesRejectSkill>>>
+
+    export type ResourcesRejectSkillMutationError = ErrorType<ProblemDetails>
+
+    export const useResourcesRejectSkill = <TError = ErrorType<ProblemDetails>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesRejectSkill>>, TError,{id: string;skillId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resourcesRejectSkill>>,
+        TError,
+        {id: string;skillId: string},
+        TContext
+      > => {
+      return useMutation(getResourcesRejectSkillMutationOptions(options), queryClient);
+    }
+    export const resourcesReturnSkillToPending = (
+    id: string,
+    skillId: string,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<ResourceSkillDto>(
+      {url: `/api/resources/${id}/skills/${skillId}/return-to-pending`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+export const getResourcesReturnSkillToPendingMutationOptions = <TError = ErrorType<ProblemDetails>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesReturnSkillToPending>>, TError,{id: string;skillId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof resourcesReturnSkillToPending>>, TError,{id: string;skillId: string}, TContext> => {
+
+const mutationKey = ['resourcesReturnSkillToPending'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resourcesReturnSkillToPending>>, {id: string;skillId: string}> = (props) => {
+          const {id,skillId} = props ?? {};
+
+          return  resourcesReturnSkillToPending(id,skillId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResourcesReturnSkillToPendingMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesReturnSkillToPending>>>
+
+    export type ResourcesReturnSkillToPendingMutationError = ErrorType<ProblemDetails>
+
+    export const useResourcesReturnSkillToPending = <TError = ErrorType<ProblemDetails>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesReturnSkillToPending>>, TError,{id: string;skillId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resourcesReturnSkillToPending>>,
+        TError,
+        {id: string;skillId: string},
+        TContext
+      > => {
+      return useMutation(getResourcesReturnSkillToPendingMutationOptions(options), queryClient);
+    }
     export const resourcesAddTag = (
     id: string,
     addResourceTagDto?: BodyType<AddResourceTagDto>,
@@ -850,7 +1084,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<ResourceTagDto>(
       {url: `/api/resources/${id}/tags`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
       data: addResourceTagDto, signal
@@ -860,7 +1094,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getResourcesAddTagMutationOptions = <TError = ErrorType<unknown>,
+export const getResourcesAddTagMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAddTag>>, TError,{id: string;data?: BodyType<AddResourceTagDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resourcesAddTag>>, TError,{id: string;data?: BodyType<AddResourceTagDto>}, TContext> => {
 
@@ -889,9 +1123,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResourcesAddTagMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesAddTag>>>
     export type ResourcesAddTagMutationBody = BodyType<AddResourceTagDto> | undefined
-    export type ResourcesAddTagMutationError = ErrorType<unknown>
+    export type ResourcesAddTagMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
 
-    export const useResourcesAddTag = <TError = ErrorType<unknown>,
+    export const useResourcesAddTag = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAddTag>>, TError,{id: string;data?: BodyType<AddResourceTagDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resourcesAddTag>>,
@@ -916,7 +1150,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getResourcesRemoveTagMutationOptions = <TError = ErrorType<unknown>,
+export const getResourcesRemoveTagMutationOptions = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesRemoveTag>>, TError,{id: string;tagId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof resourcesRemoveTag>>, TError,{id: string;tagId: string}, TContext> => {
 
@@ -945,9 +1179,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ResourcesRemoveTagMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesRemoveTag>>>
 
-    export type ResourcesRemoveTagMutationError = ErrorType<unknown>
+    export type ResourcesRemoveTagMutationError = ErrorType<ProblemDetails>
 
-    export const useResourcesRemoveTag = <TError = ErrorType<unknown>,
+    export const useResourcesRemoveTag = <TError = ErrorType<ProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesRemoveTag>>, TError,{id: string;tagId: string}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof resourcesRemoveTag>>,
@@ -964,7 +1198,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<DailyCapacityDto[]>(
       {url: `/api/resources/${id}/capacity`, method: 'GET',
         params, signal
     },
@@ -982,7 +1216,7 @@ export const getResourcesGetCapacityQueryKey = (id: string,
     }
 
 
-export const getResourcesGetCapacityQueryOptions = <TData = Awaited<ReturnType<typeof resourcesGetCapacity>>, TError = ErrorType<unknown>>(id: string,
+export const getResourcesGetCapacityQueryOptions = <TData = Awaited<ReturnType<typeof resourcesGetCapacity>>, TError = ErrorType<ProblemDetails>>(id: string,
     params?: ResourcesGetCapacityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetCapacity>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
@@ -1002,10 +1236,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ResourcesGetCapacityQueryResult = NonNullable<Awaited<ReturnType<typeof resourcesGetCapacity>>>
-export type ResourcesGetCapacityQueryError = ErrorType<unknown>
+export type ResourcesGetCapacityQueryError = ErrorType<ProblemDetails>
 
 
-export function useResourcesGetCapacity<TData = Awaited<ReturnType<typeof resourcesGetCapacity>>, TError = ErrorType<unknown>>(
+export function useResourcesGetCapacity<TData = Awaited<ReturnType<typeof resourcesGetCapacity>>, TError = ErrorType<ProblemDetails>>(
  id: string,
     params: undefined |  ResourcesGetCapacityParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetCapacity>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -1016,7 +1250,7 @@ export function useResourcesGetCapacity<TData = Awaited<ReturnType<typeof resour
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useResourcesGetCapacity<TData = Awaited<ReturnType<typeof resourcesGetCapacity>>, TError = ErrorType<unknown>>(
+export function useResourcesGetCapacity<TData = Awaited<ReturnType<typeof resourcesGetCapacity>>, TError = ErrorType<ProblemDetails>>(
  id: string,
     params?: ResourcesGetCapacityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetCapacity>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -1027,13 +1261,13 @@ export function useResourcesGetCapacity<TData = Awaited<ReturnType<typeof resour
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useResourcesGetCapacity<TData = Awaited<ReturnType<typeof resourcesGetCapacity>>, TError = ErrorType<unknown>>(
+export function useResourcesGetCapacity<TData = Awaited<ReturnType<typeof resourcesGetCapacity>>, TError = ErrorType<ProblemDetails>>(
  id: string,
     params?: ResourcesGetCapacityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetCapacity>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useResourcesGetCapacity<TData = Awaited<ReturnType<typeof resourcesGetCapacity>>, TError = ErrorType<unknown>>(
+export function useResourcesGetCapacity<TData = Awaited<ReturnType<typeof resourcesGetCapacity>>, TError = ErrorType<ProblemDetails>>(
  id: string,
     params?: ResourcesGetCapacityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetCapacity>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient

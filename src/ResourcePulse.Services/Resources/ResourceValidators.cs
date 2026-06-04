@@ -52,6 +52,9 @@ public sealed class CreateResourceDtoValidator : AbstractValidator<CreateResourc
     public CreateResourceDtoValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.Email)
+            .EmailAddress().MaximumLength(256)
+            .When(x => !string.IsNullOrWhiteSpace(x.Email));
         RuleForEach(x => x.Windows).SetValidator(new WorkWindowDtoValidator());
         RuleForEach(x => x.Adjustments).SetValidator(new IndividualAdjustmentDtoValidator());
         RuleForEach(x => x.Skills).SetValidator(new ResourceSkillDtoValidator());
@@ -64,6 +67,9 @@ public sealed class UpdateResourceDtoValidator : AbstractValidator<UpdateResourc
     public UpdateResourceDtoValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.Email)
+            .EmailAddress().MaximumLength(256)
+            .When(x => !string.IsNullOrWhiteSpace(x.Email));
         RuleFor(x => x.BusinessCalendarId).NotEqual(Guid.Empty)
             .WithMessage("BusinessCalendarId is required.");
     }

@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { HomePage } from '@/app/routes/index';
+import { PeopleRoutePage } from '@/app/routes/people/index';
 import { TeamListPage } from '@/app/routes/teams/index';
 import { TeamNewPage } from '@/app/routes/teams/new';
 import { TeamDetailPage } from '@/app/routes/teams/$teamId';
@@ -41,12 +42,19 @@ const timeConfigRoute = createRoute({
   component: TimeConfigRoutePage,
 });
 
+const peopleRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/people',
+  component: PeopleRoutePage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   teamListRoute,
   teamNewRoute,
   teamDetailRoute,
   timeConfigRoute,
+  peopleRoute,
 ]);
 
 export const router = createRouter({ routeTree });

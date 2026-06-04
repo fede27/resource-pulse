@@ -86,6 +86,18 @@ public sealed class ResourceService(
             }
         }
 
+        if (dto.RoleId is { } roleId && roleId != Guid.Empty)
+        {
+            var roleExists = await db.Roles.AnyAsync(r => r.Id == roleId, ct);
+            if (!roleExists)
+            {
+                return ServiceResult<ResourceReadDto>.Validation(new Dictionary<string, string[]>
+                {
+                    [nameof(CreateResourceDto.RoleId)] = [$"Role {roleId} does not exist."]
+                });
+            }
+        }
+
         if (dto.Skills is { Count: > 0 } skills)
         {
             var skillIds = skills.Select(s => s.SkillId).Distinct().ToArray();
@@ -112,9 +124,23 @@ public sealed class ResourceService(
             }
         }
 
-        var resource = Resource.Create(dto.Name, calendarId);
+        Resource resource;
+        try
+        {
+            resource = Resource.Create(dto.Name, calendarId);
+            resource.SetEmail(dto.Email);
+        }
+        catch (Common.Domain.DomainException ex)
+        {
+            return ServiceResult<ResourceReadDto>.Validation(new Dictionary<string, string[]>
+            {
+                [nameof(CreateResourceDto.Email)] = [ex.Message]
+            });
+        }
         if (dto.TeamId is { } tid && tid != Guid.Empty)
             resource.AssignToTeam(tid);
+        if (dto.RoleId is { } rid && rid != Guid.Empty)
+            resource.AssignToRole(rid);
         if (!string.IsNullOrWhiteSpace(dto.UserSub))
             resource.LinkToUser(dto.UserSub);
 
@@ -146,7 +172,7 @@ public sealed class ResourceService(
         }
         catch (DbUpdateException ex) when (IsUniqueViolation(ex))
         {
-            return ServiceResult<ResourceReadDto>.Conflict("Another resource is already linked to this user.");
+            return ServiceResult<ResourceReadDto>.Conflict(DescribeUniqueViolation(ex));
         }
         return ServiceResult<ResourceReadDto>.Success(mapper.Map<ResourceReadDto>(resource));
     }
@@ -170,7 +196,31 @@ public sealed class ResourceService(
             resource.ChangeBusinessCalendar(dto.BusinessCalendarId);
         }
 
+        if (dto.RoleId is { } roleId && roleId != Guid.Empty && resource.RoleId != roleId)
+        {
+            var roleExists = await db.Roles.AnyAsync(r => r.Id == roleId, ct);
+            if (!roleExists)
+            {
+                return ServiceResult<ResourceReadDto>.Validation(new Dictionary<string, string[]>
+                {
+                    [nameof(UpdateResourceDto.RoleId)] = [$"Role {roleId} does not exist."]
+                });
+            }
+        }
+
         resource.Rename(dto.Name);
+        try
+        {
+            resource.SetEmail(dto.Email);
+        }
+        catch (Common.Domain.DomainException ex)
+        {
+            return ServiceResult<ResourceReadDto>.Validation(new Dictionary<string, string[]>
+            {
+                [nameof(UpdateResourceDto.Email)] = [ex.Message]
+            });
+        }
+        resource.AssignToRole(dto.RoleId);
         if (dto.IsActive) resource.Activate(); else resource.Deactivate();
         resource.LinkToUser(dto.UserSub);
 
@@ -180,9 +230,29 @@ public sealed class ResourceService(
         }
         catch (DbUpdateException ex) when (IsUniqueViolation(ex))
         {
-            return ServiceResult<ResourceReadDto>.Conflict("Another resource is already linked to this user.");
+            return ServiceResult<ResourceReadDto>.Conflict(DescribeUniqueViolation(ex));
         }
         return ServiceResult<ResourceReadDto>.Success(mapper.Map<ResourceReadDto>(resource));
+    }
+
+    public async Task<ServiceResult<Unit>> AssignRoleAsync(Guid resourceId, AssignRoleDto dto, CancellationToken ct = default)
+    {
+        var resource = await repository.GetByIdAsync(resourceId, ct);
+        if (resource is null) return ServiceResult.NotFound($"Resource {resourceId} not found.");
+
+        if (dto.RoleId is { } roleId && roleId != Guid.Empty)
+        {
+            var roleExists = await db.Roles.AnyAsync(r => r.Id == roleId, ct);
+            if (!roleExists)
+                return ServiceResult.Validation(new Dictionary<string, string[]>
+                {
+                    [nameof(AssignRoleDto.RoleId)] = [$"Role {roleId} does not exist."]
+                });
+        }
+
+        resource.AssignToRole(dto.RoleId);
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult.Ok();
     }
 
     public async Task<ServiceResult<Unit>> DeleteAsync(Guid id, CancellationToken ct = default)
@@ -454,6 +524,19 @@ public sealed class ResourceService(
     private static bool IsUniqueViolation(DbUpdateException ex) =>
         ex.InnerException?.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) == true ||
         ex.InnerException?.Message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase) == true;
+
+    // Map the index name in the Postgres error message to a user-friendly
+    // explanation. Falls back to a generic message when the constraint is
+    // unknown — better that than a leaked SQL string.
+    private static string DescribeUniqueViolation(DbUpdateException ex)
+    {
+        var message = ex.InnerException?.Message ?? string.Empty;
+        if (message.Contains("ux_resources_email", StringComparison.OrdinalIgnoreCase))
+            return "Another resource is already using this email address.";
+        if (message.Contains("ux_resources_user_sub", StringComparison.OrdinalIgnoreCase))
+            return "Another resource is already linked to this user.";
+        return "A unique-constraint violation prevented saving this resource.";
+    }
 
     // FindAsync (used by the generic repository) does not include OwnsMany
     // navigations. Operations that mutate the owned graph (work windows,
