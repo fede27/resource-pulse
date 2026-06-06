@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Common.Domain;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
+using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Persistence;
 
@@ -304,11 +305,45 @@ public sealed class ProjectNodeService(
                 });
         }
 
+        // Cascade demotion guard (ADR-0015 §4). Quando il downgrade attraversa
+        // la soglia hard-committed → non-hard, le allocazioni Hard sulla
+        // subtree del progetto vanno demote esplicitamente: o il chiamante
+        // conferma con ConfirmDemoteHardAllocations = true e procediamo, o
+        // restituiamo Conflict con il conteggio.
+        var oldLevel = node.CommitmentLevel;
+        var newLevel = dto.CommitmentLevel;
+        var crossesHardThreshold = IsHardCommittedLevel(oldLevel) && !IsHardCommittedLevel(newLevel);
+
+        List<Allocation> hardAllocationsToDemote = [];
+        if (crossesHardThreshold)
+        {
+            // Subtree = root + children whose path starts with "/{rootId}/".
+            var subtreePathPrefix = node.Path + "/";
+            hardAllocationsToDemote = await (
+                from a in db.Allocations
+                join p in db.ProjectNodes on a.ProjectNodeId equals p.Id
+                where a.Status == AllocationStatus.Hard
+                   && (p.Id == node.Id || p.Path.StartsWith(subtreePathPrefix))
+                select a
+            ).ToListAsync(ct);
+
+            if (hardAllocationsToDemote.Count > 0 && !dto.ConfirmDemoteHardAllocations)
+            {
+                return ServiceResult<ProjectNodeReadDto>.Conflict(
+                    $"Downgrading commitment from '{oldLevel}' to '{newLevel}' would demote " +
+                    $"{hardAllocationsToDemote.Count} Hard allocation(s) on this project's subtree to Tentative. " +
+                    "Re-submit with ConfirmDemoteHardAllocations = true to proceed.");
+            }
+        }
+
         try
         {
             node.ChangeType(dto.Type);
             node.ChangeCommitmentLevel(dto.CommitmentLevel);
             node.AssignLead(dto.LeadResourceId);
+
+            foreach (var a in hardAllocationsToDemote)
+                a.ChangeStatus(AllocationStatus.Tentative, "ProjectCommitmentDowngrade");
         }
         catch (DomainException ex)
         {
@@ -318,6 +353,13 @@ public sealed class ProjectNodeService(
         await repository.SaveChangesAsync(ct);
         return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node));
     }
+
+    // Mappatura "committato hard" — leggibile in un solo posto. Identica a
+    // AllocationService.IsHardCommittedLevel; tenute disgiunte per evitare un
+    // riferimento incrociato tra i due service (sono due ADR concettualmente
+    // diverse — ADR-0015 §3 — ma la soglia è la stessa).
+    private static bool IsHardCommittedLevel(CommitmentLevel? level) =>
+        level is CommitmentLevel.Committed or CommitmentLevel.Critical;
 
     // ── Project-only: state transitions ─────────────────────────────────────
 

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Resources;
+using ResourcePulse.Domain.Skills;
 
 namespace ResourcePulse.Persistence.Configurations;
 
@@ -10,10 +11,21 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
 {
     public void Configure(EntityTypeBuilder<Allocation> builder)
     {
-        builder.ToTable("allocations");
+        builder.ToTable("allocations", t =>
+        {
+            // I7 (ADR-0016): forma XOR — exactly one branch valued at any time.
+            // The role/owner columns sit outside the assigned-branch; the
+            // resource pointer sits outside the placeholder-branch.
+            t.HasCheckConstraint(
+                "ck_allocations_form_xor",
+                "(resource_id IS NOT NULL AND role_skill_id IS NULL AND owner_resource_id IS NULL) " +
+                "OR (resource_id IS NULL AND role_skill_id IS NOT NULL)");
+        });
         builder.HasKey(a => a.Id);
 
-        builder.Property(a => a.ResourceId).IsRequired();
+        // ResourceId is nullable — a placeholder allocation has no resource
+        // (ADR-0016). When set, the FK is to Resources; deletion is restricted.
+        builder.Property(a => a.ResourceId);
         builder.Property(a => a.ProjectNodeId).IsRequired();
         builder.Property(a => a.PeriodStart).HasColumnType("date").IsRequired();
         builder.Property(a => a.PeriodEnd).HasColumnType("date").IsRequired();
@@ -26,12 +38,22 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
             .HasColumnType("numeric(6,2)")
             .IsRequired();
 
+        builder.Property(a => a.Status)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+
+        // Placeholder fields (ADR-0016). Valorizzati IFF ResourceId is null;
+        // enforced by ck_allocations_form_xor declared on the table above.
+        builder.Property(a => a.RoleSkillId);
+        builder.Property(a => a.OwnerResourceId);
+
         builder.Property(a => a.Notes).HasMaxLength(2000);
 
         builder.Property(a => a.CreatedBy).HasMaxLength(256).IsRequired();
         builder.Property(a => a.UpdatedBy).HasMaxLength(256);
 
-        // Restrict both: cannot delete a resource or project node while it has allocations.
+        // Restrict: cannot delete a resource or project node while it has allocations.
         builder.HasOne<Resource>()
             .WithMany()
             .HasForeignKey(a => a.ResourceId)
@@ -40,6 +62,19 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
         builder.HasOne<ProjectNode>()
             .WithMany()
             .HasForeignKey(a => a.ProjectNodeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Placeholder FKs — both Restrict: can't delete a Skill that is the
+        // role of an open placeholder; can't delete the OwnerResource of one
+        // either. Forces explicit reassignment first.
+        builder.HasOne<Skill>()
+            .WithMany()
+            .HasForeignKey(a => a.RoleSkillId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Resource>()
+            .WithMany()
+            .HasForeignKey(a => a.OwnerResourceId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // Reads for resource load and project-node load both filter by entity + date range.

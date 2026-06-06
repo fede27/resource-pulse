@@ -20,6 +20,16 @@ namespace ResourcePulse.Domain.Capacity;
 // every active allocation contributes; there is no special case for same-node
 // overlap. The same rule applies cross-project (ADR-0011, I5).
 //
+// Placeholder split (ADR-0016 §5):
+//   - ForResourceAndDate / ForResourceAndRange ESCLUDONO i placeholder
+//     (ResourceId is null). Per-resource = offerta assegnata.
+//   - ForProjectNodeAndRange INCLUDE i placeholder: il loro contributo confluisce
+//     in DailyNodeLoad.PlaceholderRatePercent (rate% sommato), separato da
+//     TotalHours/ByResource che restano l'aggregato per le sole allocazioni
+//     assegnate. La motivazione: un placeholder non ha capacity di riferimento
+//     (niente risorsa ⇒ niente capacity), quindi le ore restano non computabili
+//     senza un'ulteriore convenzione.
+//
 // Determinism: allocations iterated in OrderBy(Id). Current logic is a sum so
 // order doesn't change the result, but the contract is documented for callers
 // that may compute hash-based aggregates over the per-allocation contributions.
@@ -36,7 +46,7 @@ public static class LoadCalculator
         var hours = TimeSpan.Zero;
         foreach (var a in allocations.OrderBy(a => a.Id))
         {
-            if (a.ResourceId != resourceId) continue;
+            if (a.ResourceId != resourceId) continue; // skip placeholders (ResourceId is null) and other resources
             if (date < a.PeriodStart || date > a.PeriodEnd) continue;
             hours += HoursFor(capacityForDate, a.AllocationPercent);
         }
@@ -57,6 +67,7 @@ public static class LoadCalculator
             yield break;
 
         // Pre-filter once; per-date loop only walks this resource's allocations.
+        // Placeholders (ResourceId is null) are naturally excluded here.
         var ordered = allocations
             .Where(a => a.ResourceId == resourceId)
             .OrderBy(a => a.Id)
@@ -107,24 +118,34 @@ public static class LoadCalculator
         {
             var byResource = new Dictionary<Guid, TimeSpan>();
             var total = TimeSpan.Zero;
+            var placeholderPercent = 0m;
 
             foreach (var a in nodeAllocations)
             {
                 if (date < a.PeriodStart || date > a.PeriodEnd) continue;
 
-                var capacity = capacityByResourceAndDate.TryGetValue((a.ResourceId, date), out var c)
+                if (a.ResourceId is null)
+                {
+                    // Placeholder: contribute rate% to the placeholder bucket,
+                    // skip the hours conversion (no resource ⇒ no capacity).
+                    placeholderPercent += a.AllocationPercent;
+                    continue;
+                }
+
+                var resourceId = a.ResourceId.Value;
+                var capacity = capacityByResourceAndDate.TryGetValue((resourceId, date), out var c)
                     ? c
                     : TimeSpan.Zero;
 
                 var hours = HoursFor(capacity, a.AllocationPercent);
                 if (hours == TimeSpan.Zero) continue;
 
-                byResource.TryGetValue(a.ResourceId, out var existing);
-                byResource[a.ResourceId] = existing + hours;
+                byResource.TryGetValue(resourceId, out var existing);
+                byResource[resourceId] = existing + hours;
                 total += hours;
             }
 
-            yield return new DailyNodeLoad(date, total, byResource);
+            yield return new DailyNodeLoad(date, total, byResource, placeholderPercent);
         }
     }
 

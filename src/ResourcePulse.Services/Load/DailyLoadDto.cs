@@ -12,9 +12,16 @@ public sealed class DailyLoadDto
 public sealed class DailyNodeLoadDto
 {
     public DateOnly Date { get; init; }
+
+    // Ore aggregate da SOLE allocazioni assegnate (ADR-0016 §5). Per i
+    // placeholder non c'è capacity di riferimento, quindi nessuna ora.
     public TimeSpan TotalHours { get; init; }
     public IReadOnlyList<NodeLoadByResourceDto> ByResource { get; init; }
         = Array.Empty<NodeLoadByResourceDto>();
+
+    // Somma di rate% sui placeholder attivi nella data — la "domanda scoperta"
+    // sul nodo (ADR-0016 §5). 0 quando non ci sono placeholder.
+    public decimal PlaceholderRatePercent { get; init; }
 }
 
 public sealed class NodeLoadByResourceDto

@@ -115,7 +115,14 @@ public sealed class LiveLoadQueryService(
                      && a.PeriodEnd >= from)
             .ToListAsync(ct);
 
-        var resourceIds = allocations.Select(a => a.ResourceId).Distinct().ToList();
+        // Placeholders carry no resource — skip them when collecting the
+        // resource set for capacity lookups (ADR-0016 §5). Their rate%
+        // contribution is computed by LoadCalculator into PlaceholderRatePercent.
+        var resourceIds = allocations
+            .Where(a => a.ResourceId is not null)
+            .Select(a => a.ResourceId!.Value)
+            .Distinct()
+            .ToList();
 
         // Sequential capacity loads — the pooled DbContext is not safe for
         // concurrent queries (D4 in the Phase 4 plan).
@@ -149,7 +156,8 @@ public sealed class LiveLoadQueryService(
                         Hours = kvp.Value
                     })
                     .OrderBy(x => x.ResourceName)
-                    .ToList()
+                    .ToList(),
+                PlaceholderRatePercent = d.PlaceholderRatePercent
             })
             .ToList();
 

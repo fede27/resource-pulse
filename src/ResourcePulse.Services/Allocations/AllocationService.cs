@@ -12,10 +12,15 @@ using ResourcePulse.Services.Capacity;
 
 namespace ResourcePulse.Services.Allocations;
 
-// Cross-aggregate invariants enforced here (see Phase 4 plan §2):
+// Cross-aggregate invariants enforced here:
 //   I1  ProjectNode is at capacity-planning level (Project or Phase).
-//   I3  Resource is active.
+//   I3  Resource is active — VALUTATA SOLO PER LO STATO ASSEGNATO (ADR-0016).
+//       I placeholder non hanno risorsa per definizione, il check non si applica.
 //   I4  Root project is not Closed or Cancelled.
+//   I6  Status = Hard è ammesso solo se il Project radice del nodo ha
+//       CommitmentLevel ∈ {Committed, Critical} (ADR-0015). Si applica sia ai
+//       blocchi assegnati sia ai placeholder.
+//
 // I2 (no-overlap on (ResourceId, ProjectNodeId)) is removed: overlapping
 // blocks on the same (resource, project_node) are first-class and their rate%
 // sums — see ADR-0014.
@@ -28,11 +33,24 @@ namespace ResourcePulse.Services.Allocations;
 //                          AllocationResolver using window capacity.
 //   MoveAsync            — change the window; user picks which dimension to
 //                          preserve (KeepPercent / KeepHours).
+//
+// Placeholder operations (ADR-0016):
+//   CreatePlaceholderByPercentAsync — crea direttamente un ruolo scoperto.
+//   ConvertToPlaceholderAsync       — assegnato → placeholder.
+//   AssignToResourceAsync           — placeholder → assegnato.
+//
+// Status (ADR-0015):
+//   ChangeStatusAsync — promozione/demozione esplicita (Tentative ↔ Hard).
 public sealed class AllocationService(
     IRepository<Allocation, Guid> repository,
     ResourcePulseDbContext db,
     ICapacityQueryService capacity) : IAllocationService
 {
+    // Mappatura "committato hard" — leggibile in un solo posto (ADR-0015 §3).
+    // Cambiare la soglia significa cambiare solo qui.
+    private static bool IsHardCommittedLevel(CommitmentLevel? level) =>
+        level is CommitmentLevel.Committed or CommitmentLevel.Critical;
+
     // ── Reads ───────────────────────────────────────────────────────────────
 
     public async Task<ServiceResult<LoadResult>> GetAllAsync(
@@ -95,8 +113,12 @@ public sealed class AllocationService(
         if (allocation is null)
             return ServiceResult<AllocationResolvedHoursDto>.NotFound($"Allocation {id} not found.");
 
+        if (allocation.ResourceId is null)
+            return ServiceResult<AllocationResolvedHoursDto>.Conflict(
+                "Allocation is a placeholder (no resource): resolved hours are not defined without a capacity reference.");
+
         var capacityResult = await CapacityInWindowAsync(
-            allocation.ResourceId, allocation.PeriodStart, allocation.PeriodEnd, ct);
+            allocation.ResourceId.Value, allocation.PeriodStart, allocation.PeriodEnd, ct);
         if (capacityResult.IsFailure)
             return ServiceResult<AllocationResolvedHoursDto>.Failure(capacityResult.Error!);
 
@@ -111,25 +133,27 @@ public sealed class AllocationService(
         });
     }
 
-    // ── Writes ──────────────────────────────────────────────────────────────
+    // ── Writes — assigned creation ──────────────────────────────────────────
 
     public async Task<ServiceResult<AllocationReadDto>> CreateByPercentAsync(
         CreateByPercentDto dto, CancellationToken ct = default)
     {
-        var pre = await ValidateCreatePreconditionsAsync(dto.ResourceId, dto.ProjectNodeId, ct);
+        var pre = await ValidateAssignedCreatePreconditionsAsync(
+            dto.ResourceId, dto.ProjectNodeId, dto.Status, ct);
         if (pre.IsFailure)
             return ServiceResult<AllocationReadDto>.Failure(pre.Error!);
 
-        return await PersistNewAsync(
+        return await PersistNewAssignedAsync(
             dto.ResourceId, dto.ProjectNodeId,
             dto.PeriodStart, dto.PeriodEnd,
-            dto.Percent, dto.Notes, ct);
+            dto.Percent, dto.Status, dto.Notes, ct);
     }
 
     public async Task<ServiceResult<AllocationReadDto>> CreateByHoursAsync(
         CreateByHoursDto dto, CancellationToken ct = default)
     {
-        var pre = await ValidateCreatePreconditionsAsync(dto.ResourceId, dto.ProjectNodeId, ct);
+        var pre = await ValidateAssignedCreatePreconditionsAsync(
+            dto.ResourceId, dto.ProjectNodeId, dto.Status, ct);
         if (pre.IsFailure)
             return ServiceResult<AllocationReadDto>.Failure(pre.Error!);
 
@@ -157,10 +181,40 @@ public sealed class AllocationService(
                 $"Resolved percent {percent} exceeds the {Allocation.MaxAllocationPercent}% cap. " +
                 "Widen the window or reduce target hours.");
 
-        return await PersistNewAsync(
+        return await PersistNewAssignedAsync(
             dto.ResourceId, dto.ProjectNodeId,
             dto.PeriodStart, dto.PeriodEnd,
-            percent, dto.Notes, ct);
+            percent, dto.Status, dto.Notes, ct);
+    }
+
+    // ── Writes — placeholder creation ───────────────────────────────────────
+
+    public async Task<ServiceResult<AllocationReadDto>> CreatePlaceholderByPercentAsync(
+        CreatePlaceholderByPercentDto dto, CancellationToken ct = default)
+    {
+        // I1 + I4 (apply to placeholders too) + I6.
+        var pre = await ValidatePlaceholderCreatePreconditionsAsync(
+            dto.ProjectNodeId, dto.RoleSkillId, dto.OwnerResourceId, dto.Status, ct);
+        if (pre.IsFailure)
+            return ServiceResult<AllocationReadDto>.Failure(pre.Error!);
+
+        Allocation allocation;
+        try
+        {
+            allocation = Allocation.CreatePlaceholder(
+                dto.ProjectNodeId, dto.PeriodStart, dto.PeriodEnd,
+                dto.Percent, dto.RoleSkillId, dto.OwnerResourceId,
+                dto.Notes, dto.Status);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult<AllocationReadDto>.Conflict(ex.Message);
+        }
+
+        await repository.AddAsync(allocation, ct);
+        await repository.SaveChangesAsync(ct);
+
+        return await GetByIdAsync(allocation.Id, ct);
     }
 
     public async Task<ServiceResult<AllocationReadDto>> UpdateAsync(
@@ -214,13 +268,22 @@ public sealed class AllocationService(
 
             case MoveMode.KeepHours:
             {
+                // KeepHours requires a resource (capacity is per-resource). A
+                // placeholder has none, so the gesture is undefined.
+                if (allocation.ResourceId is null)
+                    return ServiceResult<AllocationReadDto>.Conflict(
+                        "Cannot move with KeepHours on a placeholder allocation: no resource ⇒ no capacity reference. " +
+                        "Use KeepPercent or assign the placeholder first.");
+
+                var resourceId = allocation.ResourceId.Value;
+
                 var oldCapacity = await CapacityInWindowAsync(
-                    allocation.ResourceId, allocation.PeriodStart, allocation.PeriodEnd, ct);
+                    resourceId, allocation.PeriodStart, allocation.PeriodEnd, ct);
                 if (oldCapacity.IsFailure)
                     return ServiceResult<AllocationReadDto>.Failure(oldCapacity.Error!);
 
                 var newCapacity = await CapacityInWindowAsync(
-                    allocation.ResourceId, dto.NewPeriodStart, dto.NewPeriodEnd, ct);
+                    resourceId, dto.NewPeriodStart, dto.NewPeriodEnd, ct);
                 if (newCapacity.IsFailure)
                     return ServiceResult<AllocationReadDto>.Failure(newCapacity.Error!);
 
@@ -229,10 +292,6 @@ public sealed class AllocationService(
                         "Cannot move with KeepHours: resource has zero capacity in the new window.");
 
                 // Hours implied by current allocation at its current capacity.
-                // Note: if the *old* capacity is zero (calendar changed since
-                // creation), HoursForPercent returns 0 and we'd resolve back to
-                // an arbitrarily small percent. Treat that as a misconfiguration
-                // and ask the caller to pick KeepPercent or fix the calendar.
                 if (oldCapacity.Value <= TimeSpan.Zero)
                     return ServiceResult<AllocationReadDto>.Conflict(
                         "Cannot move with KeepHours: the original window now has zero capacity " +
@@ -281,6 +340,135 @@ public sealed class AllocationService(
         return await GetByIdAsync(id, ct);
     }
 
+    // ── Writes — placeholder transitions ────────────────────────────────────
+
+    public async Task<ServiceResult<AllocationReadDto>> ConvertToPlaceholderAsync(
+        Guid id, ConvertToPlaceholderDto dto, CancellationToken ct = default)
+    {
+        var allocation = await repository.GetByIdAsync(id, ct);
+        if (allocation is null)
+            return ServiceResult<AllocationReadDto>.NotFound($"Allocation {id} not found.");
+
+        if (allocation.IsPlaceholder)
+            return ServiceResult<AllocationReadDto>.Conflict("Allocation is already a placeholder.");
+
+        // I4 (project root not closed/cancelled) — even a conversion should
+        // refuse on a closed root.
+        var nodePath = await db.ProjectNodes
+            .AsNoTracking()
+            .Where(p => p.Id == allocation.ProjectNodeId)
+            .Select(p => p.Path)
+            .FirstOrDefaultAsync(ct);
+        if (nodePath is not null)
+        {
+            var statusCheck = await ValidateProjectStatusAsync<AllocationReadDto>(nodePath, ct);
+            if (statusCheck is { } sc) return sc;
+        }
+
+        // Validate RoleSkillId and OwnerResourceId references exist.
+        var refsCheck = await ValidatePlaceholderReferencesAsync<AllocationReadDto>(
+            dto.RoleSkillId, dto.OwnerResourceId, ct);
+        if (refsCheck is { } rc) return rc;
+
+        try
+        {
+            allocation.ConvertToPlaceholder(dto.RoleSkillId, dto.OwnerResourceId);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult<AllocationReadDto>.Conflict(ex.Message);
+        }
+
+        await repository.SaveChangesAsync(ct);
+
+        return await GetByIdAsync(id, ct);
+    }
+
+    public async Task<ServiceResult<AllocationReadDto>> AssignToResourceAsync(
+        Guid id, AssignToResourceDto dto, CancellationToken ct = default)
+    {
+        var allocation = await repository.GetByIdAsync(id, ct);
+        if (allocation is null)
+            return ServiceResult<AllocationReadDto>.NotFound($"Allocation {id} not found.");
+
+        if (!allocation.IsPlaceholder)
+            return ServiceResult<AllocationReadDto>.Conflict(
+                "Only a placeholder allocation can be assigned to a resource.");
+
+        // I3 — the resource must exist and be active (gated only on the
+        // assigned branch per ADR-0016 §6).
+        var resourceInfo = await db.Resources
+            .AsNoTracking()
+            .Where(r => r.Id == dto.ResourceId)
+            .Select(r => new { r.IsActive })
+            .FirstOrDefaultAsync(ct);
+
+        if (resourceInfo is null)
+            return ServiceResult<AllocationReadDto>.Validation(new Dictionary<string, string[]>
+            {
+                [nameof(AssignToResourceDto.ResourceId)] = [$"Resource {dto.ResourceId} does not exist."]
+            });
+
+        if (!resourceInfo.IsActive)
+            return ServiceResult<AllocationReadDto>.Conflict(
+                $"Resource {dto.ResourceId} is inactive and cannot be allocated.");
+
+        // I4 re-check.
+        var nodePath = await db.ProjectNodes
+            .AsNoTracking()
+            .Where(p => p.Id == allocation.ProjectNodeId)
+            .Select(p => p.Path)
+            .FirstOrDefaultAsync(ct);
+        if (nodePath is not null)
+        {
+            var statusCheck = await ValidateProjectStatusAsync<AllocationReadDto>(nodePath, ct);
+            if (statusCheck is { } sc) return sc;
+        }
+
+        try
+        {
+            allocation.AssignTo(dto.ResourceId);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult<AllocationReadDto>.Conflict(ex.Message);
+        }
+
+        await repository.SaveChangesAsync(ct);
+
+        return await GetByIdAsync(id, ct);
+    }
+
+    public async Task<ServiceResult<AllocationReadDto>> ChangeStatusAsync(
+        Guid id, ChangeAllocationStatusDto dto, CancellationToken ct = default)
+    {
+        var allocation = await repository.GetByIdAsync(id, ct);
+        if (allocation is null)
+            return ServiceResult<AllocationReadDto>.NotFound($"Allocation {id} not found.");
+
+        // I6: Hard requires the root project to be hard-committed. Applies to
+        // both assigned and placeholder allocations (ADR-0015, ADR-0016 §6).
+        if (dto.Status == AllocationStatus.Hard)
+        {
+            var hardCheck = await ValidateHardCommitmentAsync<AllocationReadDto>(
+                allocation.ProjectNodeId, ct);
+            if (hardCheck is { } hc) return hc;
+        }
+
+        try
+        {
+            allocation.ChangeStatus(dto.Status, dto.Reason);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult<AllocationReadDto>.Conflict(ex.Message);
+        }
+
+        await repository.SaveChangesAsync(ct);
+
+        return await GetByIdAsync(id, ct);
+    }
+
     public async Task<ServiceResult<Unit>> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var allocation = await repository.GetByIdAsync(id, ct);
@@ -296,20 +484,34 @@ public sealed class AllocationService(
 
     // Read projection without ResolvedHours (list reads). Detail reads enrich
     // afterward via EnrichWithResolvedHoursAsync. See ADR-0013, D1.
+    //
+    // Joins: Resource is conditional (placeholders have no resource). Skill
+    // and OwnerResource are conditional (only set on placeholders). Implemented
+    // via LEFT JOIN through `from ... in db.X.Where(...).DefaultIfEmpty()`.
     private IQueryable<AllocationReadDto> BuildReadQuery() =>
         from a in db.Allocations.AsNoTracking()
-        join r in db.Resources.AsNoTracking() on a.ResourceId equals r.Id
         join p in db.ProjectNodes.AsNoTracking() on a.ProjectNodeId equals p.Id
+        from r in db.Resources.AsNoTracking()
+            .Where(r => r.Id == a.ResourceId).DefaultIfEmpty()
+        from s in db.Skills.AsNoTracking()
+            .Where(s => s.Id == a.RoleSkillId).DefaultIfEmpty()
+        from o in db.Resources.AsNoTracking()
+            .Where(o => o.Id == a.OwnerResourceId).DefaultIfEmpty()
         select new AllocationReadDto
         {
             Id = a.Id,
             ResourceId = a.ResourceId,
-            ResourceName = r.Name,
+            ResourceName = r != null ? r.Name : null,
             ProjectNodeId = a.ProjectNodeId,
             ProjectNodePath = p.Path,
             PeriodStart = a.PeriodStart,
             PeriodEnd = a.PeriodEnd,
             AllocationPercent = a.AllocationPercent,
+            Status = a.Status,
+            RoleSkillId = a.RoleSkillId,
+            RoleSkillName = s != null ? s.Name : null,
+            OwnerResourceId = a.OwnerResourceId,
+            OwnerResourceName = o != null ? o.Name : null,
             ResolvedHours = null,
             Notes = a.Notes,
             CreatedAt = a.CreatedAt,
@@ -321,13 +523,14 @@ public sealed class AllocationService(
     private async Task<AllocationReadDto> EnrichWithResolvedHoursAsync(
         AllocationReadDto dto, CancellationToken ct)
     {
+        // Placeholders have no resource — leave ResolvedHours null (ADR-0016).
+        if (dto.ResourceId is null) return dto;
+
         var capacityResult = await CapacityInWindowAsync(
-            dto.ResourceId, dto.PeriodStart, dto.PeriodEnd, ct);
+            dto.ResourceId.Value, dto.PeriodStart, dto.PeriodEnd, ct);
         // If capacity lookup fails for any reason, we still return the DTO
         // without ResolvedHours rather than failing the whole read — the rest
         // of the data is correct, and the sidecar endpoint exists for retry.
-        // If capacity is unavailable or zero, leave ResolvedHours null (dto
-        // already carries null from BuildReadQuery) and return as-is.
         if (capacityResult.IsFailure || capacityResult.Value <= TimeSpan.Zero)
             return dto;
 
@@ -342,6 +545,11 @@ public sealed class AllocationService(
             PeriodStart = dto.PeriodStart,
             PeriodEnd = dto.PeriodEnd,
             AllocationPercent = dto.AllocationPercent,
+            Status = dto.Status,
+            RoleSkillId = dto.RoleSkillId,
+            RoleSkillName = dto.RoleSkillName,
+            OwnerResourceId = dto.OwnerResourceId,
+            OwnerResourceName = dto.OwnerResourceName,
             ResolvedHours = hours,
             Notes = dto.Notes,
             CreatedAt = dto.CreatedAt,
@@ -363,32 +571,13 @@ public sealed class AllocationService(
         return ServiceResult<TimeSpan>.Success(total);
     }
 
-    // Runs the cross-aggregate gates (I1, I3, I4) common to both create paths.
-    // I2 (no-overlap) was removed by ADR-0014; overlap is legal and sums.
-    // Returns a Unit success if all pass.
-    private async Task<ServiceResult<Unit>> ValidateCreatePreconditionsAsync(
-        Guid resourceId, Guid projectNodeId,
+    // Runs the cross-aggregate gates for assigned creation: I1, I3, I4, I6.
+    private async Task<ServiceResult<Unit>> ValidateAssignedCreatePreconditionsAsync(
+        Guid resourceId, Guid projectNodeId, AllocationStatus status,
         CancellationToken ct)
     {
-        // I1
-        var nodeInfo = await db.ProjectNodes
-            .AsNoTracking()
-            .Where(p => p.Id == projectNodeId)
-            .Select(p => new { p.NodeType, p.Path })
-            .FirstOrDefaultAsync(ct);
-
-        if (nodeInfo is null)
-            return ServiceResult.Validation(new Dictionary<string, string[]>
-            {
-                ["ProjectNodeId"] = [$"ProjectNode {projectNodeId} does not exist."]
-            });
-
-        if (nodeInfo.NodeType != ProjectNodeType.Project && nodeInfo.NodeType != ProjectNodeType.Phase)
-            return ServiceResult.Validation(new Dictionary<string, string[]>
-            {
-                ["ProjectNodeId"] =
-                    [$"Allocations are only allowed on Project or Phase nodes (got {nodeInfo.NodeType})."]
-            });
+        var nodeInfo = await LoadNodeInfoForCreateAsync(projectNodeId, ct);
+        if (nodeInfo.Result is { } nodeFail) return nodeFail;
 
         // I3
         var resourceInfo = await db.Resources
@@ -407,22 +596,111 @@ public sealed class AllocationService(
             return ServiceResult.Conflict($"Resource {resourceId} is inactive and cannot be allocated.");
 
         // I4
-        var statusCheck = await ValidateProjectStatusAsync<Unit>(nodeInfo.Path, ct);
+        var statusCheck = await ValidateProjectStatusAsync<Unit>(nodeInfo.Path!, ct);
         if (statusCheck is { } sc) return sc;
+
+        // I6
+        if (status == AllocationStatus.Hard)
+        {
+            var hardCheck = await ValidateHardCommitmentAsync<Unit>(projectNodeId, ct);
+            if (hardCheck is { } hc) return hc;
+        }
 
         return ServiceResult.Ok();
     }
 
-    private async Task<ServiceResult<AllocationReadDto>> PersistNewAsync(
+    // Runs the cross-aggregate gates for placeholder creation: I1, I4, I6,
+    // plus existence of role/owner references. I3 is NOT applicable (no
+    // resource — ADR-0016 §6).
+    private async Task<ServiceResult<Unit>> ValidatePlaceholderCreatePreconditionsAsync(
+        Guid projectNodeId, Guid roleSkillId, Guid? ownerResourceId,
+        AllocationStatus status, CancellationToken ct)
+    {
+        var nodeInfo = await LoadNodeInfoForCreateAsync(projectNodeId, ct);
+        if (nodeInfo.Result is { } nodeFail) return nodeFail;
+
+        var refs = await ValidatePlaceholderReferencesAsync<Unit>(roleSkillId, ownerResourceId, ct);
+        if (refs is { } r) return r;
+
+        // I4
+        var statusCheck = await ValidateProjectStatusAsync<Unit>(nodeInfo.Path!, ct);
+        if (statusCheck is { } sc) return sc;
+
+        // I6
+        if (status == AllocationStatus.Hard)
+        {
+            var hardCheck = await ValidateHardCommitmentAsync<Unit>(projectNodeId, ct);
+            if (hardCheck is { } hc) return hc;
+        }
+
+        return ServiceResult.Ok();
+    }
+
+    // Shared I1 check: project node exists and is at capacity-planning level.
+    // Returns the node's Path on success (used to derive the root for I4/I6).
+    private async Task<(ServiceResult<Unit>? Result, string? Path)> LoadNodeInfoForCreateAsync(
+        Guid projectNodeId, CancellationToken ct)
+    {
+        var nodeInfo = await db.ProjectNodes
+            .AsNoTracking()
+            .Where(p => p.Id == projectNodeId)
+            .Select(p => new { p.NodeType, p.Path })
+            .FirstOrDefaultAsync(ct);
+
+        if (nodeInfo is null)
+            return (ServiceResult.Validation(new Dictionary<string, string[]>
+            {
+                ["ProjectNodeId"] = [$"ProjectNode {projectNodeId} does not exist."]
+            }), null);
+
+        if (nodeInfo.NodeType != ProjectNodeType.Project && nodeInfo.NodeType != ProjectNodeType.Phase)
+            return (ServiceResult.Validation(new Dictionary<string, string[]>
+            {
+                ["ProjectNodeId"] =
+                    [$"Allocations are only allowed on Project or Phase nodes (got {nodeInfo.NodeType})."]
+            }), null);
+
+        return (null, nodeInfo.Path);
+    }
+
+    // Existence check for placeholder references. RoleSkillId is required;
+    // OwnerResourceId is optional but, when supplied, must point to an
+    // existing resource. Active-state is intentionally not checked for the
+    // owner — they're a routing pointer, not the staffed resource (ADR-0016 §6).
+    private async Task<ServiceResult<T>?> ValidatePlaceholderReferencesAsync<T>(
+        Guid roleSkillId, Guid? ownerResourceId, CancellationToken ct)
+    {
+        var skillExists = await db.Skills.AnyAsync(s => s.Id == roleSkillId, ct);
+        if (!skillExists)
+            return ServiceResult<T>.Validation(new Dictionary<string, string[]>
+            {
+                ["RoleSkillId"] = [$"Skill {roleSkillId} does not exist."]
+            });
+
+        if (ownerResourceId is Guid o)
+        {
+            var ownerExists = await db.Resources.AnyAsync(r => r.Id == o, ct);
+            if (!ownerExists)
+                return ServiceResult<T>.Validation(new Dictionary<string, string[]>
+                {
+                    ["OwnerResourceId"] = [$"Resource {o} does not exist."]
+                });
+        }
+
+        return null;
+    }
+
+    private async Task<ServiceResult<AllocationReadDto>> PersistNewAssignedAsync(
         Guid resourceId, Guid projectNodeId,
         DateOnly periodStart, DateOnly periodEnd,
-        decimal percent, string? notes,
+        decimal percent, AllocationStatus status, string? notes,
         CancellationToken ct)
     {
         Allocation allocation;
         try
         {
-            allocation = Allocation.Create(resourceId, projectNodeId, periodStart, periodEnd, percent, notes);
+            allocation = Allocation.Create(
+                resourceId, projectNodeId, periodStart, periodEnd, percent, notes, status);
         }
         catch (DomainException ex)
         {
@@ -450,6 +728,39 @@ public sealed class AllocationService(
         if (status == ProjectStatus.Closed || status == ProjectStatus.Cancelled)
             return ServiceResult<T>.Conflict(
                 $"Project root is {status} and cannot accept new or modified allocations.");
+
+        return null;
+    }
+
+    // I6 enforcement (ADR-0015 §3): walks the materialized path to the root
+    // Project and verifies its CommitmentLevel ∈ {Committed, Critical}.
+    private async Task<ServiceResult<T>?> ValidateHardCommitmentAsync<T>(
+        Guid projectNodeId, CancellationToken ct)
+    {
+        var nodePath = await db.ProjectNodes
+            .AsNoTracking()
+            .Where(p => p.Id == projectNodeId)
+            .Select(p => p.Path)
+            .FirstOrDefaultAsync(ct);
+
+        if (nodePath is null)
+            return ServiceResult<T>.Failure(ServiceError.Failure(
+                $"ProjectNode {projectNodeId} disappeared while validating I6."));
+
+        var rootIdString = nodePath.TrimStart('/').Split('/').FirstOrDefault();
+        if (!Guid.TryParse(rootIdString, out var rootId))
+            return ServiceResult<T>.Failure(ServiceError.Failure("ProjectNode has an invalid materialized path."));
+
+        var rootLevel = await db.ProjectNodes
+            .AsNoTracking()
+            .Where(p => p.Id == rootId)
+            .Select(p => (CommitmentLevel?)p.CommitmentLevel)
+            .FirstOrDefaultAsync(ct);
+
+        if (!IsHardCommittedLevel(rootLevel))
+            return ServiceResult<T>.Conflict(
+                $"Allocation cannot be set to Hard: the project root commitment level is " +
+                $"'{rootLevel?.ToString() ?? "Unspecified"}'. Hard requires Committed or Critical.");
 
         return null;
     }

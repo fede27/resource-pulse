@@ -81,6 +81,13 @@ public sealed class UpdateProjectDto
     public ProjectType Type { get; init; }
     public CommitmentLevel CommitmentLevel { get; init; }
     public Guid? LeadResourceId { get; init; }
+
+    // Conferma esplicita richiesta dall'invariante I6 (ADR-0015 §4): un
+    // downgrade da {Committed, Critical} a {Exploratory, Planned} con
+    // allocazioni Hard nella subtree del progetto le demota a Tentative.
+    // L'operazione non è silenziosa — richiede ConfirmDemoteHardAllocations =
+    // true; altrimenti restituisce Conflict con il conteggio.
+    public bool ConfirmDemoteHardAllocations { get; init; }
 }
 
 // ── Operation DTOs ──────────────────────────────────────────────────────────
