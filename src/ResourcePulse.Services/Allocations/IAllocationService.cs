@@ -4,6 +4,8 @@ using ResourcePulse.Common.Results;
 
 namespace ResourcePulse.Services.Allocations;
 
+// READ side only. Plan mutation lives behind the command envelope
+// (IPlanCommandService, ADR-0018). The fine-grained write methods are retired.
 public interface IAllocationService
 {
     Task<ServiceResult<LoadResult>> GetAllAsync(DataSourceLoadOptionsBase? loadOptions = null, CancellationToken ct = default);
@@ -22,35 +24,4 @@ public interface IAllocationService
     // Returns Conflict if invoked on a placeholder allocation (no resource ⇒ no capacity).
     Task<ServiceResult<AllocationResolvedHoursDto>> GetResolvedHoursAsync(
         Guid id, CancellationToken ct = default);
-
-    Task<ServiceResult<AllocationReadDto>> CreateByPercentAsync(
-        CreateByPercentDto dto, CancellationToken ct = default);
-
-    Task<ServiceResult<AllocationReadDto>> CreateByHoursAsync(
-        CreateByHoursDto dto, CancellationToken ct = default);
-
-    // Placeholder-creation path (ADR-0016). Solo rate-shaped: senza risorsa
-    // non c'è capacity, quindi nessuna conversione hours → percent.
-    Task<ServiceResult<AllocationReadDto>> CreatePlaceholderByPercentAsync(
-        CreatePlaceholderByPercentDto dto, CancellationToken ct = default);
-
-    Task<ServiceResult<AllocationReadDto>> UpdateAsync(
-        Guid id, UpdateAllocationDto dto, CancellationToken ct = default);
-
-    Task<ServiceResult<AllocationReadDto>> MoveAsync(
-        Guid id, MoveAllocationDto dto, CancellationToken ct = default);
-
-    // Assegnato → Placeholder (deallocazione come conversione, ADR-0016).
-    Task<ServiceResult<AllocationReadDto>> ConvertToPlaceholderAsync(
-        Guid id, ConvertToPlaceholderDto dto, CancellationToken ct = default);
-
-    // Placeholder → Assegnato (ADR-0016).
-    Task<ServiceResult<AllocationReadDto>> AssignToResourceAsync(
-        Guid id, AssignToResourceDto dto, CancellationToken ct = default);
-
-    // Promozione/demozione status (ADR-0015). I6 si applica anche ai placeholder.
-    Task<ServiceResult<AllocationReadDto>> ChangeStatusAsync(
-        Guid id, ChangeAllocationStatusDto dto, CancellationToken ct = default);
-
-    Task<ServiceResult<Unit>> DeleteAsync(Guid id, CancellationToken ct = default);
 }

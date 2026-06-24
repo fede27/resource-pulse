@@ -16,7 +16,9 @@ using ResourcePulse.Services.Allocations;
 using ResourcePulse.Services.BusinessCalendars;
 using ResourcePulse.Services.Capacity;
 using ResourcePulse.Services.CompanyClosures;
+using ResourcePulse.Services.Configuration;
 using ResourcePulse.Services.Load;
+using ResourcePulse.Services.Plan;
 using ResourcePulse.Services.Projects;
 using ResourcePulse.Services.Resources;
 using ResourcePulse.Services.Roles;
@@ -95,7 +97,14 @@ builder.Services.AddScoped<ISkillService, SkillService>();
 builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IProjectNodeService, ProjectNodeService>();
 builder.Services.AddScoped<IAllocationService, AllocationService>();
+builder.Services.AddScoped<IPlanCommandService, PlanCommandService>();
 builder.Services.AddScoped<ILoadQueryService, LiveLoadQueryService>();
+
+// Org-level configuration singletons (ADR-0020): boundaries & thresholds.
+builder.Services.AddScoped<ILoadBandConfigurationService, LoadBandConfigurationService>();
+builder.Services.AddScoped<ITimeFenceConfigurationService, TimeFenceConfigurationService>();
+builder.Services.AddScoped<IBucketingDefaultsService, BucketingDefaultsService>();
+builder.Services.AddScoped<ICommitmentPolicyService, CommitmentPolicyService>();
 
 // MVC + global validation filter
 builder.Services.AddControllers(opts => opts.Filters.Add<DtoValidationFilter>());
@@ -109,6 +118,12 @@ if (builder.Environment.IsDevelopment())
         // across controllers (every CRUD controller has GetAll/GetById/...).
         c.CustomOperationIds(api =>
             $"{api.ActionDescriptor.RouteValues["controller"]}_{api.ActionDescriptor.RouteValues["action"]}");
+
+        // Plan command union (ADR-0018): render the System.Text.Json polymorphic
+        // PlanCommand as `oneOf` + discriminator ("kind") so orval emits a tagged
+        // union on the client. Inheritance schemas use allOf.
+        c.UseOneOfForPolymorphism();
+        c.UseAllOfForInheritance();
 
         // Drop request bodies from GET operations (DataSourceLoadOptionsBase
         // would otherwise be emitted as a body, breaking GET semantics).

@@ -11,5 +11,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ResourcePulse.Domain.Tests/ResourcePulse.Domain.Tests.csproj" />
+    <Project Path="tests/ResourcePulse.Application.Tests/ResourcePulse.Application.Tests.csproj" />
   </Folder>
 </Solution>

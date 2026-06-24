@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Calendars;
+using ResourcePulse.Domain.Configuration;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Resources;
 using ResourcePulse.Domain.Roles;
@@ -21,6 +22,12 @@ public class ResourcePulseDbContext(DbContextOptions<ResourcePulseDbContext> opt
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<ProjectNode> ProjectNodes => Set<ProjectNode>();
     public DbSet<Allocation> Allocations => Set<Allocation>();
+
+    // Org-level configuration singletons (ADR-0020).
+    public DbSet<LoadBandConfiguration> LoadBandConfigurations => Set<LoadBandConfiguration>();
+    public DbSet<TimeFenceConfiguration> TimeFenceConfigurations => Set<TimeFenceConfiguration>();
+    public DbSet<BucketingDefaults> BucketingDefaults => Set<BucketingDefaults>();
+    public DbSet<CommitmentPolicyConfiguration> CommitmentPolicies => Set<CommitmentPolicyConfiguration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

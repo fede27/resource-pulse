@@ -9,13 +9,15 @@ using ResourcePulse.Domain;
 using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Persistence;
+using ResourcePulse.Services.Configuration;
 
 namespace ResourcePulse.Services.Projects;
 
 public sealed class ProjectNodeService(
     IRepository<ProjectNode, Guid> repository,
     ResourcePulseDbContext db,
-    IMapper mapper) : IProjectNodeService
+    IMapper mapper,
+    ICommitmentPolicyService commitmentPolicy) : IProjectNodeService
 {
     // ── Reads ───────────────────────────────────────────────────────────────
 
@@ -310,9 +312,12 @@ public sealed class ProjectNodeService(
         // subtree del progetto vanno demote esplicitamente: o il chiamante
         // conferma con ConfirmDemoteHardAllocations = true e procediamo, o
         // restituiamo Conflict con il conteggio.
+        // Hard-commit threshold read from CommitmentPolicy (ADR-0020) — no longer
+        // cabled; same single source as the PlanCommandService Hard gate (I6).
+        var policy = await commitmentPolicy.GetConfigurationAsync(ct);
         var oldLevel = node.CommitmentLevel;
         var newLevel = dto.CommitmentLevel;
-        var crossesHardThreshold = IsHardCommittedLevel(oldLevel) && !IsHardCommittedLevel(newLevel);
+        var crossesHardThreshold = policy.IsHardCommitted(oldLevel) && !policy.IsHardCommitted(newLevel);
 
         List<Allocation> hardAllocationsToDemote = [];
         if (crossesHardThreshold)
@@ -353,13 +358,6 @@ public sealed class ProjectNodeService(
         await repository.SaveChangesAsync(ct);
         return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node));
     }
-
-    // Mappatura "committato hard" — leggibile in un solo posto. Identica a
-    // AllocationService.IsHardCommittedLevel; tenute disgiunte per evitare un
-    // riferimento incrociato tra i due service (sono due ADR concettualmente
-    // diverse — ADR-0015 §3 — ma la soglia è la stessa).
-    private static bool IsHardCommittedLevel(CommitmentLevel? level) =>
-        level is CommitmentLevel.Committed or CommitmentLevel.Critical;
 
     // ── Project-only: state transitions ─────────────────────────────────────
 

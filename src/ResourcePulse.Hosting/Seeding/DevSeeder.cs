@@ -1,18 +1,24 @@
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Calendars;
+using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Resources;
 using ResourcePulse.Domain.Roles;
 using ResourcePulse.Domain.Skills;
 using ResourcePulse.Domain.Tags;
+using ResourcePulse.Domain.Teams;
 using ResourcePulse.Persistence;
 
 namespace ResourcePulse.Hosting.Seeding;
 
 // Dev-only seeder: idempotent by-name checks ensure a re-run leaves the DB
 // stable. Seeds a default Mon–Fri 9–18 calendar (only if none exists), then
-// 10 skills, 10 tags, and 2 resources. One resource is linked to the
-// FakeAuth dev sub so the skill-approval endpoints work out of the box.
+// skills, tags, roles, 2 teams, 10 resources (5 per team), 5 projects with
+// varied commitment/status, and a spread of allocations (assigned + placeholder,
+// Tentative + Hard, overlapping + cross-project) so the plan-command API
+// (POST /api/plan/commands) has realistic data to exercise out of the box.
+// One resource is linked to the FakeAuth dev sub so skill-approval works.
 public static class DevSeeder
 {
     private const string DevUserSub = "dev-user-001";
@@ -33,6 +39,34 @@ public static class DevSeeder
     [
         "Sviluppatore", "Designer", "Project Manager", "QA Engineer",
         "Data Analyst", "DevOps Engineer", "Team Lead", "Product Owner"
+    ];
+
+    private const string TeamAlpha = "Team Alpha";
+    private const string TeamBeta = "Team Beta";
+
+    // name, team, roleName, primary skill (all best-effort wiring for test data).
+    private static readonly (string Name, string Team, string Role, string Skill)[] People =
+    [
+        ("Mario Rossi",    TeamAlpha, "Team Lead",        "C#"),
+        ("Luigi Bianchi",  TeamAlpha, "Sviluppatore",     "C#"),
+        ("Giulia Verdi",   TeamAlpha, "Sviluppatore",     "TypeScript"),
+        ("Marco Neri",     TeamAlpha, "QA Engineer",      "Testing"),
+        ("Sara Gialli",    TeamAlpha, "Designer",         "UX Design"),
+        ("Anna Blu",       TeamBeta,  "Project Manager",  "Project Management"),
+        ("Paolo Viola",    TeamBeta,  "Sviluppatore",     "React"),
+        ("Elena Rosa",     TeamBeta,  "DevOps Engineer",  "DevOps"),
+        ("Davide Grigi",   TeamBeta,  "Data Analyst",     "PostgreSQL"),
+        ("Chiara Arancio", TeamBeta,  "Sviluppatore",     "Docker"),
+    ];
+
+    // name, code, type, commitment, start? (Active vs Draft)
+    private static readonly (string Name, string Code, ProjectType Type, CommitmentLevel Commitment, bool Start)[] Projects =
+    [
+        ("Apollo",          "APL", ProjectType.Customer,    CommitmentLevel.Committed,   true),
+        ("Borealis",        "BOR", ProjectType.Internal,    CommitmentLevel.Planned,     false),
+        ("Cosmos",          "CSM", ProjectType.Investment,  CommitmentLevel.Critical,    true),
+        ("Delta Migration", "DLT", ProjectType.Maintenance, CommitmentLevel.Committed,   false),
+        ("Echo R&D",        "ECO", ProjectType.Internal,    CommitmentLevel.Exploratory, false),
     ];
 
     public static async Task SeedAsync(IServiceProvider services, ILogger logger)
@@ -62,7 +96,10 @@ public static class DevSeeder
             await EnsureSkillsAsync(db);
             await EnsureTagsAsync(db);
             await EnsureRolesAsync(db);
+            await EnsureTeamsAsync(db);
             await EnsureResourcesAsync(db, calendarId);
+            await EnsureProjectsAsync(db);
+            await EnsureAllocationsAsync(db);
 
             logger.LogInformation("Dev seeding complete (calendar={CalendarId}).", calendarId);
         }
@@ -147,25 +184,133 @@ public static class DevSeeder
         await db.SaveChangesAsync();
     }
 
-    private static async Task EnsureResourcesAsync(ResourcePulseDbContext db, Guid calendarId)
+    private static async Task EnsureTeamsAsync(ResourcePulseDbContext db)
     {
-        await EnsureResourceAsync(db, "Mario Rossi", calendarId, DevUserSub);
-        await EnsureResourceAsync(db, "Luigi Bianchi", calendarId, userSub: null);
+        var existing = await db.Teams.Select(t => t.Name).ToListAsync();
+        var existingSet = new HashSet<string>(existing, StringComparer.OrdinalIgnoreCase);
+
+        var toAdd = new[] { TeamAlpha, TeamBeta }
+            .Where(n => !existingSet.Contains(n))
+            .Select(Team.Create)
+            .ToList();
+
+        if (toAdd.Count == 0) return;
+        db.Teams.AddRange(toAdd);
+        await db.SaveChangesAsync();
     }
 
-    private static async Task EnsureResourceAsync(
-        ResourcePulseDbContext db,
-        string name,
-        Guid calendarId,
-        string? userSub)
+    private static async Task EnsureResourcesAsync(ResourcePulseDbContext db, Guid calendarId)
     {
-        var exists = await db.Resources.AnyAsync(r => r.Name == name);
-        if (exists) return;
+        var teamByName = await db.Teams.ToDictionaryAsync(t => t.Name, t => t.Id);
+        var roleByName = await db.Roles.ToDictionaryAsync(r => r.Name, r => r.Id);
+        var skillByName = await db.Skills.ToDictionaryAsync(s => s.Name, s => s.Id);
 
-        var resource = Resource.Create(name, calendarId);
-        if (userSub is not null) resource.LinkToUser(userSub);
+        foreach (var (name, team, roleName, skillName) in People)
+        {
+            var resource = await db.Resources.FirstOrDefaultAsync(r => r.Name == name);
+            var isNew = resource is null;
+            resource ??= Resource.Create(name, calendarId);
 
-        db.Resources.Add(resource);
+            // Idempotent wiring: assign team/role only when missing, so a re-run
+            // upgrades previously-seeded bare resources without churn.
+            if (resource.TeamId is null && teamByName.TryGetValue(team, out var teamId))
+                resource.AssignToTeam(teamId);
+            if (resource.RoleId is null && roleByName.TryGetValue(roleName, out var roleId))
+                resource.AssignToRole(roleId);
+
+            if (name == "Mario Rossi") resource.LinkToUser(DevUserSub);
+
+            if (isNew)
+            {
+                if (skillByName.TryGetValue(skillName, out var skillId))
+                    resource.AddSkill(skillId, SkillLevel.Proficient);
+                db.Resources.Add(resource);
+            }
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task EnsureProjectsAsync(ResourcePulseDbContext db)
+    {
+        var existing = await db.ProjectNodes
+            .Where(p => p.ParentId == null)
+            .Select(p => p.Name)
+            .ToListAsync();
+        var existingSet = new HashSet<string>(existing, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (name, code, type, commitment, start) in Projects)
+        {
+            if (existingSet.Contains(name)) continue;
+
+            var root = ProjectNode.CreateRoot(name, code, type, commitment, leadResourceId: null);
+            if (start) root.Start(); // Draft -> Active
+            db.ProjectNodes.Add(root);
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    // Allocations have no natural key; only seed when the table is empty so a
+    // re-run never duplicates them.
+    private static async Task EnsureAllocationsAsync(ResourcePulseDbContext db)
+    {
+        if (await db.Allocations.AnyAsync()) return;
+
+        var resources = await db.Resources.ToDictionaryAsync(r => r.Name, r => r.Id);
+        var projects = await db.ProjectNodes
+            .Where(p => p.ParentId == null)
+            .ToDictionaryAsync(p => p.Name, p => p.Id);
+        var skillId = await db.Skills.Where(s => s.Name == "C#").Select(s => (Guid?)s.Id).FirstOrDefaultAsync();
+
+        var toAdd = new List<Allocation>();
+
+        void Assign(string person, string project, DateOnly start, DateOnly end, decimal percent,
+            AllocationStatus status = AllocationStatus.Tentative)
+        {
+            if (resources.TryGetValue(person, out var rid) && projects.TryGetValue(project, out var pid))
+                toAdd.Add(Allocation.Create(rid, pid, start, end, percent, notes: null, status));
+        }
+
+        void Placeholder(string project, DateOnly start, DateOnly end, decimal percent,
+            AllocationStatus status = AllocationStatus.Tentative)
+        {
+            if (skillId is Guid sid && projects.TryGetValue(project, out var pid))
+                toAdd.Add(Allocation.CreatePlaceholder(pid, start, end, percent, sid, ownerResourceId: null, notes: null, status));
+        }
+
+        var jul = new DateOnly(2026, 7, 1);
+        var aug = new DateOnly(2026, 8, 1);
+        var sep = new DateOnly(2026, 9, 1);
+        DateOnly End(DateOnly from, int days) => from.AddDays(days);
+
+        // Apollo (Committed, Active): a full team, some Hard, an overlapping top-up.
+        Assign("Mario Rossi",   "Apollo", jul, End(jul, 60), 50m, AllocationStatus.Hard);
+        Assign("Luigi Bianchi", "Apollo", jul, End(jul, 45), 80m, AllocationStatus.Hard);
+        Assign("Giulia Verdi",  "Apollo", aug, End(aug, 30), 60m);
+        // Overlapping top-up on the same (resource, project) — rate% sums (ADR-0014).
+        Assign("Luigi Bianchi", "Apollo", End(jul, 20), End(jul, 35), 30m);
+
+        // Borealis (Planned, Draft): tentative only.
+        Assign("Anna Blu",     "Borealis", jul, End(jul, 90), 25m);
+        Assign("Paolo Viola",  "Borealis", aug, End(aug, 40), 50m);
+
+        // Cosmos (Critical, Active): heavy commitment + a cross-project overload.
+        Assign("Elena Rosa",   "Cosmos", jul, End(jul, 75), 70m, AllocationStatus.Hard);
+        Assign("Davide Grigi", "Cosmos", aug, End(aug, 50), 100m, AllocationStatus.Hard);
+        // Giulia is also on Apollo in Aug — cross-project overallocation (permitted, I5).
+        Assign("Giulia Verdi", "Cosmos", aug, End(aug, 20), 60m);
+
+        // Delta Migration (Committed, Draft): a mix + an open role.
+        Assign("Chiara Arancio", "Delta Migration", sep, End(sep, 30), 40m);
+        Placeholder("Delta Migration", sep, End(sep, 45), 50m, AllocationStatus.Hard);
+
+        // Echo R&D (Exploratory, Draft): only tentative + a placeholder demand.
+        Assign("Sara Gialli", "Echo R&D", jul, End(jul, 25), 30m);
+        Placeholder("Echo R&D", aug, End(aug, 30), 100m);
+
+        if (toAdd.Count == 0) return;
+        db.Allocations.AddRange(toAdd);
         await db.SaveChangesAsync();
     }
 }
