@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { App, Card, Col, Empty, Row, Skeleton } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -25,18 +25,15 @@ export function CalendarsTab() {
     [data],
   );
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pickedId, setPickedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    if (calendars.length === 0) {
-      setSelectedId(null);
-      return;
-    }
-    if (!selectedId || !calendars.some((c) => c.id === selectedId)) {
-      setSelectedId(calendars[0]?.id ?? null);
-    }
-  }, [calendars, selectedId]);
+  // Derived selection: keep the picked calendar if it still exists, else fall
+  // back to the first. Avoids syncing selection in an effect.
+  const selectedId =
+    pickedId && calendars.some((c) => c.id === pickedId)
+      ? pickedId
+      : (calendars[0]?.id ?? null);
 
   const createMutation = useBusinessCalendarsCreate({
     mutation: {
@@ -70,7 +67,7 @@ export function CalendarsTab() {
           hasDefault={hasDefault}
           creating={creating}
           submitting={createMutation.isPending}
-          onSelect={setSelectedId}
+          onSelect={setPickedId}
           onStartCreate={() => setCreating(true)}
           onCancelCreate={() => setCreating(false)}
           onCreate={({ name, isDefault }) =>
@@ -81,8 +78,9 @@ export function CalendarsTab() {
       <Col xs={24} md={15} lg={16} xl={17}>
         {selected ? (
           <CalendarDetail
+            key={selected.id ?? ''}
             calendar={selected}
-            onDeleted={() => setSelectedId(null)}
+            onDeleted={() => setPickedId(null)}
           />
         ) : (
           <Card>

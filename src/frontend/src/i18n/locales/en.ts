@@ -79,6 +79,7 @@ export const en: Loose<typeof it> = {
     teamDetail: 'Details',
     timeConfig: 'Calendars & closures',
     people: 'People',
+    settings: 'Settings',
   },
   home: {
     title: 'Welcome',
@@ -324,6 +325,115 @@ export const en: Loose<typeof it> = {
       proficientDesc: 'Autonomous on routine tasks.',
       expertDesc: 'Team reference, guides others.',
       label: 'Level: {{label}}',
+    },
+  },
+  settings: {
+    title: 'Settings',
+    subtitle: 'Organization-level boundaries and thresholds.',
+    dirtyBadge: 'Unsaved changes',
+    savedAt: 'Saved · {{time}}',
+    aggregateFootnote: 'Org-level aggregate · independent lifecycle',
+    constantLabel: 'Constant (not configurable).',
+    loadError: 'Could not load settings.',
+    nav: {
+      load: 'Load bands',
+      fence: 'Time fence',
+      bucket: 'Granularity',
+      commit: 'Commitment',
+    },
+    load: {
+      title: 'Load bands',
+      subtitle:
+        'Timeless scalar bands over the load percentage. The load read model uses them to qualify each cell.',
+      label: 'Label',
+      lowerBound: 'Lower bound',
+      addBand: 'Add band',
+      andBeyond: 'and beyond',
+      removeBand: 'Remove band',
+      firstFixedTooltip: 'The first band always starts at 0.',
+      probePrefix: 'Try: a load of',
+      probeSuffix: 'falls into',
+      invalidConfig: 'invalid config',
+      saveSuccess: 'Load bands saved',
+      saveSuccessDetail_one: '{{count}} band active.',
+      saveSuccessDetail_other: '{{count}} bands active.',
+      errorAtLeastOne: 'Define at least one band.',
+      errorFirstZero: 'The first band must start at 0.',
+      errorIncreasing: 'Must be strictly greater than the previous band.',
+      errorLabelRequired: 'Label is required.',
+      errorValueRequired: 'Value is required.',
+      constantNote:
+        'Bands are half-open [lower, next): the engine reasons by band, not by single figure. The first band always starts at 0; bounds increase strictly (no gaps or overlaps).',
+    },
+    fence: {
+      title: 'Time fence',
+      subtitle:
+        'Rolling horizons computed from today. Frozen and slushy delimit the three zones; liquid is everything beyond slushy.',
+      frozen: 'Frozen horizon',
+      slushy: 'Slushy horizon',
+      frozenHint: 'Nearest zone: disruptive operations are made evident.',
+      slushyHint: 'Up to here changes are still expected.',
+      today: 'today',
+      beyondSlushy: 'beyond slushy',
+      zoneFrozen: 'Frozen',
+      zoneSlushy: 'Slushy',
+      zoneLiquid: 'Liquid',
+      invalidShort: 'frozen must be < slushy',
+      invalidDetail:
+        'The frozen horizon ({{frozen}} ≈ {{frozenDays}}d) must be shorter than the slushy horizon ({{slushy}} ≈ {{slushyDays}}d).',
+      saveSuccess: 'Time fence saved',
+      saveSuccessDetail: 'Frozen {{frozen}} · Slushy {{slushy}}.',
+      units: {
+        days: 'days',
+        weeks: 'weeks',
+        months: 'months',
+      },
+      constantNote:
+        'The fence is rolling: durations are stored, not dates, and the zones are recomputed on each read from today. The three-zone split is fixed; how each zone modulates behaviour is a system rule, not a setting.',
+    },
+    bucket: {
+      title: 'Default granularity',
+      subtitle:
+        'The time granularity views aggregate by default. The secondary one is the drill-down level.',
+      primary: 'Primary granularity',
+      secondary: 'Secondary granularity (drill-down)',
+      mustDiffer: 'Primary and secondary must differ.',
+      summary:
+        'View aggregated by <0>{{primary}}</0>, with drill-down by <1>{{secondary}}</1>.',
+      saveSuccess: 'Granularity saved',
+      saveSuccessDetail: 'Primary: {{primary}}, secondary: {{secondary}}.',
+      grains: {
+        day: 'Day',
+        week: 'Week',
+        month: 'Month',
+      },
+      constantNote:
+        'The set {day, week, month} is fixed (no quarter: out of scope). Week and month alignment (calendar vs fiscal) will derive from the business calendar, not a knob of this layer.',
+    },
+    commit: {
+      title: 'Commitment policy',
+      subtitle:
+        'Which project commitment levels count as “hard-committed” and therefore permit allocations with Status = Hard.',
+      enableLabel: 'Levels that enable Status = Hard',
+      permitsHard: 'permits Hard',
+      atLeastOne: 'Select at least one level: the set cannot be empty.',
+      summary:
+        'Allocations with Status = Hard are permitted on nodes with level: {{allowed}}. On the others ({{others}}) only Tentative allocations remain possible.',
+      summaryOthersNone: 'none',
+      saveSuccess: 'Commitment policy saved',
+      saveSuccessDetail: 'Hard-commit: {{levels}}.',
+      levels: {
+        exploratory: 'Exploratory',
+        planned: 'Planned',
+        committed: 'Committed',
+        critical: 'Critical',
+        exploratoryDesc: 'Under evaluation, not confirmed.',
+        plannedDesc: 'Planned but revisable.',
+        committedDesc: 'Commitment made with the client.',
+        criticalDesc: 'Mission-critical, top priority.',
+      },
+      constantNote:
+        'Rule I6 does not change: the Hard status requires a “hard-committed” project. Here you only configure which levels fall within the threshold; the threshold is read from a single source both on write and in cascade demotion.',
     },
   },
 };

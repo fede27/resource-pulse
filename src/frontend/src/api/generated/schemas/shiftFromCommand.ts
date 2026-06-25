@@ -4,13 +4,11 @@
  * ResourcePulse.Hosting
  * OpenAPI spec version: 1.0
  */
+import type { PlanCommand } from './planCommand';
 
-export interface CreateByPercentDto {
+export type ShiftFromCommand = PlanCommand & {
   resourceId?: string;
   projectNodeId?: string;
-  periodStart?: string;
-  periodEnd?: string;
-  percent?: number;
-  /** @nullable */
-  notes?: string | null;
-}
+  fromDate?: string;
+  deltaDays?: number;
+};

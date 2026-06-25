@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, Card, Checkbox, Empty, Input, Space, Tag, theme, Typography } from 'antd';
 import { PlusOutlined, StarFilled } from '@ant-design/icons';
-import type { InputRef } from 'antd';
 import { useTranslation } from 'react-i18next';
 import type { BusinessCalendarReadDto } from '@/api/generated/schemas';
 import { useDays } from '@/i18n/useDays';
@@ -35,10 +34,6 @@ export function CalendarList({
   const { t } = useTranslation();
   const { token } = theme.useToken();
   const days = useDays();
-  const [name, setName] = useState('');
-  const [isDefault, setIsDefault] = useState(false);
-  const [nameError, setNameError] = useState<string | null>(null);
-  const inputRef = useRef<InputRef | null>(null);
 
   const patternFallbacks = useMemo(
     () => ({
@@ -47,30 +42,6 @@ export function CalendarList({
     }),
     [t],
   );
-
-  useEffect(() => {
-    if (creating) {
-      setName('');
-      setIsDefault(false);
-      setNameError(null);
-      const handle = window.setTimeout(() => inputRef.current?.focus(), 0);
-      return () => window.clearTimeout(handle);
-    }
-    return undefined;
-  }, [creating]);
-
-  const submit = () => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setNameError(t('timeConfig.calendars.nameRequired'));
-      return;
-    }
-    if (trimmed.length < 2) {
-      setNameError(t('timeConfig.calendars.nameTooShort'));
-      return;
-    }
-    onCreate({ name: trimmed, isDefault });
-  };
 
   return (
     <Card
@@ -96,58 +67,12 @@ export function CalendarList({
       }
     >
       {creating && (
-        <div
-          style={{
-            padding: 14,
-            background: token.colorFillQuaternary,
-            borderBottom: `1px solid ${token.colorBorderSecondary}`,
-          }}
-        >
-          <Input
-            ref={inputRef}
-            value={name}
-            placeholder={t('timeConfig.calendars.namePlaceholder')}
-            status={nameError ? 'error' : ''}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (nameError) setNameError(null);
-            }}
-            onPressEnter={submit}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') onCancelCreate();
-            }}
-          />
-          {nameError && (
-            <div style={{ color: token.colorError, fontSize: 12, marginTop: 4 }}>
-              {nameError}
-            </div>
-          )}
-          <div style={{ marginTop: 10 }}>
-            <Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)}>
-              {t('timeConfig.calendars.setAsDefault')}
-            </Checkbox>
-            {isDefault && hasDefault && (
-              <div
-                style={{
-                  marginTop: 6,
-                  fontSize: 12,
-                  color: token.colorTextTertiary,
-                  marginLeft: 24,
-                }}
-              >
-                {t('timeConfig.calendars.previousDefaultUnset')}
-              </div>
-            )}
-          </div>
-          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button size="small" onClick={onCancelCreate} disabled={submitting}>
-              {t('common.cancel')}
-            </Button>
-            <Button size="small" type="primary" loading={submitting} onClick={submit}>
-              {t('common.create')}
-            </Button>
-          </div>
-        </div>
+        <CreateCalendarForm
+          hasDefault={hasDefault}
+          submitting={submitting}
+          onCancel={onCancelCreate}
+          onCreate={onCreate}
+        />
       )}
 
       {calendars.length === 0 && !creating ? (
@@ -226,6 +151,92 @@ export function CalendarList({
         </div>
       )}
     </Card>
+  );
+}
+
+// Rendered only while `creating`, so it mounts fresh on each open — its local
+// fields reset without an effect, and the input self-focuses via autoFocus.
+function CreateCalendarForm({
+  hasDefault,
+  submitting,
+  onCancel,
+  onCreate,
+}: {
+  hasDefault: boolean;
+  submitting: boolean;
+  onCancel: () => void;
+  onCreate: (input: { name: string; isDefault: boolean }) => void;
+}) {
+  const { t } = useTranslation();
+  const { token } = theme.useToken();
+  const [name, setName] = useState('');
+  const [isDefault, setIsDefault] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  const submit = () => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setNameError(t('timeConfig.calendars.nameRequired'));
+      return;
+    }
+    if (trimmed.length < 2) {
+      setNameError(t('timeConfig.calendars.nameTooShort'));
+      return;
+    }
+    onCreate({ name: trimmed, isDefault });
+  };
+
+  return (
+    <div
+      style={{
+        padding: 14,
+        background: token.colorFillQuaternary,
+        borderBottom: `1px solid ${token.colorBorderSecondary}`,
+      }}
+    >
+      <Input
+        autoFocus
+        value={name}
+        placeholder={t('timeConfig.calendars.namePlaceholder')}
+        status={nameError ? 'error' : ''}
+        onChange={(e) => {
+          setName(e.target.value);
+          if (nameError) setNameError(null);
+        }}
+        onPressEnter={submit}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onCancel();
+        }}
+      />
+      {nameError && (
+        <div style={{ color: token.colorError, fontSize: 12, marginTop: 4 }}>{nameError}</div>
+      )}
+      <div style={{ marginTop: 10 }}>
+        <Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)}>
+          {t('timeConfig.calendars.setAsDefault')}
+        </Checkbox>
+        {isDefault && hasDefault && (
+          <div
+            style={{
+              marginTop: 6,
+              fontSize: 12,
+              color: token.colorTextTertiary,
+              marginLeft: 24,
+            }}
+          >
+            {t('timeConfig.calendars.previousDefaultUnset')}
+          </div>
+        )}
+      </div>
+      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <Button size="small" onClick={onCancel} disabled={submitting}>
+          {t('common.cancel')}
+        </Button>
+        <Button size="small" type="primary" loading={submitting} onClick={submit}>
+          {t('common.create')}
+        </Button>
+      </div>
+    </div>
   );
 }
 

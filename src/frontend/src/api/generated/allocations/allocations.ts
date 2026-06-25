@@ -5,20 +5,16 @@
  * OpenAPI spec version: 1.0
  */
 import {
-  useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
-  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
-  UseMutationOptions,
-  UseMutationResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
@@ -26,15 +22,11 @@ import type {
 import type {
   AllocationsGetAllParams,
   AllocationsGetForProjectNodeParams,
-  AllocationsGetForResourceParams,
-  CreateByHoursDto,
-  CreateByPercentDto,
-  MoveAllocationDto,
-  UpdateAllocationDto
+  AllocationsGetForResourceParams
 } from '../schemas';
 
 import { apiClient } from '../../client';
-import type { ErrorType , BodyType } from '../../client';
+import type { ErrorType } from '../../client';
 
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
@@ -214,120 +206,7 @@ export function useAllocationsGetById<TData = Awaited<ReturnType<typeof allocati
 
 
 
-export const allocationsUpdate = (
-    id: string,
-    updateAllocationDto?: BodyType<UpdateAllocationDto>,
- options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
-) => {
-
-
-      return apiClient<void>(
-      {url: `/api/allocations/${id}`, method: 'PUT',
-      headers: {'Content-Type': 'application/json', },
-      data: updateAllocationDto, signal
-    },
-      options);
-    }
-
-
-
-export const getAllocationsUpdateMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allocationsUpdate>>, TError,{id: string;data?: BodyType<UpdateAllocationDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof allocationsUpdate>>, TError,{id: string;data?: BodyType<UpdateAllocationDto>}, TContext> => {
-
-const mutationKey = ['allocationsUpdate'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof allocationsUpdate>>, {id: string;data?: BodyType<UpdateAllocationDto>}> = (props) => {
-          const {id,data} = props ?? {};
-
-          return  allocationsUpdate(id,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AllocationsUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof allocationsUpdate>>>
-    export type AllocationsUpdateMutationBody = BodyType<UpdateAllocationDto> | undefined
-    export type AllocationsUpdateMutationError = ErrorType<unknown>
-
-    export const useAllocationsUpdate = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allocationsUpdate>>, TError,{id: string;data?: BodyType<UpdateAllocationDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof allocationsUpdate>>,
-        TError,
-        {id: string;data?: BodyType<UpdateAllocationDto>},
-        TContext
-      > => {
-      return useMutation(getAllocationsUpdateMutationOptions(options), queryClient);
-    }
-    export const allocationsDelete = (
-    id: string,
- options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
-) => {
-
-
-      return apiClient<void>(
-      {url: `/api/allocations/${id}`, method: 'DELETE', signal
-    },
-      options);
-    }
-
-
-
-export const getAllocationsDeleteMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allocationsDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof allocationsDelete>>, TError,{id: string}, TContext> => {
-
-const mutationKey = ['allocationsDelete'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof allocationsDelete>>, {id: string}> = (props) => {
-          const {id} = props ?? {};
-
-          return  allocationsDelete(id,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AllocationsDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof allocationsDelete>>>
-
-    export type AllocationsDeleteMutationError = ErrorType<unknown>
-
-    export const useAllocationsDelete = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allocationsDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof allocationsDelete>>,
-        TError,
-        {id: string},
-        TContext
-      > => {
-      return useMutation(getAllocationsDeleteMutationOptions(options), queryClient);
-    }
-    export const allocationsGetForResource = (
+export const allocationsGetForResource = (
     resourceId: string,
     params?: AllocationsGetForResourceParams,
  options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
@@ -601,175 +480,3 @@ export function useAllocationsGetResolvedHours<TData = Awaited<ReturnType<typeof
 
 
 
-export const allocationsCreateByPercent = (
-    createByPercentDto?: BodyType<CreateByPercentDto>,
- options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
-) => {
-
-
-      return apiClient<void>(
-      {url: `/api/allocations/by-percent`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: createByPercentDto, signal
-    },
-      options);
-    }
-
-
-
-export const getAllocationsCreateByPercentMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allocationsCreateByPercent>>, TError,{data?: BodyType<CreateByPercentDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof allocationsCreateByPercent>>, TError,{data?: BodyType<CreateByPercentDto>}, TContext> => {
-
-const mutationKey = ['allocationsCreateByPercent'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof allocationsCreateByPercent>>, {data?: BodyType<CreateByPercentDto>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  allocationsCreateByPercent(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AllocationsCreateByPercentMutationResult = NonNullable<Awaited<ReturnType<typeof allocationsCreateByPercent>>>
-    export type AllocationsCreateByPercentMutationBody = BodyType<CreateByPercentDto> | undefined
-    export type AllocationsCreateByPercentMutationError = ErrorType<unknown>
-
-    export const useAllocationsCreateByPercent = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allocationsCreateByPercent>>, TError,{data?: BodyType<CreateByPercentDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof allocationsCreateByPercent>>,
-        TError,
-        {data?: BodyType<CreateByPercentDto>},
-        TContext
-      > => {
-      return useMutation(getAllocationsCreateByPercentMutationOptions(options), queryClient);
-    }
-    export const allocationsCreateByHours = (
-    createByHoursDto?: BodyType<CreateByHoursDto>,
- options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
-) => {
-
-
-      return apiClient<void>(
-      {url: `/api/allocations/by-hours`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: createByHoursDto, signal
-    },
-      options);
-    }
-
-
-
-export const getAllocationsCreateByHoursMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allocationsCreateByHours>>, TError,{data?: BodyType<CreateByHoursDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof allocationsCreateByHours>>, TError,{data?: BodyType<CreateByHoursDto>}, TContext> => {
-
-const mutationKey = ['allocationsCreateByHours'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof allocationsCreateByHours>>, {data?: BodyType<CreateByHoursDto>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  allocationsCreateByHours(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AllocationsCreateByHoursMutationResult = NonNullable<Awaited<ReturnType<typeof allocationsCreateByHours>>>
-    export type AllocationsCreateByHoursMutationBody = BodyType<CreateByHoursDto> | undefined
-    export type AllocationsCreateByHoursMutationError = ErrorType<unknown>
-
-    export const useAllocationsCreateByHours = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allocationsCreateByHours>>, TError,{data?: BodyType<CreateByHoursDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof allocationsCreateByHours>>,
-        TError,
-        {data?: BodyType<CreateByHoursDto>},
-        TContext
-      > => {
-      return useMutation(getAllocationsCreateByHoursMutationOptions(options), queryClient);
-    }
-    export const allocationsMove = (
-    id: string,
-    moveAllocationDto?: BodyType<MoveAllocationDto>,
- options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
-) => {
-
-
-      return apiClient<void>(
-      {url: `/api/allocations/${id}/move`, method: 'POST',
-      headers: {'Content-Type': 'application/json', },
-      data: moveAllocationDto, signal
-    },
-      options);
-    }
-
-
-
-export const getAllocationsMoveMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allocationsMove>>, TError,{id: string;data?: BodyType<MoveAllocationDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof allocationsMove>>, TError,{id: string;data?: BodyType<MoveAllocationDto>}, TContext> => {
-
-const mutationKey = ['allocationsMove'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof allocationsMove>>, {id: string;data?: BodyType<MoveAllocationDto>}> = (props) => {
-          const {id,data} = props ?? {};
-
-          return  allocationsMove(id,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type AllocationsMoveMutationResult = NonNullable<Awaited<ReturnType<typeof allocationsMove>>>
-    export type AllocationsMoveMutationBody = BodyType<MoveAllocationDto> | undefined
-    export type AllocationsMoveMutationError = ErrorType<unknown>
-
-    export const useAllocationsMove = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allocationsMove>>, TError,{id: string;data?: BodyType<MoveAllocationDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
- , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof allocationsMove>>,
-        TError,
-        {id: string;data?: BodyType<MoveAllocationDto>},
-        TContext
-      > => {
-      return useMutation(getAllocationsMoveMutationOptions(options), queryClient);
-    }

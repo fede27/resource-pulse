@@ -5,22 +5,10 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { DayOfWeek, WorkWindowDto } from '@/api/generated/schemas';
 import { useDays } from '@/i18n/useDays';
-import {
-  columnIndexToDayOfWeek,
-  dayOfWeekToColumnIndex,
-  minutesToTime,
-  timeToMinutes,
-} from './workWindow.utils';
+import { columnIndexToDayOfWeek, timeToMinutes } from './workWindow.utils';
+import type { WorkWindowFormValues } from './workWindowForm';
 
 const { Text } = Typography;
-
-export type WorkWindowFormValues = {
-  dayOfWeek: DayOfWeek;
-  startTime: Dayjs;
-  endTime: Dayjs;
-  validFrom: Dayjs;
-  validTo: Dayjs | null;
-};
 
 export type WorkWindowPopoverContentProps = {
   initial: Partial<WorkWindowDto> | null;
@@ -35,25 +23,6 @@ const HMS = 'HH:mm:ss';
 
 function toDayjsTime(t: string | undefined, fallback: string): Dayjs {
   return dayjs(t ?? fallback, HMS);
-}
-
-export function formValuesToDto(v: WorkWindowFormValues, id?: string): WorkWindowDto {
-  const startMin = v.startTime.hour() * 60 + v.startTime.minute();
-  const endMin = v.endTime.hour() * 60 + v.endTime.minute();
-  // Defensive fallbacks: when the "Validity period" panel is never opened, the
-  // Form may have no value for these fields. Default to "active from today,
-  // indefinitely" — matches what the collapsed panel visually communicates.
-  const validFrom = (v.validFrom ?? dayjs().startOf('day')).format('YYYY-MM-DD');
-  const validTo = v.validTo ? v.validTo.format('YYYY-MM-DD') : null;
-  const dto: WorkWindowDto = {
-    dayOfWeek: v.dayOfWeek,
-    startTime: minutesToTime(startMin),
-    endTime: minutesToTime(endMin),
-    validFrom,
-    validTo,
-  };
-  if (id !== undefined) dto.id = id;
-  return dto;
 }
 
 export function WorkWindowPopoverContent({
@@ -267,5 +236,3 @@ export function WorkWindowPopoverContent({
     </Form>
   );
 }
-
-export const dayOfWeekColumnIndex = dayOfWeekToColumnIndex;

@@ -25,6 +25,7 @@ import type {
 
 import type {
   CreateSkillDto,
+  HttpValidationProblemDetails,
   LoadResult,
   ProblemDetails,
   SkillReadDto,
@@ -142,7 +143,7 @@ export const skillsCreate = (
 
 
 
-export const getSkillsCreateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+export const getSkillsCreateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof skillsCreate>>, TError,{data?: BodyType<CreateSkillDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof skillsCreate>>, TError,{data?: BodyType<CreateSkillDto>}, TContext> => {
 
@@ -171,9 +172,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type SkillsCreateMutationResult = NonNullable<Awaited<ReturnType<typeof skillsCreate>>>
     export type SkillsCreateMutationBody = BodyType<CreateSkillDto> | undefined
-    export type SkillsCreateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
+    export type SkillsCreateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>
 
-    export const useSkillsCreate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+    export const useSkillsCreate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof skillsCreate>>, TError,{data?: BodyType<CreateSkillDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof skillsCreate>>,
@@ -205,7 +206,7 @@ export const getSkillsGetByIdQueryKey = (id: string,) => {
     }
 
 
-export const getSkillsGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof skillsGetById>>, TError = ErrorType<ProblemDetails>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof skillsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+export const getSkillsGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof skillsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof skillsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -224,10 +225,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type SkillsGetByIdQueryResult = NonNullable<Awaited<ReturnType<typeof skillsGetById>>>
-export type SkillsGetByIdQueryError = ErrorType<ProblemDetails>
+export type SkillsGetByIdQueryError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
 
 
-export function useSkillsGetById<TData = Awaited<ReturnType<typeof skillsGetById>>, TError = ErrorType<ProblemDetails>>(
+export function useSkillsGetById<TData = Awaited<ReturnType<typeof skillsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof skillsGetById>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof skillsGetById>>,
@@ -237,7 +238,7 @@ export function useSkillsGetById<TData = Awaited<ReturnType<typeof skillsGetById
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useSkillsGetById<TData = Awaited<ReturnType<typeof skillsGetById>>, TError = ErrorType<ProblemDetails>>(
+export function useSkillsGetById<TData = Awaited<ReturnType<typeof skillsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof skillsGetById>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof skillsGetById>>,
@@ -247,12 +248,12 @@ export function useSkillsGetById<TData = Awaited<ReturnType<typeof skillsGetById
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useSkillsGetById<TData = Awaited<ReturnType<typeof skillsGetById>>, TError = ErrorType<ProblemDetails>>(
+export function useSkillsGetById<TData = Awaited<ReturnType<typeof skillsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof skillsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useSkillsGetById<TData = Awaited<ReturnType<typeof skillsGetById>>, TError = ErrorType<ProblemDetails>>(
+export function useSkillsGetById<TData = Awaited<ReturnType<typeof skillsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof skillsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -286,7 +287,7 @@ export const skillsUpdate = (
 
 
 
-export const getSkillsUpdateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+export const getSkillsUpdateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof skillsUpdate>>, TError,{id: string;data?: BodyType<UpdateSkillDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof skillsUpdate>>, TError,{id: string;data?: BodyType<UpdateSkillDto>}, TContext> => {
 
@@ -315,9 +316,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type SkillsUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof skillsUpdate>>>
     export type SkillsUpdateMutationBody = BodyType<UpdateSkillDto> | undefined
-    export type SkillsUpdateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
+    export type SkillsUpdateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>
 
-    export const useSkillsUpdate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+    export const useSkillsUpdate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof skillsUpdate>>, TError,{id: string;data?: BodyType<UpdateSkillDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof skillsUpdate>>,
@@ -341,7 +342,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getSkillsDeleteMutationOptions = <TError = ErrorType<ProblemDetails>,
+export const getSkillsDeleteMutationOptions = <TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof skillsDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof skillsDelete>>, TError,{id: string}, TContext> => {
 
@@ -370,9 +371,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type SkillsDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof skillsDelete>>>
 
-    export type SkillsDeleteMutationError = ErrorType<ProblemDetails>
+    export type SkillsDeleteMutationError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
 
-    export const useSkillsDelete = <TError = ErrorType<ProblemDetails>,
+    export const useSkillsDelete = <TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof skillsDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof skillsDelete>>,

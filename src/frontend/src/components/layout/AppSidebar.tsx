@@ -64,8 +64,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
       {
         key: 'settings',
         icon: <SettingOutlined />,
-        label: t('nav.settings'),
-        disabled: true,
+        label: <Link to="/settings">{t('nav.settings')}</Link>,
       },
     ],
     [t],
@@ -144,5 +143,6 @@ function resolveSelectedKey(pathname: string): string {
   if (pathname.startsWith('/people')) return 'people';
   if (pathname.startsWith('/teams')) return 'teams';
   if (pathname.startsWith('/time-config')) return 'time-config';
+  if (pathname.startsWith('/settings')) return 'settings';
   return 'home';
 }

@@ -13,10 +13,8 @@ import {
   isWindowHistorical,
   timeToMinutes,
 } from './workWindow.utils';
-import {
-  WorkWindowPopoverContent,
-  type WorkWindowFormValues,
-} from './WorkWindowPopover';
+import { WorkWindowPopoverContent } from './WorkWindowPopover';
+import type { WorkWindowFormValues } from './workWindowForm';
 
 export type WeekGridView = 'today' | 'all' | 'historical' | 'future';
 

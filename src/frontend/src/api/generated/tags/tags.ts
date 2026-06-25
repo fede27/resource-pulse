@@ -25,6 +25,7 @@ import type {
 
 import type {
   CreateTagDto,
+  HttpValidationProblemDetails,
   LoadResult,
   ProblemDetails,
   TagReadDto,
@@ -142,7 +143,7 @@ export const tagsCreate = (
 
 
 
-export const getTagsCreateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+export const getTagsCreateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tagsCreate>>, TError,{data?: BodyType<CreateTagDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof tagsCreate>>, TError,{data?: BodyType<CreateTagDto>}, TContext> => {
 
@@ -171,9 +172,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type TagsCreateMutationResult = NonNullable<Awaited<ReturnType<typeof tagsCreate>>>
     export type TagsCreateMutationBody = BodyType<CreateTagDto> | undefined
-    export type TagsCreateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
+    export type TagsCreateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>
 
-    export const useTagsCreate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+    export const useTagsCreate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tagsCreate>>, TError,{data?: BodyType<CreateTagDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof tagsCreate>>,
@@ -205,7 +206,7 @@ export const getTagsGetByIdQueryKey = (id: string,) => {
     }
 
 
-export const getTagsGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof tagsGetById>>, TError = ErrorType<ProblemDetails>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof tagsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+export const getTagsGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof tagsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof tagsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -224,10 +225,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type TagsGetByIdQueryResult = NonNullable<Awaited<ReturnType<typeof tagsGetById>>>
-export type TagsGetByIdQueryError = ErrorType<ProblemDetails>
+export type TagsGetByIdQueryError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
 
 
-export function useTagsGetById<TData = Awaited<ReturnType<typeof tagsGetById>>, TError = ErrorType<ProblemDetails>>(
+export function useTagsGetById<TData = Awaited<ReturnType<typeof tagsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof tagsGetById>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof tagsGetById>>,
@@ -237,7 +238,7 @@ export function useTagsGetById<TData = Awaited<ReturnType<typeof tagsGetById>>, 
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useTagsGetById<TData = Awaited<ReturnType<typeof tagsGetById>>, TError = ErrorType<ProblemDetails>>(
+export function useTagsGetById<TData = Awaited<ReturnType<typeof tagsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof tagsGetById>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof tagsGetById>>,
@@ -247,12 +248,12 @@ export function useTagsGetById<TData = Awaited<ReturnType<typeof tagsGetById>>, 
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useTagsGetById<TData = Awaited<ReturnType<typeof tagsGetById>>, TError = ErrorType<ProblemDetails>>(
+export function useTagsGetById<TData = Awaited<ReturnType<typeof tagsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof tagsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useTagsGetById<TData = Awaited<ReturnType<typeof tagsGetById>>, TError = ErrorType<ProblemDetails>>(
+export function useTagsGetById<TData = Awaited<ReturnType<typeof tagsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof tagsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -286,7 +287,7 @@ export const tagsUpdate = (
 
 
 
-export const getTagsUpdateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+export const getTagsUpdateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tagsUpdate>>, TError,{id: string;data?: BodyType<UpdateTagDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof tagsUpdate>>, TError,{id: string;data?: BodyType<UpdateTagDto>}, TContext> => {
 
@@ -315,9 +316,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type TagsUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof tagsUpdate>>>
     export type TagsUpdateMutationBody = BodyType<UpdateTagDto> | undefined
-    export type TagsUpdateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
+    export type TagsUpdateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>
 
-    export const useTagsUpdate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+    export const useTagsUpdate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tagsUpdate>>, TError,{id: string;data?: BodyType<UpdateTagDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof tagsUpdate>>,
@@ -341,7 +342,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getTagsDeleteMutationOptions = <TError = ErrorType<ProblemDetails>,
+export const getTagsDeleteMutationOptions = <TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tagsDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof tagsDelete>>, TError,{id: string}, TContext> => {
 
@@ -370,9 +371,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type TagsDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof tagsDelete>>>
 
-    export type TagsDeleteMutationError = ErrorType<ProblemDetails>
+    export type TagsDeleteMutationError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
 
-    export const useTagsDelete = <TError = ErrorType<ProblemDetails>,
+    export const useTagsDelete = <TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tagsDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof tagsDelete>>,

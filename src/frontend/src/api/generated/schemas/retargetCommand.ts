@@ -5,9 +5,11 @@
  * OpenAPI spec version: 1.0
  */
 import type { MoveMode } from './moveMode';
+import type { PlanCommand } from './planCommand';
 
-export interface MoveAllocationDto {
+export type RetargetCommand = PlanCommand & {
+  id?: string;
   newPeriodStart?: string;
   newPeriodEnd?: string;
   mode?: MoveMode;
-}
+};

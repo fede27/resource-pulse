@@ -25,6 +25,7 @@ import type {
 
 import type {
   CreateRoleDto,
+  HttpValidationProblemDetails,
   LoadResult,
   ProblemDetails,
   RoleReadDto,
@@ -142,7 +143,7 @@ export const rolesCreate = (
 
 
 
-export const getRolesCreateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+export const getRolesCreateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rolesCreate>>, TError,{data?: BodyType<CreateRoleDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof rolesCreate>>, TError,{data?: BodyType<CreateRoleDto>}, TContext> => {
 
@@ -171,9 +172,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type RolesCreateMutationResult = NonNullable<Awaited<ReturnType<typeof rolesCreate>>>
     export type RolesCreateMutationBody = BodyType<CreateRoleDto> | undefined
-    export type RolesCreateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
+    export type RolesCreateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>
 
-    export const useRolesCreate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+    export const useRolesCreate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rolesCreate>>, TError,{data?: BodyType<CreateRoleDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof rolesCreate>>,
@@ -205,7 +206,7 @@ export const getRolesGetByIdQueryKey = (id: string,) => {
     }
 
 
-export const getRolesGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof rolesGetById>>, TError = ErrorType<ProblemDetails>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof rolesGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+export const getRolesGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof rolesGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof rolesGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -224,10 +225,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type RolesGetByIdQueryResult = NonNullable<Awaited<ReturnType<typeof rolesGetById>>>
-export type RolesGetByIdQueryError = ErrorType<ProblemDetails>
+export type RolesGetByIdQueryError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
 
 
-export function useRolesGetById<TData = Awaited<ReturnType<typeof rolesGetById>>, TError = ErrorType<ProblemDetails>>(
+export function useRolesGetById<TData = Awaited<ReturnType<typeof rolesGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof rolesGetById>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof rolesGetById>>,
@@ -237,7 +238,7 @@ export function useRolesGetById<TData = Awaited<ReturnType<typeof rolesGetById>>
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useRolesGetById<TData = Awaited<ReturnType<typeof rolesGetById>>, TError = ErrorType<ProblemDetails>>(
+export function useRolesGetById<TData = Awaited<ReturnType<typeof rolesGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof rolesGetById>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof rolesGetById>>,
@@ -247,12 +248,12 @@ export function useRolesGetById<TData = Awaited<ReturnType<typeof rolesGetById>>
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useRolesGetById<TData = Awaited<ReturnType<typeof rolesGetById>>, TError = ErrorType<ProblemDetails>>(
+export function useRolesGetById<TData = Awaited<ReturnType<typeof rolesGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof rolesGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useRolesGetById<TData = Awaited<ReturnType<typeof rolesGetById>>, TError = ErrorType<ProblemDetails>>(
+export function useRolesGetById<TData = Awaited<ReturnType<typeof rolesGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof rolesGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -286,7 +287,7 @@ export const rolesUpdate = (
 
 
 
-export const getRolesUpdateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+export const getRolesUpdateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rolesUpdate>>, TError,{id: string;data?: BodyType<UpdateRoleDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof rolesUpdate>>, TError,{id: string;data?: BodyType<UpdateRoleDto>}, TContext> => {
 
@@ -315,9 +316,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type RolesUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof rolesUpdate>>>
     export type RolesUpdateMutationBody = BodyType<UpdateRoleDto> | undefined
-    export type RolesUpdateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails>
+    export type RolesUpdateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>
 
-    export const useRolesUpdate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails>,
+    export const useRolesUpdate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rolesUpdate>>, TError,{id: string;data?: BodyType<UpdateRoleDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof rolesUpdate>>,
@@ -341,7 +342,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-export const getRolesDeleteMutationOptions = <TError = ErrorType<ProblemDetails>,
+export const getRolesDeleteMutationOptions = <TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rolesDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof rolesDelete>>, TError,{id: string}, TContext> => {
 
@@ -370,9 +371,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type RolesDeleteMutationResult = NonNullable<Awaited<ReturnType<typeof rolesDelete>>>
 
-    export type RolesDeleteMutationError = ErrorType<ProblemDetails>
+    export type RolesDeleteMutationError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
 
-    export const useRolesDelete = <TError = ErrorType<ProblemDetails>,
+    export const useRolesDelete = <TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rolesDelete>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof rolesDelete>>,

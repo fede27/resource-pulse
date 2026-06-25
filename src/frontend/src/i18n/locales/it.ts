@@ -66,6 +66,7 @@ export const it = {
     teamDetail: 'Dettaglio',
     timeConfig: 'Calendari & chiusure',
     people: 'Persone',
+    settings: 'Impostazioni',
   },
   home: {
     title: 'Benvenuto',
@@ -313,6 +314,116 @@ export const it = {
       proficientDesc: 'Autonomo sui task ordinari.',
       expertDesc: 'Riferimento del team, guida gli altri.',
       label: 'Livello: {{label}}',
+    },
+  },
+  settings: {
+    title: 'Impostazioni',
+    subtitle: 'Confini e soglie a livello di organizzazione.',
+    dirtyBadge: 'Modifiche non salvate',
+    savedAt: 'Salvato · {{time}}',
+    aggregateFootnote: 'Aggregato org-level · ciclo di vita indipendente',
+    constantLabel: 'Costante (non configurabile).',
+    loadError: 'Impossibile caricare le impostazioni.',
+    nav: {
+      load: 'Soglie di carico',
+      fence: 'Time fence',
+      bucket: 'Granularità',
+      commit: 'Commitment',
+    },
+    load: {
+      title: 'Soglie di carico',
+      subtitle:
+        'Fasce scalari atemporali sulla percentuale di carico. Il read model del carico le userà per qualificare ogni cella.',
+      label: 'Label',
+      lowerBound: 'Soglia inferiore',
+      addBand: 'Aggiungi fascia',
+      andBeyond: 'e oltre',
+      removeBand: 'Rimuovi fascia',
+      firstFixedTooltip: 'La prima fascia parte sempre da 0.',
+      probePrefix: 'Prova: un carico del',
+      probeSuffix: 'ricade in',
+      invalidConfig: 'config non valida',
+      saveSuccess: 'Soglie di carico salvate',
+      saveSuccessDetail_one: '{{count}} fascia attiva.',
+      saveSuccessDetail_other: '{{count}} fasce attive.',
+      errorAtLeastOne: 'Definisci almeno una fascia.',
+      errorFirstZero: 'La prima fascia deve partire da 0.',
+      errorIncreasing:
+        'Deve essere strettamente maggiore della fascia precedente.',
+      errorLabelRequired: 'Label obbligatoria.',
+      errorValueRequired: 'Valore obbligatorio.',
+      constantNote:
+        'Le fasce sono semiaperte [inferiore, successiva): il motore ragiona per fascia, non per singola cifra. La prima fascia parte sempre da 0; le soglie crescono in modo stretto (niente buchi né sovrapposizioni).',
+    },
+    fence: {
+      title: 'Time fence',
+      subtitle:
+        'Orizzonti rolling calcolati da oggi. Frozen e slushy delimitano le tre zone; liquid è tutto ciò che resta oltre slushy.',
+      frozen: 'Frozen horizon',
+      slushy: 'Slushy horizon',
+      frozenHint: 'Zona più vicina: le operazioni dirompenti vengono rese evidenti.',
+      slushyHint: 'Fino a qui le modifiche sono ancora attese.',
+      today: 'oggi',
+      beyondSlushy: 'oltre slushy',
+      zoneFrozen: 'Frozen',
+      zoneSlushy: 'Slushy',
+      zoneLiquid: 'Liquid',
+      invalidShort: 'frozen deve essere < slushy',
+      invalidDetail:
+        'Il frozen horizon ({{frozen}} ≈ {{frozenDays}}g) deve essere inferiore allo slushy horizon ({{slushy}} ≈ {{slushyDays}}g).',
+      saveSuccess: 'Time fence salvato',
+      saveSuccessDetail: 'Frozen {{frozen}} · Slushy {{slushy}}.',
+      units: {
+        days: 'giorni',
+        weeks: 'settimane',
+        months: 'mesi',
+      },
+      constantNote:
+        'Il fence è rolling: si memorizzano durate, non date, e le zone si ricalcolano a ogni lettura da oggi. La trichotomia a tre zone è fissa; come ogni zona modula il comportamento è una regola di sistema, non una configurazione.',
+    },
+    bucket: {
+      title: 'Granularità di default',
+      subtitle:
+        'La granularità temporale con cui le viste aggregano per default. La secondaria è il livello di drill-down.',
+      primary: 'Granularità primaria',
+      secondary: 'Granularità secondaria (drill-down)',
+      mustDiffer: 'Primaria e secondaria devono essere diverse.',
+      summary:
+        'Vista aggregata per <0>{{primary}}</0>, con drill-down per <1>{{secondary}}</1>.',
+      saveSuccess: 'Granularità salvata',
+      saveSuccessDetail: 'Primaria: {{primary}}, secondaria: {{secondary}}.',
+      grains: {
+        day: 'Giorno',
+        week: 'Settimana',
+        month: 'Mese',
+      },
+      constantNote:
+        'L’insieme {giorno, settimana, mese} è fisso (niente trimestre: fuori scope). L’allineamento di settimana e mese (calendario vs fiscale) deriverà dal calendario aziendale, non è una manopola di questo strato.',
+    },
+    commit: {
+      title: 'Policy di commitment',
+      subtitle:
+        'Quali livelli di commitment del progetto contano come «hard-committed» e quindi permettono allocazioni con Status = Hard.',
+      enableLabel: 'Livelli che abilitano Status = Hard',
+      permitsHard: 'permette Hard',
+      atLeastOne: "Seleziona almeno un livello: l'insieme non può essere vuoto.",
+      summary:
+        'Le allocazioni con Status = Hard sono permesse sui nodi con livello: {{allowed}}. Sugli altri ({{others}}) restano possibili solo allocazioni Tentative.',
+      summaryOthersNone: 'nessuno',
+      saveSuccess: 'Policy di commitment salvata',
+      saveSuccessDetail: 'Hard-commit: {{levels}}.',
+      levels: {
+        exploratory: 'Exploratory',
+        planned: 'Planned',
+        committed: 'Committed',
+        critical: 'Critical',
+        exploratoryDesc: 'In valutazione, non confermato.',
+        plannedDesc: 'Pianificato ma rivedibile.',
+        committedDesc: 'Impegno preso con il cliente.',
+        criticalDesc: 'Mission-critical, massima priorità.',
+      },
+      constantNote:
+        'La regola I6 non cambia: lo stato Hard richiede un progetto «hard-committed». Qui si configura soltanto quali livelli rientrano nella soglia; la soglia è letta da un’unica fonte sia in scrittura sia nella cascade demotion.',
     },
   },
 } as const;

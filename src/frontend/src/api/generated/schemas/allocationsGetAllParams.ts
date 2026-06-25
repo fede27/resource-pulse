@@ -15,7 +15,7 @@ IsCountQuery?: boolean;
 IsSummaryQuery?: boolean;
 Skip?: number;
 Take?: number;
-Sort?: SortingInfo[];
+Sort?: (SortingInfo | GroupingInfo)[];
 Group?: GroupingInfo[];
 Filter?: unknown[];
 TotalSummary?: SummaryInfo[];

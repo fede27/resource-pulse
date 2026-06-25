@@ -16,7 +16,7 @@ export interface DataSourceLoadOptionsBase {
   skip?: number;
   take?: number;
   /** @nullable */
-  sort?: SortingInfo[] | null;
+  sort?: (SortingInfo | GroupingInfo)[] | null;
   /** @nullable */
   group?: GroupingInfo[] | null;
   /** @nullable */

@@ -134,7 +134,10 @@ export function ClosuresTab() {
     return !!to && to.isBefore(today, 'day');
   });
 
-  const stats = useMemo(() => {
+  // Plain computation — the React Compiler memoizes it. A manual useMemo here
+  // tripped preserve-manual-memoization (its inferred dep was `upcoming`, not
+  // `upcoming.length`).
+  const stats = (() => {
     const yStart = dayjs(`${year}-01-01`);
     const yEnd = dayjs(`${year}-12-31`);
     const daySet = new Set<string>();
@@ -154,7 +157,7 @@ export function ClosuresTab() {
       days: daySet.size,
       futureCount: upcoming.length,
     };
-  }, [yearClosures, year, upcoming.length]);
+  })();
 
   const availableYears = useMemo(() => {
     const years = new Set<number>();

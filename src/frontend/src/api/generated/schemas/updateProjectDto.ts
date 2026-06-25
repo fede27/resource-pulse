@@ -12,4 +12,5 @@ export interface UpdateProjectDto {
   commitmentLevel?: CommitmentLevel;
   /** @nullable */
   leadResourceId?: string | null;
+  confirmDemoteHardAllocations?: boolean;
 }

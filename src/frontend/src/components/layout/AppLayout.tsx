@@ -122,5 +122,7 @@ function resolveBreadcrumb(pathname: string, t: TFunction): string[] {
     return [t('breadcrumb.configuration'), t('breadcrumb.teams')];
   if (pathname.startsWith('/time-config'))
     return [t('breadcrumb.configuration'), t('breadcrumb.timeConfig')];
+  if (pathname.startsWith('/settings'))
+    return [t('breadcrumb.configuration'), t('nav.settings')];
   return [pathname];
 }

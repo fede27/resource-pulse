@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   App,
@@ -37,7 +37,7 @@ import {
   weeklyHours,
 } from './workWindow.utils';
 import { WeekGrid, type WeekGridView } from './WeekGrid';
-import { formValuesToDto, type WorkWindowFormValues } from './WorkWindowPopover';
+import { formValuesToDto, type WorkWindowFormValues } from './workWindowForm';
 
 const { Title, Text } = Typography;
 
@@ -57,15 +57,16 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
   const windows = calendar.workWindows ?? [];
   const name = calendar.name ?? '';
 
+  // Per-calendar UI state. The parent remounts this component on calendar
+  // change (key={calendar.id}), so these initialise fresh — no reset effect.
   const [view, setView] = useState<WeekGridView>('today');
   const [renaming, setRenaming] = useState(false);
   const [tempName, setTempName] = useState(name);
 
-  useEffect(() => {
-    setRenaming(false);
+  const startRename = () => {
     setTempName(name);
-    setView('today');
-  }, [calendarId, name]);
+    setRenaming(true);
+  };
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: getBusinessCalendarsGetAllQueryKey() });
@@ -239,7 +240,7 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
                     size="small"
                     icon={<EditOutlined />}
                     aria-label={t('common.rename')}
-                    onClick={() => setRenaming(true)}
+                    onClick={startRename}
                   />
                 </>
               )}
@@ -276,7 +277,7 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
                   {
                     key: 'rename',
                     label: t('common.rename'),
-                    onClick: () => setRenaming(true),
+                    onClick: startRename,
                   },
                   { type: 'divider' },
                   {

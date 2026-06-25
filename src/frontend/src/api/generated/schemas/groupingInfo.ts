@@ -4,13 +4,11 @@
  * ResourcePulse.Hosting
  * OpenAPI spec version: 1.0
  */
+import type { SortingInfo } from './sortingInfo';
 
-export interface GroupingInfo {
-  /** @nullable */
-  selector?: string | null;
-  desc?: boolean;
+export type GroupingInfo = SortingInfo & ({
   /** @nullable */
   groupInterval?: string | null;
   /** @nullable */
   isExpanded?: boolean | null;
-}
+});

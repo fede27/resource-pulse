@@ -5,10 +5,8 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface UpdateAllocationDto {
-  periodStart?: string;
-  periodEnd?: string;
-  allocationPercent?: number;
+export interface LoadBandDto {
   /** @nullable */
-  notes?: string | null;
+  label?: string | null;
+  lowerBound?: number;
 }

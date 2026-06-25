@@ -4,13 +4,13 @@
  * ResourcePulse.Hosting
  * OpenAPI spec version: 1.0
  */
+import type { PlanCommand } from './planCommand';
 
-export interface CreateByHoursDto {
-  resourceId?: string;
-  projectNodeId?: string;
+export type EditCommand = PlanCommand & ({
+  id?: string;
   periodStart?: string;
   periodEnd?: string;
-  targetHours?: string;
+  allocationPercent?: number;
   /** @nullable */
   notes?: string | null;
-}
+});
