@@ -110,15 +110,7 @@ function resolveBreadcrumb(pathname: string, t: TFunction): string[] {
   if (pathname === '/' || pathname === '') return [t('breadcrumb.dashboard')];
   if (pathname.startsWith('/people'))
     return [t('breadcrumb.planning'), t('breadcrumb.people')];
-  if (pathname.startsWith('/teams/new'))
-    return [t('breadcrumb.configuration'), t('breadcrumb.teams'), t('breadcrumb.teamNew')];
-  if (pathname.startsWith('/teams/'))
-    return [
-      t('breadcrumb.configuration'),
-      t('breadcrumb.teams'),
-      t('breadcrumb.teamDetail'),
-    ];
-  if (pathname === '/teams')
+  if (pathname.startsWith('/teams'))
     return [t('breadcrumb.configuration'), t('breadcrumb.teams')];
   if (pathname.startsWith('/time-config'))
     return [t('breadcrumb.configuration'), t('breadcrumb.timeConfig')];

@@ -1,9 +1,9 @@
-import { TeamList } from '@/features/teams/TeamList';
+import { TeamsPage } from '@/features/teams/TeamsPage';
 
 export function TeamListPage() {
   return (
-    <div style={{ padding: 24, maxWidth: 1440 }}>
-      <TeamList />
+    <div style={{ padding: 24, maxWidth: 1600 }}>
+      <TeamsPage />
     </div>
   );
 }
