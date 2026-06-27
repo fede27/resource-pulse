@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { App, Card, Col, Empty, Row, Skeleton, theme } from 'antd';
 import { TeamOutlined } from '@ant-design/icons';
-import { createStyles } from 'antd-style';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,27 +23,7 @@ import { useApiError } from '@/lib/errors';
 import { PersonDetail } from './PersonDetail';
 import { PersonInlineCreate, type PersonCreateValues } from './PersonInlineCreate';
 import { PersonList } from './PersonList';
-
-const useStyles = createStyles(({ token, css }) => ({
-  statsRow: css`
-    margin-block-end: ${token.margin}px;
-  `,
-  col: css`
-    margin-block-end: ${token.margin}px;
-  `,
-  emptyIcon: css`
-    font-size: 48px;
-    color: ${token.colorTextQuaternary};
-  `,
-  noneTitle: css`
-    font-weight: 500;
-    margin-block-end: ${token.marginXXS}px;
-  `,
-  noneDesc: css`
-    color: ${token.colorTextTertiary};
-    font-size: ${token.fontSizeSM}px;
-  `,
-}));
+import { useStyles } from './PeoplePage.styles';
 
 const EMPTY_IMAGE_STYLE = { height: 64, display: 'flex', justifyContent: 'center' } as const;
 
