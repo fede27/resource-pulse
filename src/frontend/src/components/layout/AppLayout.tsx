@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Avatar, Badge, Breadcrumb, Button, Dropdown, Layout, Space, theme } from 'antd';
+import { Avatar, Badge, Breadcrumb, Button, Dropdown, Layout, Space } from 'antd';
 import {
   BellOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   UserOutlined,
 } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { Outlet, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -14,30 +15,62 @@ import { LanguageSwitcher } from './LanguageSwitcher';
 
 const { Header, Content } = Layout;
 
+const useStyles = createStyles(({ token, css }) => ({
+  shell: css`
+    min-height: 100vh;
+  `,
+  body: css`
+    background: ${token.colorBgLayout};
+  `,
+  header: css`
+    background: ${token.colorBgContainer};
+    padding: 0 ${token.padding}px 0 ${token.paddingXS}px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid ${token.colorBorderSecondary};
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  `,
+  breadcrumb: css`
+    font-size: ${token.fontSizeSM}px;
+  `,
+  divider: css`
+    width: 1px;
+    height: ${token.controlHeightSM}px;
+    background: ${token.colorBorderSecondary};
+    display: inline-block;
+  `,
+  bellIcon: css`
+    font-size: 18px;
+  `,
+  user: css`
+    cursor: pointer;
+  `,
+  avatar: css`
+    background: ${token.colorPrimary};
+  `,
+  userName: css`
+    font-size: ${token.fontSize}px;
+  `,
+  content: css`
+    background: ${token.colorBgLayout};
+  `,
+}));
+
 export function AppLayout() {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles } = useStyles();
   const { location } = useRouterState();
   const [collapsed, setCollapsed] = useState(false);
   const crumbs = resolveBreadcrumb(location.pathname, t);
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className={styles.shell}>
       <AppSidebar collapsed={collapsed} />
-      <Layout style={{ background: token.colorBgLayout }}>
-        <Header
-          style={{
-            background: token.colorBgContainer,
-            padding: '0 16px 0 8px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: `1px solid ${token.colorBorderSecondary}`,
-            position: 'sticky',
-            top: 0,
-            zIndex: 10,
-          }}
-        >
+      <Layout className={styles.body}>
+        <Header className={styles.header}>
           <Space size={8}>
             <Button
               type="text"
@@ -47,35 +80,21 @@ export function AppLayout() {
             />
             <Breadcrumb
               items={crumbs.map((c) => ({ title: c }))}
-              style={{ fontSize: 13 }}
+              className={styles.breadcrumb}
             />
           </Space>
           <Space size={12} align="center">
             <LanguageSwitcher />
-            <span
-              style={{
-                width: 1,
-                height: 24,
-                background: token.colorBorderSecondary,
-                display: 'inline-block',
-              }}
-            />
+            <span className={styles.divider} />
             <Badge count={0} size="small">
               <Button
                 type="text"
                 shape="circle"
-                icon={<BellOutlined style={{ fontSize: 18 }} />}
+                icon={<BellOutlined className={styles.bellIcon} />}
                 aria-label={t('common.notifications')}
               />
             </Badge>
-            <span
-              style={{
-                width: 1,
-                height: 24,
-                background: token.colorBorderSecondary,
-                display: 'inline-block',
-              }}
-            />
+            <span className={styles.divider} />
             <Dropdown
               placement="bottomRight"
               menu={{
@@ -87,18 +106,14 @@ export function AppLayout() {
                 ],
               }}
             >
-              <Space size={8} style={{ cursor: 'pointer' }}>
-                <Avatar
-                  size={32}
-                  icon={<UserOutlined />}
-                  style={{ background: token.colorPrimary }}
-                />
-                <span style={{ fontSize: 14 }}>Dev User</span>
+              <Space size={8} className={styles.user}>
+                <Avatar size={32} icon={<UserOutlined />} className={styles.avatar} />
+                <span className={styles.userName}>Dev User</span>
               </Space>
             </Dropdown>
           </Space>
         </Header>
-        <Content style={{ background: token.colorBgLayout }}>
+        <Content className={styles.content}>
           <Outlet />
         </Content>
       </Layout>

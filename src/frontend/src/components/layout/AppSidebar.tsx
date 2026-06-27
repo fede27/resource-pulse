@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Layout, Menu, theme } from 'antd';
+import { Layout, Menu } from 'antd';
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router';
 import {
   AppstoreOutlined,
@@ -10,9 +10,61 @@ import {
   SettingOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 
 const { Sider } = Layout;
+
+const useStyles = createStyles(({ token, css }) => ({
+  sider: css`
+    border-right: 1px solid ${token.colorBorderSecondary};
+  `,
+  brand: css`
+    height: ${token.layoutHeaderHeight}px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 ${token.padding}px;
+    justify-content: flex-start;
+    border-bottom: 1px solid ${token.colorBorderSecondary};
+    cursor: pointer;
+  `,
+  brandCollapsed: css`
+    padding: 0;
+    justify-content: center;
+  `,
+  mark: css`
+    width: 28px;
+    height: 28px;
+    border-radius: ${token.borderRadius}px;
+    background: ${token.brandGradient};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: ${token.fontSize}px;
+    box-shadow: ${token.brandLogoShadow};
+    flex-shrink: 0;
+  `,
+  titleWrap: css`
+    min-width: 0;
+  `,
+  title: css`
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1;
+  `,
+  subtitle: css`
+    font-size: 11px;
+    color: ${token.colorTextTertiary};
+    margin-block-start: 3px;
+    letter-spacing: 0.02em;
+  `,
+  menu: css`
+    border-right: 0;
+  `,
+}));
 
 export type AppSidebarProps = {
   collapsed: boolean;
@@ -20,7 +72,7 @@ export type AppSidebarProps = {
 
 export function AppSidebar({ collapsed }: AppSidebarProps) {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles, cx } = useStyles();
   const { location } = useRouterState();
   const navigate = useNavigate();
   const selectedKey = resolveSelectedKey(location.pathname);
@@ -77,54 +129,17 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
       collapsedWidth={80}
       collapsed={collapsed}
       trigger={null}
-      style={{ borderRight: `1px solid ${token.colorBorderSecondary}` }}
+      className={styles.sider}
     >
       <div
         onClick={() => navigate({ to: '/' }).catch(() => undefined)}
-        style={{
-          height: 64,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: collapsed ? 0 : '0 16px',
-          justifyContent: collapsed ? 'center' : 'flex-start',
-          borderBottom: `1px solid ${token.colorBorderSecondary}`,
-          cursor: 'pointer',
-        }}
+        className={cx(styles.brand, collapsed && styles.brandCollapsed)}
       >
-        <div
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: token.borderRadius,
-            background: 'linear-gradient(135deg, #1677ff 0%, #0958d9 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: 14,
-            boxShadow: '0 2px 6px rgba(22,119,255,.25)',
-            flexShrink: 0,
-          }}
-        >
-          RP
-        </div>
+        <div className={styles.mark}>RP</div>
         {!collapsed && (
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 15, lineHeight: 1 }}>
-              Resource Pulse
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: token.colorTextTertiary,
-                marginTop: 3,
-                letterSpacing: '.02em',
-              }}
-            >
-              Capacity planner
-            </div>
+          <div className={styles.titleWrap}>
+            <div className={styles.title}>Resource Pulse</div>
+            <div className={styles.subtitle}>Capacity planner</div>
           </div>
         )}
       </div>
@@ -132,7 +147,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
         mode="inline"
         selectedKeys={[selectedKey]}
         inlineCollapsed={collapsed}
-        style={{ borderRight: 0 }}
+        className={styles.menu}
         items={items}
       />
     </Sider>

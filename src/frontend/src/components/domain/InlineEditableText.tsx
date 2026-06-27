@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Input, theme } from 'antd';
+import { Input } from 'antd';
 import type { InputRef } from 'antd';
+import { createStyles } from 'antd-style';
 
 export type InlineEditableTextProps = {
   value: string;
@@ -18,6 +19,41 @@ export type InlineEditableTextProps = {
   disabled?: boolean;
 };
 
+const useStyles = createStyles(({ token, css }) => ({
+  editWrap: css`
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+  `,
+  input: css`
+    min-width: 180px;
+  `,
+  error: css`
+    font-size: 11px;
+    color: ${token.colorError};
+  `,
+  display: css`
+    display: inline-block;
+    cursor: text;
+    border-radius: ${token.borderRadiusSM}px;
+    padding: 1px 4px;
+    margin: 0 -4px;
+    transition: background ${token.motionDurationFast};
+    &:hover {
+      background: ${token.colorFillTertiary};
+    }
+  `,
+  displayDisabled: css`
+    cursor: default;
+    &:hover {
+      background: transparent;
+    }
+  `,
+  placeholder: css`
+    color: ${token.colorTextTertiary};
+  `,
+}));
+
 /**
  * Click-to-edit text that mirrors the surrounding type. The display element
  * looks like plain text (with a hover tint) and swaps to an AntD `<Input>`
@@ -33,7 +69,7 @@ export function InlineEditableText({
   width,
   disabled,
 }: InlineEditableTextProps) {
-  const { token } = theme.useToken();
+  const { styles, cx } = useStyles();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +105,7 @@ export function InlineEditableText({
 
   if (editing) {
     return (
-      <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
+      <span className={styles.editWrap}>
         <Input
           ref={ref}
           value={draft}
@@ -88,16 +124,12 @@ export function InlineEditableText({
             }
           }}
           placeholder={placeholder}
-          style={{
-            fontSize,
-            fontWeight,
-            width,
-            minWidth: 180,
-          }}
+          className={styles.input}
+          // dynamic: typography mirrors the surrounding heading the caller
+          // placed this in, so size/weight/width are author-time unknowns.
+          style={{ fontSize, fontWeight, width }}
         />
-        {error && (
-          <span style={{ fontSize: 11, color: token.colorError }}>{error}</span>
-        )}
+        {error && <span className={styles.error}>{error}</span>}
       </span>
     );
   }
@@ -108,27 +140,11 @@ export function InlineEditableText({
         if (!disabled) beginEdit();
       }}
       title={disabled ? undefined : 'Clic per modificare'}
-      style={{
-        fontSize,
-        fontWeight,
-        cursor: disabled ? 'default' : 'text',
-        borderRadius: token.borderRadiusSM,
-        padding: '1px 4px',
-        margin: '0 -4px',
-        transition: `background ${token.motionDurationFast}`,
-        display: 'inline-block',
-        width,
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) e.currentTarget.style.background = token.colorFillTertiary;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'transparent';
-      }}
+      className={cx(styles.display, disabled && styles.displayDisabled)}
+      // dynamic: see above — display type matches the caller's surrounding text.
+      style={{ fontSize, fontWeight, width }}
     >
-      {value || (
-        <span style={{ color: token.colorTextTertiary }}>{placeholder}</span>
-      )}
+      {value || <span className={styles.placeholder}>{placeholder}</span>}
     </span>
   );
 }

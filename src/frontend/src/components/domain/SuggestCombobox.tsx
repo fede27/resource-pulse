@@ -1,9 +1,30 @@
 import { useMemo, useState } from 'react';
-import { AutoComplete, Input, theme, Typography } from 'antd';
+import { AutoComplete, Input, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 
 const { Text } = Typography;
+
+const useStyles = createStyles(({ token, css }) => ({
+  root: css`
+    width: 100%;
+  `,
+  createRow: css`
+    display: inline-flex;
+    align-items: center;
+    gap: ${token.marginXS}px;
+    width: 100%;
+  `,
+  createIcon: css`
+    color: ${token.colorPrimary};
+    font-size: ${token.fontSizeSM}px;
+  `,
+  prefixIcon: css`
+    color: ${token.colorTextTertiary};
+    font-size: 11px;
+  `,
+}));
 
 export type SuggestComboboxOption = {
   /** Stable identifier in the centralized pool. */
@@ -51,7 +72,7 @@ export function SuggestCombobox({
   loading = false,
 }: SuggestComboboxProps) {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles } = useStyles();
   const [value, setValue] = useState('');
   const excludeSet = useMemo(
     () => new Set(exclude.map((s) => s.toLowerCase())),
@@ -109,15 +130,8 @@ export function SuggestCombobox({
             payload: query,
             value: query,
             label: (
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  width: '100%',
-                }}
-              >
-                <PlusOutlined style={{ color: token.colorPrimary, fontSize: 12 }} />
+              <span className={styles.createRow}>
+                <PlusOutlined className={styles.createIcon} />
                 <span>
                   {createLabel ?? t('common.create')}{' '}
                   <strong>«{query}»</strong>
@@ -147,13 +161,13 @@ export function SuggestCombobox({
       onSelect={(v) => commit(v as string)}
       options={rows.map((r) => ({ value: r.value, label: r.label }))}
       disabled={disabled}
-      style={{ width: '100%' }}
+      className={styles.root}
       popupMatchSelectWidth
     >
       <Input
         size={size}
         placeholder={placeholder}
-        prefix={<PlusOutlined style={{ color: token.colorTextTertiary, fontSize: 11 }} />}
+        prefix={<PlusOutlined className={styles.prefixIcon} />}
         suffix={loading ? <Text type="secondary">…</Text> : null}
         onPressEnter={() => {
           if (rows[0]) commit(rows[0].value);

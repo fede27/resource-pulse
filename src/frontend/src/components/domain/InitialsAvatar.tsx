@@ -1,6 +1,14 @@
 import type { CSSProperties } from 'react';
 import { Avatar } from 'antd';
+import { createStyles } from 'antd-style';
 import { colorForString, initialsOf } from './initials';
+
+const useStyles = createStyles(({ css }) => ({
+  avatar: css`
+    font-weight: 500;
+    flex-shrink: 0;
+  `,
+}));
 
 export type InitialsAvatarProps = {
   name: string;
@@ -11,15 +19,15 @@ export type InitialsAvatarProps = {
 };
 
 export function InitialsAvatar({ name, size = 36, seed, style }: InitialsAvatarProps) {
+  const { styles } = useStyles();
   return (
     <Avatar
       size={size}
-      style={{
-        backgroundColor: colorForString(seed ?? name),
-        fontWeight: 500,
-        flexShrink: 0,
-        ...style,
-      }}
+      className={styles.avatar}
+      // dynamic: the background colour is hashed from the person's name/seed so
+      // each avatar is stably distinct — it's data-derived, not a theme value.
+      // `style` also carries caller font-size overrides keyed to `size`.
+      style={{ backgroundColor: colorForString(seed ?? name), ...style }}
     >
       {initialsOf(name)}
     </Avatar>

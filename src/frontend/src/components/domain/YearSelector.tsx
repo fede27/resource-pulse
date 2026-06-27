@@ -1,7 +1,15 @@
 import { Button, Segmented, Space } from 'antd';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
+
+const useStyles = createStyles(({ token, css }) => ({
+  label: css`
+    color: ${token.colorTextSecondary};
+    font-size: ${token.fontSizeSM}px;
+  `,
+}));
 
 export type YearSelectorProps = {
   value: number;
@@ -19,6 +27,7 @@ export function YearSelector({
   label,
 }: YearSelectorProps) {
   const { t } = useTranslation();
+  const { styles } = useStyles();
   const currentYear = dayjs().year();
   const resolvedLabel = label ?? t('timeConfig.closures.year');
 
@@ -39,7 +48,7 @@ export function YearSelector({
 
   return (
     <Space size="small" wrap>
-      <span style={{ color: 'rgba(0,0,0,.65)', fontSize: 13 }}>{resolvedLabel}</span>
+      <span className={styles.label}>{resolvedLabel}</span>
       <Button
         size="small"
         icon={<LeftOutlined />}

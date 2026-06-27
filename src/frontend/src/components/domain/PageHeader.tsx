@@ -1,7 +1,35 @@
 import type { ReactNode } from 'react';
 import { Typography } from 'antd';
+import { createStyles } from 'antd-style';
 
 const { Title } = Typography;
+
+const useStyles = createStyles(({ token, css }) => ({
+  root: css`
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: ${token.marginLG}px;
+    flex-wrap: wrap;
+    margin-block-end: ${token.marginLG}px;
+  `,
+  titleWrap: css`
+    min-width: 0;
+  `,
+  title: css`
+    margin: 0;
+  `,
+  subtitle: css`
+    margin-block-start: ${token.marginXXS}px;
+    color: ${token.colorTextTertiary};
+    font-size: ${token.fontSize}px;
+  `,
+  actions: css`
+    display: flex;
+    gap: ${token.marginXS}px;
+    align-items: center;
+  `,
+}));
 
 export type PageHeaderProps = {
   title: ReactNode;
@@ -10,28 +38,16 @@ export type PageHeaderProps = {
 };
 
 export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
+  const { styles } = useStyles();
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'space-between',
-        gap: 24,
-        flexWrap: 'wrap',
-        marginBottom: 24,
-      }}
-    >
-      <div style={{ minWidth: 0 }}>
-        <Title level={2} style={{ margin: 0 }}>
+    <div className={styles.root}>
+      <div className={styles.titleWrap}>
+        <Title level={2} className={styles.title}>
           {title}
         </Title>
-        {subtitle && (
-          <div style={{ marginTop: 4, color: 'rgba(0,0,0,.45)', fontSize: 14 }}>{subtitle}</div>
-        )}
+        {subtitle && <div className={styles.subtitle}>{subtitle}</div>}
       </div>
-      {actions && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{actions}</div>
-      )}
+      {actions && <div className={styles.actions}>{actions}</div>}
     </div>
   );
 }
