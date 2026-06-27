@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { theme, Tooltip, Popover } from 'antd';
 import type { GlobalToken } from 'antd';
+import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import type { WorkWindowDto } from '@/api/generated/schemas';
@@ -34,6 +35,125 @@ const HOURS = HOUR_END - HOUR_START;
 const PX_PER_HOUR = 40;
 const AXIS_WIDTH = 48;
 
+const GRID_COLS = `${AXIS_WIDTH}px repeat(7, minmax(0, 1fr))`;
+
+const useStyles = createStyles(({ token, css }) => ({
+  root: css`
+    background: ${token.colorBgContainer};
+    border: 1px solid ${token.colorBorderSecondary};
+    border-radius: ${token.borderRadiusLG}px;
+    padding: ${token.padding}px;
+    overflow: auto;
+  `,
+  headerRow: css`
+    display: grid;
+    grid-template-columns: ${GRID_COLS};
+    margin-block-end: ${token.marginXXS}px;
+  `,
+  dayHead: css`
+    text-align: center;
+    padding: ${token.paddingXS}px ${token.paddingXXS}px;
+    font-size: ${token.fontSizeSM}px;
+    font-weight: 500;
+    color: ${token.colorText};
+  `,
+  dayHeadWeekend: css`
+    color: ${token.colorTextTertiary};
+  `,
+  body: css`
+    position: relative;
+    display: grid;
+    grid-template-columns: ${GRID_COLS};
+    height: ${HOURS * PX_PER_HOUR}px;
+    border: 1px solid ${token.colorBorderSecondary};
+    border-radius: ${token.borderRadiusSM}px;
+    overflow: hidden;
+    background: ${token.colorBgContainer};
+  `,
+  axis: css`
+    position: relative;
+    border-right: 1px solid ${token.colorBorderSecondary};
+    background: ${token.colorFillQuaternary};
+  `,
+  hourLabel: css`
+    position: absolute;
+    right: 6px;
+    font-size: 11px;
+    color: ${token.colorTextTertiary};
+    font-variant-numeric: tabular-nums;
+  `,
+  dayCol: css`
+    position: relative;
+    border-right: 1px solid ${token.colorBorderSecondary};
+    background: transparent;
+    cursor: crosshair;
+  `,
+  dayColLast: css`
+    border-right: none;
+  `,
+  dayColWeekend: css`
+    background: ${token.colorFillQuaternary};
+  `,
+  gridLine: css`
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1px solid ${token.colorSplit};
+    pointer-events: none;
+  `,
+  popAnchor: css`
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+  `,
+  legend: css`
+    margin-block-start: ${token.marginSM}px;
+    display: flex;
+    gap: ${token.margin}px;
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+    flex-wrap: wrap;
+  `,
+  legendHint: css`
+    margin-inline-start: auto;
+  `,
+  block: css`
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    border-radius: ${token.borderRadiusSM}px;
+    padding: ${token.paddingXXS}px 6px;
+    cursor: pointer;
+    overflow: hidden;
+  `,
+  blockTime: css`
+    font-size: ${token.fontSizeSM}px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `,
+  blockMeta: css`
+    font-size: 10px;
+    margin-block-start: 2px;
+    opacity: 0.9;
+  `,
+  legendSwatchWrap: css`
+    display: inline-flex;
+    align-items: center;
+    gap: ${token.marginXXS}px;
+  `,
+  legendSwatch: css`
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+  `,
+}));
+
 type OpenState =
   | { kind: 'closed' }
   | { kind: 'create'; dayIdx: number; seed: Partial<WorkWindowDto> }
@@ -58,7 +178,7 @@ export function WeekGrid({
   onDelete,
 }: WeekGridProps) {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles, cx } = useStyles();
   const days = useDays();
   const [open, setOpen] = useState<OpenState>({ kind: 'closed' });
 
@@ -102,73 +222,27 @@ export function WeekGrid({
   };
 
   return (
-    <div
-      style={{
-        background: token.colorBgContainer,
-        border: `1px solid ${token.colorBorderSecondary}`,
-        borderRadius: token.borderRadiusLG,
-        padding: 16,
-        overflow: 'auto',
-      }}
-    >
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `${AXIS_WIDTH}px repeat(7, minmax(0, 1fr))`,
-          marginBottom: 4,
-        }}
-      >
+    <div className={styles.root}>
+      <div className={styles.headerRow}>
         <div />
         {days.long.map((label, idx) => (
           <div
             key={label}
-            style={{
-              textAlign: 'center',
-              padding: '8px 4px',
-              fontSize: 13,
-              fontWeight: 500,
-              color: idx >= 5 ? token.colorTextTertiary : token.colorText,
-            }}
+            className={cx(styles.dayHead, idx >= 5 && styles.dayHeadWeekend)}
           >
             {label}
           </div>
         ))}
       </div>
 
-      <div
-        style={{
-          position: 'relative',
-          display: 'grid',
-          gridTemplateColumns: `${AXIS_WIDTH}px repeat(7, minmax(0, 1fr))`,
-          height: HOURS * PX_PER_HOUR,
-          border: `1px solid ${token.colorBorderSecondary}`,
-          borderRadius: token.borderRadiusSM,
-          overflow: 'hidden',
-          background: token.colorBgContainer,
-        }}
-      >
-        <div
-          style={{
-            position: 'relative',
-            borderRight: `1px solid ${token.colorBorderSecondary}`,
-            background: token.colorFillQuaternary,
-          }}
-        >
+      <div className={styles.body}>
+        <div className={styles.axis}>
           {Array.from({ length: HOURS + 1 }).map((_, i) => {
             const hour = HOUR_START + i;
             if (hour > HOUR_END) return null;
             return (
-              <div
-                key={hour}
-                style={{
-                  position: 'absolute',
-                  top: i * PX_PER_HOUR - 8,
-                  right: 6,
-                  fontSize: 11,
-                  color: token.colorTextTertiary,
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
+              // dynamic: vertical offset is the hour's position on the time axis.
+              <div key={hour} className={styles.hourLabel} style={{ top: i * PX_PER_HOUR - 8 }}>
                 {pad(hour)}:00
               </div>
             );
@@ -185,26 +259,15 @@ export function WeekGrid({
             <div
               key={dayIdx}
               onClick={(e) => handleColumnClick(dayIdx, e)}
-              style={{
-                position: 'relative',
-                borderRight:
-                  dayIdx < 6 ? `1px solid ${token.colorBorderSecondary}` : 'none',
-                background: isWeekend ? 'rgba(0,0,0,.015)' : 'transparent',
-                cursor: 'crosshair',
-              }}
+              className={cx(
+                styles.dayCol,
+                dayIdx === 6 && styles.dayColLast,
+                isWeekend && styles.dayColWeekend,
+              )}
             >
               {Array.from({ length: HOURS }).map((_, i) => (
-                <div
-                  key={i}
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    right: 0,
-                    top: (i + 1) * PX_PER_HOUR,
-                    borderTop: `1px solid ${token.colorSplit}`,
-                    pointerEvents: 'none',
-                  }}
-                />
+                // dynamic: gridline offset is the hour boundary position.
+                <div key={i} className={styles.gridLine} style={{ top: (i + 1) * PX_PER_HOUR }} />
               ))}
 
               {showCreatePop && (
@@ -226,7 +289,7 @@ export function WeekGrid({
                     />
                   }
                 >
-                  <div style={{ position: 'absolute', top: 0, left: 0, width: 1, height: 1 }} />
+                  <div className={styles.popAnchor} />
                 </Popover>
               )}
 
@@ -267,16 +330,7 @@ export function WeekGrid({
         })}
       </div>
 
-      <div
-        style={{
-          marginTop: 12,
-          display: 'flex',
-          gap: 16,
-          fontSize: 12,
-          color: token.colorTextTertiary,
-          flexWrap: 'wrap',
-        }}
-      >
+      <div className={styles.legend}>
         <LegendSwatch label={t('timeConfig.calendars.grid.legendActive')} kind="active" />
         {view === 'all' && (
           <>
@@ -287,7 +341,7 @@ export function WeekGrid({
             <LegendSwatch label={t('timeConfig.calendars.grid.legendPast')} kind="past" />
           </>
         )}
-        <span style={{ marginLeft: 'auto' }}>
+        <span className={styles.legendHint}>
           {t('timeConfig.calendars.grid.emptyAreaHint')}
         </span>
       </div>
@@ -317,6 +371,7 @@ function WindowBlock({
   onClose,
 }: WindowBlockProps) {
   const { token } = theme.useToken();
+  const { styles } = useStyles();
   const kind = windowKind(w, view);
   const palette = paletteFor(kind, token);
   const startMin = timeToMinutes(w.startTime) - HOUR_START * 60;
@@ -345,41 +400,26 @@ function WindowBlock({
             e.stopPropagation();
             onOpen();
           }}
+          className={styles.block}
+          // dynamic: vertical position/height come from the window's times; the
+          // colours are the validity-state palette (token-derived).
           style={{
-            position: 'absolute',
             top,
-            left: 4,
-            right: 4,
             height,
             background: palette.bg,
             border: `1px solid ${palette.border}`,
             borderLeft: `3px solid ${palette.accent}`,
-            borderRadius: token.borderRadiusSM,
-            padding: '4px 6px',
-            cursor: 'pointer',
             color: palette.fg,
-            overflow: 'hidden',
           }}
         >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 500,
-              fontVariantNumeric: 'tabular-nums',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
+          <div className={styles.blockTime}>
             {formatHourMinute(w.startTime)}–{formatHourMinute(w.endTime)}
           </div>
           {height >= 36 && kind === 'future' && w.validFrom && (
-            <div style={{ fontSize: 10, marginTop: 2, opacity: 0.9 }}>{fromLabel(w.validFrom)}</div>
+            <div className={styles.blockMeta}>{fromLabel(w.validFrom)}</div>
           )}
           {height >= 36 && kind === 'past' && w.validTo && (
-            <div style={{ fontSize: 10, marginTop: 2, opacity: 0.9 }}>
-              {untilLabel(w.validTo)}
-            </div>
+            <div className={styles.blockMeta}>{untilLabel(w.validTo)}</div>
           )}
         </div>
       </Tooltip>
@@ -393,18 +433,17 @@ function formatValidityDate(iso: string): string {
 
 function LegendSwatch({ label, kind }: { label: string; kind: 'active' | 'past' | 'future' }) {
   const { token } = theme.useToken();
+  const { styles } = useStyles();
   const palette = paletteFor(kind, token);
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+    <span className={styles.legendSwatchWrap}>
       <span
+        className={styles.legendSwatch}
+        // dynamic: swatch colours mirror the validity-state palette.
         style={{
-          display: 'inline-block',
-          width: 12,
-          height: 12,
           background: palette.bg,
           border: `1px solid ${palette.border}`,
           borderLeft: `3px solid ${palette.accent}`,
-          borderRadius: 2,
         }}
       />
       {label}

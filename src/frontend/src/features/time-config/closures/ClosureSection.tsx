@@ -1,12 +1,63 @@
 import { useState, type ReactNode } from 'react';
-import { Card, Dropdown, Table, Tag, theme, Typography } from 'antd';
+import { Card, Dropdown, Table, Tag, Typography } from 'antd';
 import { CaretRightFilled, MoreOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { createStyles } from 'antd-style';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { CompanyClosureReadDto } from '@/api/generated/schemas';
 
 const { Text } = Typography;
+
+const useStyles = createStyles(({ token, css }) => ({
+  tnum: css`
+    font-variant-numeric: tabular-nums;
+  `,
+  actionTrigger: css`
+    display: inline-flex;
+    padding: ${token.paddingXXS}px;
+    cursor: pointer;
+    color: ${token.colorTextTertiary};
+  `,
+  card: css`
+    overflow: hidden;
+  `,
+  titleRow: css`
+    display: flex;
+    align-items: center;
+    gap: ${token.marginXS}px;
+    cursor: pointer;
+  `,
+  caret: css`
+    transition: transform ${token.motionDurationFast};
+    transform: none;
+    color: ${token.colorTextTertiary};
+    font-size: 10px;
+  `,
+  caretOpen: css`
+    transform: rotate(90deg);
+  `,
+  statusDot: css`
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  `,
+  statusUpcoming: css`
+    background: ${token.colorPrimary};
+  `,
+  statusPast: css`
+    background: ${token.colorTextDisabled};
+  `,
+  inlineSlot: css`
+    padding: ${token.paddingSM}px;
+    background: ${token.colorFillQuaternary};
+    border-bottom: 1px solid ${token.colorBorderSecondary};
+  `,
+  rowClickable: css`
+    cursor: pointer;
+  `,
+}));
 
 export type ClosureSectionStatus = 'upcoming' | 'past';
 
@@ -34,7 +85,7 @@ export function ClosureSection({
   onDelete,
 }: ClosureSectionProps) {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles, cx } = useStyles();
   const [open, setOpen] = useState(defaultOpen);
   const showBody = open || !!inlineSlot;
 
@@ -49,9 +100,7 @@ export function ClosureSection({
       dataIndex: 'dateFrom',
       key: 'period',
       render: (_, c) => (
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {formatRange(c.dateFrom, c.dateTo)}
-        </span>
+        <span className={styles.tnum}>{formatRange(c.dateFrom, c.dateTo)}</span>
       ),
     },
     {
@@ -66,7 +115,7 @@ export function ClosureSection({
       width: 100,
       align: 'right',
       render: (_, c) => (
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <span className={styles.tnum}>
           {computeDays(c.dateFrom, c.dateTo)}
           {dayShort}
         </span>
@@ -98,15 +147,7 @@ export function ClosureSection({
             ],
           }}
         >
-          <span
-            style={{
-              display: 'inline-flex',
-              padding: 4,
-              cursor: 'pointer',
-              color: token.colorTextTertiary,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <span className={styles.actionTrigger} onClick={(e) => e.stopPropagation()}>
             <MoreOutlined />
           </span>
         </Dropdown>
@@ -117,33 +158,19 @@ export function ClosureSection({
   return (
     <Card
       size="small"
-      style={{ overflow: 'hidden' }}
+      className={styles.card}
       styles={{ body: { padding: 0 } }}
       title={
-        <div
-          onClick={() => setOpen((o) => !o)}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-        >
-          <CaretRightFilled
-            style={{
-              transition: `transform ${token.motionDurationFast}`,
-              transform: showBody ? 'rotate(90deg)' : 'none',
-              color: token.colorTextTertiary,
-              fontSize: 10,
-            }}
-          />
+        <div onClick={() => setOpen((o) => !o)} className={styles.titleRow}>
+          <CaretRightFilled className={cx(styles.caret, showBody && styles.caretOpen)} />
           <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background:
-                status === 'upcoming' ? token.colorPrimary : token.colorTextDisabled,
-              display: 'inline-block',
-            }}
+            className={cx(
+              styles.statusDot,
+              status === 'upcoming' ? styles.statusUpcoming : styles.statusPast,
+            )}
           />
           <Text strong>{title}</Text>
-          <Text type="secondary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <Text type="secondary" className={styles.tnum}>
             · {closures.length}
           </Text>
         </div>
@@ -151,17 +178,7 @@ export function ClosureSection({
     >
       {showBody && (
         <>
-          {inlineSlot && (
-            <div
-              style={{
-                padding: 12,
-                background: token.colorFillQuaternary,
-                borderBottom: `1px solid ${token.colorBorderSecondary}`,
-              }}
-            >
-              {inlineSlot}
-            </div>
-          )}
+          {inlineSlot && <div className={styles.inlineSlot}>{inlineSlot}</div>}
           {visibleRows.length > 0 && (
             <Table<CompanyClosureReadDto>
               rowKey={(c) => c.id ?? `${c.dateFrom}-${c.dateTo}`}
@@ -170,7 +187,7 @@ export function ClosureSection({
               pagination={false}
               size="small"
               onRow={(c) => ({
-                style: { cursor: c.id ? 'pointer' : 'default' },
+                className: c.id ? styles.rowClickable : undefined,
                 onClick: (e) => {
                   if ((e.target as HTMLElement).closest('.ant-dropdown-trigger')) return;
                   if (c.id) onEdit(c);

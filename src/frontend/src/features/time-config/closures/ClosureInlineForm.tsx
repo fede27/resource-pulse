@@ -1,11 +1,42 @@
 import { useEffect } from 'react';
-import { Button, Card, DatePicker, Form, Input, Radio, Space, Tag, theme, Typography } from 'antd';
+import { Button, Card, DatePicker, Form, Input, Radio, Space, Tag, Typography } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { CompanyClosureReadDto } from '@/api/generated/schemas';
 
 const { Text } = Typography;
+
+const useStyles = createStyles(({ token, css }) => ({
+  card: css`
+    border: 1px solid ${token.colorPrimary};
+    box-shadow: 0 0 0 2px ${token.colorPrimaryBorder};
+  `,
+  header: css`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-block-end: ${token.marginSM}px;
+  `,
+  fieldSm: css`
+    margin-block-end: ${token.marginXS}px;
+  `,
+  fieldMd: css`
+    margin-block-end: ${token.marginSM}px;
+  `,
+  footer: css`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-block-start: ${token.marginSM}px;
+    gap: ${token.marginXS}px;
+  `,
+  daysTag: css`
+    font-variant-numeric: tabular-nums;
+    margin: 0;
+  `,
+}));
 
 export type ClosureFormValues = {
   reason: string;
@@ -34,7 +65,7 @@ export function ClosureInlineForm({
   onDelete,
 }: ClosureInlineFormProps) {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles } = useStyles();
   const [form] = Form.useForm<ClosureFormValues>();
   const isEdit = !!initial?.id;
 
@@ -61,13 +92,7 @@ export function ClosureInlineForm({
   };
 
   return (
-    <Card
-      size="small"
-      style={{
-        border: `1px solid ${token.colorPrimary}`,
-        boxShadow: `0 0 0 2px ${token.colorPrimaryBorder}`,
-      }}
-    >
+    <Card size="small" className={styles.card}>
       <Form<ClosureFormValues>
         form={form}
         layout="vertical"
@@ -75,14 +100,7 @@ export function ClosureInlineForm({
         initialValues={initialValues}
         onFinish={handleFinish}
       >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 10,
-          }}
-        >
+        <div className={styles.header}>
           <Text strong>
             {isEdit
               ? t('timeConfig.closures.form.editTitle')
@@ -96,19 +114,19 @@ export function ClosureInlineForm({
             { required: true, message: t('timeConfig.closures.form.reasonRequired') },
             { max: 200, message: t('timeConfig.closures.form.reasonMaxLength') },
           ]}
-          style={{ marginBottom: 10 }}
+          className={styles.fieldMd}
         >
           <Input placeholder={t('timeConfig.closures.form.reasonPlaceholder')} autoFocus />
         </Form.Item>
 
-        <Form.Item name="kind" style={{ marginBottom: 8 }}>
+        <Form.Item name="kind" className={styles.fieldSm}>
           <Radio.Group>
             <Radio value="single">{t('timeConfig.closures.form.kindSingle')}</Radio>
             <Radio value="range">{t('timeConfig.closures.form.kindRange')}</Radio>
           </Radio.Group>
         </Form.Item>
 
-        <Form.Item dependencies={['kind', 'dateFrom', 'dateTo']} style={{ marginBottom: 8 }}>
+        <Form.Item dependencies={['kind', 'dateFrom', 'dateTo']} className={styles.fieldSm}>
           {({ getFieldValue }) => {
             const kind = getFieldValue('kind') as 'single' | 'range';
             const from = getFieldValue('dateFrom') as Dayjs | undefined;
@@ -158,7 +176,7 @@ export function ClosureInlineForm({
                   </>
                 )}
                 {days > 0 && (
-                  <Tag color="blue" style={{ fontVariantNumeric: 'tabular-nums', margin: 0 }}>
+                  <Tag color="blue" className={styles.daysTag}>
                     {t('timeConfig.closures.form.days', { count: days })}
                   </Tag>
                 )}
@@ -167,15 +185,7 @@ export function ClosureInlineForm({
           }}
         </Form.Item>
 
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginTop: 10,
-            gap: 8,
-          }}
-        >
+        <div className={styles.footer}>
           <div>
             {isEdit && onDelete && (
               <Button

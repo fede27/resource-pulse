@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { theme } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useBusinessCalendarsGetAll } from '@/api/generated/business-calendars/business-calendars';
@@ -15,9 +15,23 @@ import { ClosuresTab } from './closures/ClosuresTab';
 
 type TabKey = 'calendari' | 'chiusure';
 
+const useStyles = createStyles(({ token, css }) => ({
+  refIcon: css`
+    font-size: ${token.fontSizeSM}px;
+  `,
+  refDate: css`
+    font-variant-numeric: tabular-nums;
+    color: ${token.colorTextSecondary};
+  `,
+  content: css`
+    padding: ${token.pageGutter}px;
+    max-width: ${token.pageMaxWidth}px;
+  `,
+}));
+
 export function TimeConfigPage() {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles } = useStyles();
   const [tab, setTab] = useState<TabKey>('calendari');
 
   const { data: calData } = useBusinessCalendarsGetAll();
@@ -45,20 +59,13 @@ export function TimeConfigPage() {
         onChange={setTab}
         extra={
           <>
-            <ClockCircleOutlined style={{ fontSize: 12 }} />
+            <ClockCircleOutlined className={styles.refIcon} />
             <span>{t('common.referenceDate')}:</span>
-            <span
-              style={{
-                fontVariantNumeric: 'tabular-nums',
-                color: token.colorTextSecondary,
-              }}
-            >
-              {dayjs().format('D MMMM YYYY')}
-            </span>
+            <span className={styles.refDate}>{dayjs().format('D MMMM YYYY')}</span>
           </>
         }
       />
-      <div style={{ padding: 24, maxWidth: 1440 }}>
+      <div className={styles.content}>
         {tab === 'calendari' ? <CalendarsTab /> : <ClosuresTab />}
       </div>
     </div>

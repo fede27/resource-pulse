@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Button, Collapse, DatePicker, Form, Select, Space, TimePicker, Typography } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { DayOfWeek, WorkWindowDto } from '@/api/generated/schemas';
@@ -9,6 +10,27 @@ import { columnIndexToDayOfWeek, timeToMinutes } from './workWindow.utils';
 import type { WorkWindowFormValues } from './workWindowForm';
 
 const { Text } = Typography;
+
+const useStyles = createStyles(({ token, css }) => ({
+  form: css`
+    width: 300px;
+  `,
+  fullWidth: css`
+    width: 100%;
+  `,
+  half: css`
+    width: 50%;
+  `,
+  caption: css`
+    font-size: ${token.fontSizeSM}px;
+  `,
+  footer: css`
+    margin-block-start: ${token.marginSM}px;
+    display: flex;
+    justify-content: space-between;
+    gap: ${token.marginXS}px;
+  `,
+}));
 
 export type WorkWindowPopoverContentProps = {
   initial: Partial<WorkWindowDto> | null;
@@ -34,6 +56,7 @@ export function WorkWindowPopoverContent({
   onDelete,
 }: WorkWindowPopoverContentProps) {
   const { t } = useTranslation();
+  const { styles } = useStyles();
   const days = useDays();
   const [form] = Form.useForm<WorkWindowFormValues>();
   const isEdit = !!initial?.id;
@@ -74,7 +97,7 @@ export function WorkWindowPopoverContent({
       size="small"
       initialValues={initialValues}
       onFinish={onSubmit}
-      style={{ width: 300 }}
+      className={styles.form}
     >
       <Form.Item
         label={t('timeConfig.calendars.window.day')}
@@ -91,7 +114,7 @@ export function WorkWindowPopoverContent({
       </Form.Item>
 
       <Form.Item label={t('timeConfig.calendars.window.time')} required>
-        <Space.Compact style={{ width: '100%' }}>
+        <Space.Compact className={styles.fullWidth}>
           <Form.Item
             name="startTime"
             noStyle
@@ -100,7 +123,7 @@ export function WorkWindowPopoverContent({
             <TimePicker
               format="HH:mm"
               minuteStep={15}
-              style={{ width: '50%' }}
+              className={styles.half}
               needConfirm={false}
               getPopupContainer={getPopupContainer}
             />
@@ -130,13 +153,13 @@ export function WorkWindowPopoverContent({
             <TimePicker
               format="HH:mm"
               minuteStep={15}
-              style={{ width: '50%' }}
+              className={styles.half}
               needConfirm={false}
               getPopupContainer={getPopupContainer}
             />
           </Form.Item>
         </Space.Compact>
-        <Text type="secondary" style={{ fontSize: 12 }}>
+        <Text type="secondary" className={styles.caption}>
           {t('timeConfig.calendars.window.lunchBreakHint')}
         </Text>
       </Form.Item>
@@ -163,7 +186,7 @@ export function WorkWindowPopoverContent({
                 >
                   <DatePicker
                     format="DD/MM/YYYY"
-                    style={{ width: '100%' }}
+                    className={styles.fullWidth}
                     getPopupContainer={getPopupContainer}
                   />
                 </Form.Item>
@@ -188,12 +211,12 @@ export function WorkWindowPopoverContent({
                 >
                   <DatePicker
                     format="DD/MM/YYYY"
-                    style={{ width: '100%' }}
+                    className={styles.fullWidth}
                     allowClear
                     getPopupContainer={getPopupContainer}
                   />
                 </Form.Item>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" className={styles.caption}>
                   {t('timeConfig.calendars.window.validityHint')}
                 </Text>
               </>
@@ -202,14 +225,7 @@ export function WorkWindowPopoverContent({
         ]}
       />
 
-      <div
-        style={{
-          marginTop: 12,
-          display: 'flex',
-          justifyContent: 'space-between',
-          gap: 8,
-        }}
-      >
+      <div className={styles.footer}>
         <div>
           {isEdit && onDelete && (
             <Button

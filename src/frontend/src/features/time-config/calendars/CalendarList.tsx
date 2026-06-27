@@ -1,12 +1,86 @@
 import { useMemo, useState } from 'react';
-import { Button, Card, Checkbox, Empty, Input, Space, Tag, theme, Typography } from 'antd';
+import { Button, Card, Checkbox, Empty, Input, Space, Tag, Typography } from 'antd';
 import { PlusOutlined, StarFilled } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 import type { BusinessCalendarReadDto } from '@/api/generated/schemas';
 import { useDays } from '@/i18n/useDays';
 import { formatPatternSummary, patternSummary, weeklyHours } from './workWindow.utils';
 
 const { Text } = Typography;
+
+const useStyles = createStyles(({ token, css }) => ({
+  titleStrong: css`
+    font-weight: 600;
+  `,
+  emptyWrap: css`
+    padding: ${token.paddingLG}px;
+  `,
+  row: css`
+    position: relative;
+    padding: 14px ${token.padding}px;
+    cursor: pointer;
+    border-bottom: 1px solid ${token.colorBorderSecondary};
+    background: transparent;
+    transition: background ${token.motionDurationFast};
+  `,
+  rowSelected: css`
+    background: ${token.colorPrimaryBg};
+  `,
+  accent: css`
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: ${token.colorPrimary};
+  `,
+  rowHead: css`
+    margin-block-end: ${token.marginXXS}px;
+  `,
+  nameStrong: css`
+    font-weight: 500;
+  `,
+  tagItem: css`
+    margin: 0;
+  `,
+  summary: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+    line-height: 1.5;
+  `,
+  hours: css`
+    font-size: 11px;
+    color: ${token.colorTextTertiary};
+    margin-block-start: ${token.marginXXS}px;
+    font-variant-numeric: tabular-nums;
+  `,
+  formRoot: css`
+    padding: 14px;
+    background: ${token.colorFillQuaternary};
+    border-bottom: 1px solid ${token.colorBorderSecondary};
+  `,
+  formError: css`
+    color: ${token.colorError};
+    font-size: ${token.fontSizeSM}px;
+    margin-block-start: ${token.marginXXS}px;
+  `,
+  checkboxRow: css`
+    margin-block-start: ${token.marginSM}px;
+  `,
+  defaultHint: css`
+    margin-block-start: ${token.marginXXS}px;
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+    margin-inline-start: 24px;
+  `,
+  formFooter: css`
+    margin-block-start: ${token.marginSM}px;
+    display: flex;
+    justify-content: flex-end;
+    gap: ${token.marginXS}px;
+  `,
+}));
 
 export type CalendarListProps = {
   calendars: BusinessCalendarReadDto[];
@@ -32,7 +106,7 @@ export function CalendarList({
   onCreate,
 }: CalendarListProps) {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles, cx } = useStyles();
   const days = useDays();
 
   const patternFallbacks = useMemo(
@@ -48,7 +122,7 @@ export function CalendarList({
       size="small"
       styles={{ body: { padding: 0 } }}
       title={
-        <span style={{ fontWeight: 600 }}>
+        <span className={styles.titleStrong}>
           {t('timeConfig.calendars.listTitle')}{' '}
           <Text type="secondary">· {calendars.length}</Text>
         </span>
@@ -76,7 +150,7 @@ export function CalendarList({
       )}
 
       {calendars.length === 0 && !creating ? (
-        <div style={{ padding: 24 }}>
+        <div className={styles.emptyWrap}>
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={t('timeConfig.calendars.noneTitle')}
@@ -102,46 +176,19 @@ export function CalendarList({
               <div
                 key={id || c.name}
                 onClick={() => id && onSelect(id)}
-                style={{
-                  position: 'relative',
-                  padding: '14px 16px',
-                  cursor: 'pointer',
-                  borderBottom: `1px solid ${token.colorBorderSecondary}`,
-                  background: selected ? token.colorPrimaryBg : 'transparent',
-                  transition: `background ${token.motionDurationFast}`,
-                }}
+                className={cx(styles.row, selected && styles.rowSelected)}
               >
-                {selected && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: 3,
-                      background: token.colorPrimary,
-                    }}
-                  />
-                )}
-                <Space size={8} align="center" style={{ marginBottom: 4 }}>
-                  <span style={{ fontWeight: 500 }}>{c.name ?? '—'}</span>
+                {selected && <span className={styles.accent} />}
+                <Space size={8} align="center" className={styles.rowHead}>
+                  <span className={styles.nameStrong}>{c.name ?? '—'}</span>
                   {c.isDefault && (
-                    <Tag color="gold" icon={<StarFilled />} style={{ margin: 0 }}>
+                    <Tag color="gold" icon={<StarFilled />} className={styles.tagItem}>
                       {t('timeConfig.calendars.defaultBadge')}
                     </Tag>
                   )}
                 </Space>
-                <div style={{ fontSize: 12, color: token.colorTextTertiary, lineHeight: 1.5 }}>
-                  {summaryStr}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: token.colorTextTertiary,
-                    marginTop: 4,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
+                <div className={styles.summary}>{summaryStr}</div>
+                <div className={styles.hours}>
                   {formatHours(hours)} {t('timeConfig.calendars.perWeekHours')} ·{' '}
                   {t('timeConfig.calendars.windowsCount', { count: winCount })}
                 </div>
@@ -168,7 +215,7 @@ function CreateCalendarForm({
   onCreate: (input: { name: string; isDefault: boolean }) => void;
 }) {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles } = useStyles();
   const [name, setName] = useState('');
   const [isDefault, setIsDefault] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
@@ -187,13 +234,7 @@ function CreateCalendarForm({
   };
 
   return (
-    <div
-      style={{
-        padding: 14,
-        background: token.colorFillQuaternary,
-        borderBottom: `1px solid ${token.colorBorderSecondary}`,
-      }}
-    >
+    <div className={styles.formRoot}>
       <Input
         autoFocus
         value={name}
@@ -208,27 +249,18 @@ function CreateCalendarForm({
           if (e.key === 'Escape') onCancel();
         }}
       />
-      {nameError && (
-        <div style={{ color: token.colorError, fontSize: 12, marginTop: 4 }}>{nameError}</div>
-      )}
-      <div style={{ marginTop: 10 }}>
+      {nameError && <div className={styles.formError}>{nameError}</div>}
+      <div className={styles.checkboxRow}>
         <Checkbox checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)}>
           {t('timeConfig.calendars.setAsDefault')}
         </Checkbox>
         {isDefault && hasDefault && (
-          <div
-            style={{
-              marginTop: 6,
-              fontSize: 12,
-              color: token.colorTextTertiary,
-              marginLeft: 24,
-            }}
-          >
+          <div className={styles.defaultHint}>
             {t('timeConfig.calendars.previousDefaultUnset')}
           </div>
         )}
       </div>
-      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+      <div className={styles.formFooter}>
         <Button size="small" onClick={onCancel} disabled={submitting}>
           {t('common.cancel')}
         </Button>

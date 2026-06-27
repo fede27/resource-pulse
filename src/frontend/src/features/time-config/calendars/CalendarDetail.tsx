@@ -9,7 +9,6 @@ import {
   Segmented,
   Space,
   Tag,
-  theme,
   Typography,
 } from 'antd';
 import {
@@ -18,6 +17,7 @@ import {
   StarFilled,
   StarOutlined,
 } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -41,6 +41,51 @@ import { formValuesToDto, type WorkWindowFormValues } from './workWindowForm';
 
 const { Title, Text } = Typography;
 
+const useStyles = createStyles(({ token, css }) => ({
+  stack: css`
+    display: flex;
+    flex-direction: column;
+    gap: ${token.margin}px;
+  `,
+  headerRow: css`
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: ${token.margin}px;
+  `,
+  flex1: css`
+    flex: 1;
+    min-width: 0;
+  `,
+  titleSpace: css`
+    margin-block-end: ${token.marginXXS}px;
+  `,
+  renameInput: css`
+    max-width: 320px;
+  `,
+  titleReset: css`
+    margin: 0;
+  `,
+  viewBar: css`
+    margin-block-start: ${token.margin}px;
+    padding-block-start: ${token.margin}px;
+    border-top: 1px solid ${token.colorBorderSecondary};
+    display: flex;
+    align-items: center;
+    gap: ${token.marginSM}px;
+    flex-wrap: wrap;
+  `,
+  caption: css`
+    font-size: ${token.fontSizeSM}px;
+  `,
+  linkBtn: css`
+    padding: 0;
+  `,
+  tnum: css`
+    font-variant-numeric: tabular-nums;
+  `,
+}));
+
 export type CalendarDetailProps = {
   calendar: BusinessCalendarReadDto;
   onDeleted: () => void;
@@ -48,7 +93,7 @@ export type CalendarDetailProps = {
 
 export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles } = useStyles();
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const showApiError = useApiError();
@@ -179,18 +224,11 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
   const hours = weeklyHours(windows);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className={styles.stack}>
       <Card size="small">
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: 16,
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Space size={10} align="center" wrap style={{ marginBottom: 6 }}>
+        <div className={styles.headerRow}>
+          <div className={styles.flex1}>
+            <Space size={10} align="center" wrap className={styles.titleSpace}>
               {renaming ? (
                 <>
                   <Input
@@ -203,7 +241,7 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
                         setTempName(name);
                       }
                     }}
-                    style={{ maxWidth: 320 }}
+                    className={styles.renameInput}
                     autoFocus
                   />
                   <Button
@@ -227,7 +265,7 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
                 </>
               ) : (
                 <>
-                  <Title level={4} style={{ margin: 0 }}>
+                  <Title level={4} className={styles.titleReset}>
                     {name || '—'}
                   </Title>
                   {calendar.isDefault && (
@@ -294,18 +332,8 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
           </Space>
         </div>
 
-        <div
-          style={{
-            marginTop: 16,
-            paddingTop: 16,
-            borderTop: `1px solid ${token.colorBorderSecondary}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            flexWrap: 'wrap',
-          }}
-        >
-          <Text type="secondary" style={{ fontSize: 13 }}>
+        <div className={styles.viewBar}>
+          <Text type="secondary" className={styles.caption}>
             {t('timeConfig.calendars.view')}
           </Text>
           <Segmented<WeekGridView>
@@ -345,7 +373,7 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
                 type="link"
                 size="small"
                 onClick={() => setView('future')}
-                style={{ padding: 0 }}
+                className={styles.linkBtn}
               >
                 {t('timeConfig.calendars.scheduledChangesLink')}
               </Button>
@@ -368,13 +396,14 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
+  const { styles } = useStyles();
   return (
     <span>
-      <Text type="secondary" style={{ fontSize: 13 }}>
+      <Text type="secondary" className={styles.caption}>
         {label}
       </Text>{' '}
       ·{' '}
-      <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{value}</strong>
+      <strong className={styles.tnum}>{value}</strong>
     </span>
   );
 }

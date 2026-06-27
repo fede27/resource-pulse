@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react';
 import { App, Button, Card, Col, Empty, Flex, Row, Skeleton } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
+
+const useStyles = createStyles(({ token, css }) => ({
+  mb: css`
+    margin-block-end: ${token.margin}px;
+  `,
+}));
 import {
   getCompanyClosuresGetAllQueryKey,
   useCompanyClosuresCreate,
@@ -26,6 +33,7 @@ type EditState =
 
 export function ClosuresTab() {
   const { t } = useTranslation();
+  const { styles } = useStyles();
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const showApiError = useApiError();
@@ -215,11 +223,11 @@ export function ClosuresTab() {
           </Button>
         }
       />
-      <div style={{ marginBottom: 16 }}>
+      <div className={styles.mb}>
         <YearSelector value={year} onChange={setYear} availableYears={availableYears} />
       </div>
 
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16} className={styles.mb}>
         <Col xs={24} md={8}>
           <StatCard
             label={t('timeConfig.closures.statTitleClosuresInYear', { year })}
