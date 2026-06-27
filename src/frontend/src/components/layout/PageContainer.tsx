@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { createStyles } from 'antd-style';
+import { useStyles } from './PageContainer.styles';
 
 export type PageContainerProps = {
   children: ReactNode;
@@ -10,16 +10,6 @@ export type PageContainerProps = {
    */
   fullBleed?: boolean;
 };
-
-const useStyles = createStyles(({ token, css }) => ({
-  root: css`
-    padding: ${token.pageGutter}px;
-    max-width: ${token.pageMaxWidth}px;
-  `,
-  fullBleed: css`
-    padding: ${token.pageGutter}px;
-  `,
-}));
 
 /**
  * Standard padded page wrapper for routed content. The page gutter and max

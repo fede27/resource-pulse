@@ -1,14 +1,7 @@
 import type { CSSProperties } from 'react';
 import { Avatar } from 'antd';
-import { createStyles } from 'antd-style';
 import { colorForString, initialsOf } from './initials';
-
-const useStyles = createStyles(({ css }) => ({
-  avatar: css`
-    font-weight: 500;
-    flex-shrink: 0;
-  `,
-}));
+import { useStyles } from './InitialsAvatar.styles';
 
 export type InitialsAvatarProps = {
   name: string;

@@ -1,15 +1,8 @@
 import { Button, Segmented, Space } from 'antd';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
-import { createStyles } from 'antd-style';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-
-const useStyles = createStyles(({ token, css }) => ({
-  label: css`
-    color: ${token.colorTextSecondary};
-    font-size: ${token.fontSizeSM}px;
-  `,
-}));
+import { useStyles } from './YearSelector.styles';
 
 export type YearSelectorProps = {
   value: number;

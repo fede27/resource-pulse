@@ -1,31 +1,13 @@
 import { Dropdown } from 'antd';
 import { GlobalOutlined } from '@ant-design/icons';
-import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 import { normalizeLanguage, SUPPORTED_LANGUAGES, type AppLanguage } from '@/i18n';
+import { useStyles } from './LanguageSwitcher.styles';
 
 const LABEL_KEY: Record<AppLanguage, 'italian' | 'english'> = {
   it: 'italian',
   en: 'english',
 };
-
-const useStyles = createStyles(({ token, css }) => ({
-  trigger: css`
-    display: inline-flex;
-    align-items: center;
-    gap: ${token.marginXXS}px;
-    cursor: pointer;
-    padding: ${token.paddingXXS}px ${token.paddingXS}px;
-    font-size: ${token.fontSizeSM}px;
-  `,
-  icon: css`
-    font-size: ${token.fontSizeLG}px;
-  `,
-  code: css`
-    text-transform: uppercase;
-    font-weight: 500;
-  `,
-}));
 
 export function LanguageSwitcher() {
   const { t, i18n } = useTranslation();
