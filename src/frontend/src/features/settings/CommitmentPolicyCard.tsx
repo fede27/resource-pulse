@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { App, Checkbox, theme } from 'antd';
+import { App, Checkbox } from 'antd';
+import { createStyles } from 'antd-style';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -26,9 +27,78 @@ const LEVELS: { value: CommitmentLevel; key: LevelKey }[] = [
 
 const sortedSig = (levels: CommitmentLevel[]) => [...levels].sort((a, b) => a - b).join(',');
 
+const useStyles = createStyles(({ token, css }) => ({
+  enableLabel: css`
+    font-size: ${token.fontSizeSM}px;
+    font-weight: 500;
+    margin-block-end: ${token.marginSM}px;
+  `,
+  list: css`
+    display: flex;
+    flex-direction: column;
+    gap: ${token.marginXS}px;
+  `,
+  option: css`
+    display: flex;
+    align-items: center;
+    gap: ${token.marginSM}px;
+    padding: ${token.paddingXS}px ${token.paddingSM}px;
+    cursor: pointer;
+    border-radius: ${token.borderRadiusLG}px;
+    border: 1px solid ${token.colorBorderSecondary};
+    background: ${token.colorBgContainer};
+    transition: all ${token.motionDurationMid};
+  `,
+  optionOn: css`
+    border-color: ${token.colorPrimaryBorder};
+    background: ${token.colorPrimaryBg};
+  `,
+  optionBody: css`
+    flex: 1;
+  `,
+  optionTitle: css`
+    font-size: ${token.fontSize}px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: ${token.marginXS}px;
+  `,
+  permitsChip: css`
+    height: 18px;
+    padding: 0 ${token.paddingXXS}px;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 500;
+    background: ${token.colorSuccessBg};
+    border: 1px solid ${token.colorSuccessBorder};
+    color: ${token.colorSuccessText};
+    display: inline-flex;
+    align-items: center;
+  `,
+  optionDesc: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+    margin-block-start: ${token.marginXXS}px;
+  `,
+  error: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorError};
+    margin-block-start: ${token.marginSM}px;
+  `,
+  summary: css`
+    margin-block-start: ${token.marginSM}px;
+    padding: ${token.paddingXS}px ${token.paddingSM}px;
+    background: ${token.colorInfoBg};
+    border: 1px solid ${token.colorInfoBorder};
+    border-radius: ${token.borderRadius}px;
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorText};
+  `,
+}));
+
 export function CommitmentPolicyCard({ committed }: { committed: CommitmentPolicyDto }) {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles, cx } = useStyles();
   const { message } = App.useApp();
   const showApiError = useApiError();
   const queryClient = useQueryClient();
@@ -78,77 +148,33 @@ export function CommitmentPolicyCard({ committed }: { committed: CommitmentPolic
       onSave={save}
       onReset={() => setHard(committedHard)}
     >
-      <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 10 }}>
-        {t('settings.commit.enableLabel')}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className={styles.enableLabel}>{t('settings.commit.enableLabel')}</div>
+      <div className={styles.list}>
         {LEVELS.map((l) => {
           const on = hard.includes(l.value);
           return (
-            <label
-              key={l.value}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '10px 14px',
-                cursor: 'pointer',
-                borderRadius: token.borderRadiusLG,
-                border: `1px solid ${on ? token.colorPrimaryBorder : token.colorBorderSecondary}`,
-                background: on ? token.colorPrimaryBg : token.colorBgContainer,
-                transition: 'all .15s',
-              }}
-            >
+            <label key={l.value} className={cx(styles.option, on && styles.optionOn)}>
               <Checkbox checked={on} onChange={() => toggle(l.value)} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className={styles.optionBody}>
+                <div className={styles.optionTitle}>
                   {labelFor(l.key)}
                   {on && (
-                    <span
-                      style={{
-                        height: 18,
-                        padding: '0 6px',
-                        borderRadius: 9,
-                        fontSize: 11,
-                        fontWeight: 500,
-                        background: token.colorSuccessBg,
-                        border: `1px solid ${token.colorSuccessBorder}`,
-                        color: token.colorSuccessText,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                      }}
-                    >
+                    <span className={styles.permitsChip}>
                       {t('settings.commit.permitsHard')}
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: token.colorTextTertiary, marginTop: 2 }}>
-                  {descFor(l.key)}
-                </div>
+                <div className={styles.optionDesc}>{descFor(l.key)}</div>
               </div>
             </label>
           );
         })}
       </div>
 
-      {!valid && (
-        <div style={{ fontSize: 12, color: token.colorError, marginTop: 10 }}>
-          {t('settings.commit.atLeastOne')}
-        </div>
-      )}
+      {!valid && <div className={styles.error}>{t('settings.commit.atLeastOne')}</div>}
 
       {valid && (
-        <div
-          style={{
-            marginTop: 14,
-            padding: '10px 12px',
-            background: token.colorInfoBg,
-            border: `1px solid ${token.colorInfoBorder}`,
-            borderRadius: token.borderRadius,
-            fontSize: 13,
-            color: token.colorText,
-          }}
-        >
+        <div className={styles.summary}>
           {t('settings.commit.summary', {
             allowed: allowedLabels.join(', '),
             others: otherLabels.length ? otherLabels.join(', ') : t('settings.commit.summaryOthersNone'),

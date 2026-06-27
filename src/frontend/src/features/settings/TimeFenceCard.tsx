@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { App, InputNumber, Select, theme } from 'antd';
+import { createStyles } from 'antd-style';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -28,6 +29,101 @@ const nowTime = () =>
 
 type Fence = { frozenHorizon: Duration; slushyHorizon: Duration };
 
+const useStyles = createStyles(({ token, css }) => ({
+  timelineWrap: css`
+    margin-block-end: 20px;
+  `,
+  track: css`
+    position: relative;
+    height: 56px;
+    border-radius: ${token.borderRadius}px;
+    overflow: hidden;
+    display: flex;
+    border: 1px solid ${token.colorBorderSecondary};
+  `,
+  zone: css`
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 ${token.paddingSM}px;
+    min-width: 0;
+  `,
+  zoneLabel: css`
+    font-size: ${token.fontSizeSM}px;
+    font-weight: 600;
+  `,
+  zoneSub: css`
+    font-size: 11px;
+    color: ${token.colorTextTertiary};
+  `,
+  invalidTrack: css`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorError};
+  `,
+  axis: css`
+    position: relative;
+    height: 24px;
+    margin-block-start: ${token.marginXXS}px;
+    font-size: 11px;
+    color: ${token.colorTextTertiary};
+    font-variant-numeric: tabular-nums;
+  `,
+  axisStart: css`
+    position: absolute;
+    left: 0;
+  `,
+  axisMark: css`
+    position: absolute;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  `,
+  editors: css`
+    display: flex;
+    gap: ${token.marginXL}px;
+    flex-wrap: wrap;
+  `,
+  editorLabel: css`
+    font-size: ${token.fontSizeSM}px;
+    font-weight: 500;
+    margin-block-end: ${token.marginXXS}px;
+    display: inline-flex;
+    align-items: center;
+    gap: ${token.marginXXS}px;
+  `,
+  editorDot: css`
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+  `,
+  editorInputs: css`
+    display: flex;
+    gap: ${token.marginXS}px;
+    align-items: center;
+  `,
+  valueInput: css`
+    width: 90px;
+  `,
+  unitSelect: css`
+    width: 130px;
+  `,
+  editorHint: css`
+    font-size: 11px;
+    color: ${token.colorTextTertiary};
+    margin-block-start: ${token.marginXXS}px;
+    max-width: 220px;
+    line-height: 1.4;
+  `,
+  invalidDetail: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorError};
+    margin-block-start: ${token.marginSM}px;
+  `,
+}));
+
 // The generated DurationDto has optional value/unit — normalize to a strict shape.
 const toDur = (d?: DurationDto): Duration => ({
   value: d?.value ?? 1,
@@ -43,6 +139,9 @@ const signature = (f: Fence): string =>
 
 export function TimeFenceCard({ committed }: { committed: TimeFenceConfigurationDto }) {
   const { t } = useTranslation();
+  const { styles } = useStyles();
+  // Zone/editor accent colours are token values assigned per zone, so we still
+  // read the token map here and apply them inline (single-sourced, data-keyed).
   const { token } = theme.useToken();
   const { message } = App.useApp();
   const showApiError = useApiError();
@@ -135,72 +234,44 @@ export function TimeFenceCard({ committed }: { committed: TimeFenceConfiguration
       onReset={() => setFence(base)}
     >
       {/* Timeline */}
-      <div style={{ marginBottom: 20 }}>
-        <div
-          style={{
-            position: 'relative',
-            height: 56,
-            borderRadius: token.borderRadius,
-            overflow: 'hidden',
-            display: 'flex',
-            border: `1px solid ${token.colorBorderSecondary}`,
-          }}
-        >
+      <div className={styles.timelineWrap}>
+        <div className={styles.track}>
           {valid ? (
             zones.map((z) => {
               const widthPct = ((z.to - z.from) / totalDays) * 100;
               return (
                 <div
                   key={z.key}
+                  className={styles.zone}
+                  // dynamic: zone width comes from the configured horizon; the
+                  // accent colour is the zone's token colour applied per zone.
                   style={{
                     width: `${widthPct}%`,
                     background: z.color + '1f',
                     borderRight: z.key !== 'liquid' ? `2px solid ${z.color}` : 'none',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    padding: '0 10px',
-                    minWidth: 0,
                   }}
                 >
-                  <span style={{ fontSize: 12, fontWeight: 600, color: z.color }}>{z.label}</span>
-                  <span style={{ fontSize: 11, color: token.colorTextTertiary }}>
+                  <span className={styles.zoneLabel} style={{ color: z.color }}>
+                    {z.label}
+                  </span>
+                  <span className={styles.zoneSub}>
                     {z.dur ? durationLabel(z.dur, t) : t('settings.fence.beyondSlushy')}
                   </span>
                 </div>
               );
             })
           ) : (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '100%',
-                fontSize: 13,
-                color: token.colorError,
-              }}
-            >
-              {t('settings.fence.invalidShort')}
-            </div>
+            <div className={styles.invalidTrack}>{t('settings.fence.invalidShort')}</div>
           )}
         </div>
         {valid && (
-          <div
-            style={{
-              position: 'relative',
-              height: 24,
-              marginTop: 4,
-              fontSize: 11,
-              color: token.colorTextTertiary,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            <span style={{ position: 'absolute', left: 0 }}>↑ {t('settings.fence.today')}</span>
-            <span style={{ position: 'absolute', left: leftPct(frozenDays), transform: 'translateX(-50%)', whiteSpace: 'nowrap' }}>
+          <div className={styles.axis}>
+            <span className={styles.axisStart}>↑ {t('settings.fence.today')}</span>
+            {/* dynamic: marker offsets are the horizon positions along the axis. */}
+            <span className={styles.axisMark} style={{ left: leftPct(frozenDays) }}>
               ↑ {frozenEnd.format('D MMM')}
             </span>
-            <span style={{ position: 'absolute', left: leftPct(slushyDays), transform: 'translateX(-50%)', whiteSpace: 'nowrap' }}>
+            <span className={styles.axisMark} style={{ left: leftPct(slushyDays) }}>
               ↑ {slushyEnd.format('D MMM')}
             </span>
           </div>
@@ -208,37 +279,36 @@ export function TimeFenceCard({ committed }: { committed: TimeFenceConfiguration
       </div>
 
       {/* Duration editors */}
-      <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
+      <div className={styles.editors}>
         {editors.map((p) => (
           <div key={p.key}>
-            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color }} />
+            <div className={styles.editorLabel}>
+              {/* dynamic: dot colour is the editor's token accent. */}
+              <span className={styles.editorDot} style={{ background: p.color }} />
               {p.label}
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className={styles.editorInputs}>
               <InputNumber
                 value={fence[p.key].value}
                 onChange={(v) => setPart(p.key, { value: v ?? 0 })}
                 min={1}
                 status={!valid ? 'error' : ''}
-                style={{ width: 90 }}
+                className={styles.valueInput}
               />
               <Select<DurationUnit>
                 value={fence[p.key].unit}
                 onChange={(u) => setPart(p.key, { unit: u })}
                 options={unitOptions}
-                style={{ width: 130 }}
+                className={styles.unitSelect}
               />
             </div>
-            <div style={{ fontSize: 11, color: token.colorTextTertiary, marginTop: 6, maxWidth: 220, lineHeight: 1.4 }}>
-              {p.hint}
-            </div>
+            <div className={styles.editorHint}>{p.hint}</div>
           </div>
         ))}
       </div>
 
       {!valid && (
-        <div style={{ fontSize: 12, color: token.colorError, marginTop: 12 }}>
+        <div className={styles.invalidDetail}>
           {t('settings.fence.invalidDetail', {
             frozen: durationLabel(fence.frozenHorizon, t),
             frozenDays,

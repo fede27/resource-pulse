@@ -1,4 +1,5 @@
-import { Alert, Spin, theme } from 'antd';
+import { Alert, Spin } from 'antd';
+import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 import { useBucketingGet } from '@/api/generated/bucketing/bucketing';
 import { useCommitmentPolicyGet } from '@/api/generated/commitment-policy/commitment-policy';
@@ -17,9 +18,42 @@ const SECTIONS = [
   { id: 'cfg-commit', labelKey: 'settings.nav.commit' },
 ] as const;
 
+const useStyles = createStyles(({ token, css }) => ({
+  loading: css`
+    display: flex;
+    justify-content: center;
+    padding: 80px;
+  `,
+  nav: css`
+    margin-block-end: 20px;
+    display: flex;
+    gap: ${token.marginXS}px;
+    flex-wrap: wrap;
+  `,
+  navChip: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextSecondary};
+    cursor: pointer;
+    padding: 5px ${token.paddingSM}px;
+    border-radius: ${token.borderRadius}px;
+    background: ${token.colorBgContainer};
+    border: 1px solid ${token.colorBorderSecondary};
+    transition: border-color ${token.motionDurationFast};
+    &:hover {
+      border-color: ${token.colorPrimary};
+    }
+  `,
+  cards: css`
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 900px;
+  `,
+}));
+
 export function SettingsPage() {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles } = useStyles();
 
   const loadBands = useLoadBandsGet();
   const timeFence = useTimeFenceGet();
@@ -41,35 +75,27 @@ export function SettingsPage() {
       {isError && <Alert type="error" showIcon message={t('settings.loadError')} />}
 
       {!isError && !ready && (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
+        <div className={styles.loading}>
           <Spin />
         </div>
       )}
 
       {!isError && ready && (
         <>
-          <div style={{ marginBottom: 20, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className={styles.nav}>
             {SECTIONS.map((s) => (
               <button
                 key={s.id}
                 type="button"
                 onClick={() => scrollTo(s.id)}
-                style={{
-                  fontSize: 13,
-                  color: token.colorTextSecondary,
-                  cursor: 'pointer',
-                  padding: '5px 12px',
-                  borderRadius: token.borderRadius,
-                  background: token.colorBgContainer,
-                  border: `1px solid ${token.colorBorderSecondary}`,
-                }}
+                className={styles.navChip}
               >
                 {t(s.labelKey)}
               </button>
             ))}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 900 }}>
+          <div className={styles.cards}>
             <div id="cfg-load">
               <LoadBandCard committed={loadBands.data} />
             </div>

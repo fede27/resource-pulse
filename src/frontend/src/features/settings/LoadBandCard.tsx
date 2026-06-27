@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
-import { App, Button, Input, InputNumber, theme } from 'antd';
+import { App, Button, Input, InputNumber } from 'antd';
 import { DeleteOutlined, LockOutlined, PlusOutlined } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -14,6 +15,159 @@ import { ConstantNote } from './ConstantNote';
 import { bandColor } from './helpers';
 
 type DraftBand = { id: string; label: string; lowerBound: number | null };
+
+// Shared grid template for the header + editable rows.
+const ROW_COLS = '24px 1fr 170px 32px';
+
+const useStyles = createStyles(({ token, css }) => ({
+  barWrap: css`
+    margin-block-end: 20px;
+  `,
+  barTrack: css`
+    position: relative;
+    height: 44px;
+    border-radius: ${token.borderRadius}px;
+    overflow: hidden;
+    display: flex;
+    border: 1px solid ${token.colorBorderSecondary};
+  `,
+  bandSegment: css`
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 ${token.paddingXS}px;
+    min-width: 0;
+  `,
+  bandLabel: css`
+    font-size: ${token.fontSizeSM}px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `,
+  bandRange: css`
+    font-size: 11px;
+    color: ${token.colorTextTertiary};
+    font-variant-numeric: tabular-nums;
+  `,
+  probe: css`
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: ${token.colorText};
+    transition: left ${token.motionDurationMid};
+  `,
+  probeDot: css`
+    position: absolute;
+    top: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: ${token.colorText};
+    margin-block-start: -4px;
+  `,
+  rows: css`
+    display: flex;
+    flex-direction: column;
+    gap: ${token.marginXS}px;
+  `,
+  gridHeader: css`
+    display: grid;
+    grid-template-columns: ${ROW_COLS};
+    gap: ${token.marginSM}px;
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+    padding: 0 ${token.paddingXXS}px;
+  `,
+  gridRow: css`
+    display: grid;
+    grid-template-columns: ${ROW_COLS};
+    gap: ${token.marginSM}px;
+    align-items: center;
+  `,
+  swatch: css`
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    justify-self: center;
+  `,
+  boundCell: css`
+    display: inline-flex;
+    align-items: center;
+    gap: ${token.marginXS}px;
+  `,
+  firstFixed: css`
+    display: inline-flex;
+    align-items: center;
+    gap: ${token.marginXXS}px;
+    height: 32px;
+    padding: 0 11px;
+    border-radius: ${token.borderRadius}px;
+    background: ${token.colorFillQuaternary};
+    border: 1px solid ${token.colorBorderSecondary};
+    font-size: ${token.fontSize}px;
+    color: ${token.colorTextTertiary};
+    font-variant-numeric: tabular-nums;
+    width: 96px;
+    box-sizing: border-box;
+  `,
+  firstFixedLock: css`
+    margin-inline-start: auto;
+    font-size: 11px;
+  `,
+  beyond: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+  `,
+  boundInput: css`
+    width: 120px;
+  `,
+  removeCell: css`
+    justify-self: center;
+  `,
+  rowError: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorError};
+    padding-inline-start: 36px;
+  `,
+  addBtn: css`
+    margin-block-start: ${token.marginXXS}px;
+  `,
+  probeBox: css`
+    margin-block-start: 18px;
+    padding: ${token.paddingSM}px;
+    background: ${token.colorInfoBg};
+    border: 1px solid ${token.colorInfoBorder};
+    border-radius: ${token.borderRadius}px;
+    display: flex;
+    align-items: center;
+    gap: ${token.marginSM}px;
+    flex-wrap: wrap;
+  `,
+  probeText: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorText};
+  `,
+  probeInput: css`
+    width: 110px;
+  `,
+  probeChip: css`
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 ${token.paddingSM}px;
+    border-radius: 12px;
+    font-size: ${token.fontSizeSM}px;
+    font-weight: 500;
+  `,
+  probeInvalid: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorError};
+  `,
+}));
 
 const toDraft = (dto: LoadBandConfigurationDto): DraftBand[] =>
   (dto.bands ?? []).map((b, i) => ({
@@ -30,7 +184,7 @@ const nowTime = () =>
 
 export function LoadBandCard({ committed }: { committed: LoadBandConfigurationDto }) {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles } = useStyles();
   const { message } = App.useApp();
   const showApiError = useApiError();
   const queryClient = useQueryClient();
@@ -117,17 +271,8 @@ export function LoadBandCard({ committed }: { committed: LoadBandConfigurationDt
       onReset={() => setBands(toDraft(committed))}
     >
       {/* Visual band bar + probe marker */}
-      <div style={{ marginBottom: 20 }}>
-        <div
-          style={{
-            position: 'relative',
-            height: 44,
-            borderRadius: token.borderRadius,
-            overflow: 'hidden',
-            display: 'flex',
-            border: `1px solid ${token.colorBorderSecondary}`,
-          }}
-        >
+      <div className={styles.barWrap}>
+        <div className={styles.barTrack}>
           {valid &&
             bands.map((b, i) => {
               const lower = b.lowerBound ?? 0;
@@ -137,83 +282,37 @@ export function LoadBandCard({ committed }: { committed: LoadBandConfigurationDt
               return (
                 <div
                   key={b.id}
+                  className={styles.bandSegment}
+                  // dynamic: segment width and band colour are derived from the
+                  // configured bounds + band index, unknowable at author time.
                   style={{
                     width: `${widthPct}%`,
                     background: col + '26',
                     borderRight: i < bands.length - 1 ? `2px solid ${col}` : 'none',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    padding: '0 8px',
-                    minWidth: 0,
                   }}
                 >
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: col,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
+                  {/* dynamic: label colour follows the band's generated colour. */}
+                  <span className={styles.bandLabel} style={{ color: col }}>
                     {b.label}
                   </span>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      color: token.colorTextTertiary,
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
+                  <span className={styles.bandRange}>
                     {lower}%{i < bands.length - 1 ? `–${upper}%` : '+'}
                   </span>
                 </div>
               );
             })}
           {valid && probeBand && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                bottom: 0,
-                left: `${Math.min(100, (probe / maxScale) * 100)}%`,
-                width: 2,
-                background: token.colorText,
-                transition: 'left .15s',
-              }}
-            >
-              <span
-                style={{
-                  position: 'absolute',
-                  top: -1,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: token.colorText,
-                  marginTop: -4,
-                }}
-              />
+            // dynamic: marker position is the probed percentage along the scale.
+            <div className={styles.probe} style={{ left: `${Math.min(100, (probe / maxScale) * 100)}%` }}>
+              <span className={styles.probeDot} />
             </div>
           )}
         </div>
       </div>
 
       {/* Editable rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '24px 1fr 170px 32px',
-            gap: 12,
-            fontSize: 12,
-            color: token.colorTextTertiary,
-            padding: '0 4px',
-          }}
-        >
+      <div className={styles.rows}>
+        <div className={styles.gridHeader}>
           <span />
           <span>{t('settings.load.label')}</span>
           <span>{t('settings.load.lowerBound')}</span>
@@ -221,51 +320,19 @@ export function LoadBandCard({ committed }: { committed: LoadBandConfigurationDt
         </div>
 
         {bands.map((b, i) => (
-          <div
-            key={b.id}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '24px 1fr 170px 32px',
-              gap: 12,
-              alignItems: 'center',
-            }}
-          >
-            <span
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: 3,
-                background: bandColor(i, bands.length),
-                justifySelf: 'center',
-              }}
-            />
+          <div key={b.id} className={styles.gridRow}>
+            {/* dynamic: swatch colour is the band's generated colour. */}
+            <span className={styles.swatch} style={{ background: bandColor(i, bands.length) }} />
             <Input
               value={b.label}
               onChange={(e) => update(b.id, { label: e.target.value })}
               status={errors[`label-${b.id}`] ? 'error' : ''}
             />
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span className={styles.boundCell}>
               {i === 0 ? (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    height: 32,
-                    padding: '0 11px',
-                    borderRadius: token.borderRadius,
-                    background: token.colorFillQuaternary,
-                    border: `1px solid ${token.colorBorderSecondary}`,
-                    fontSize: 14,
-                    color: token.colorTextTertiary,
-                    fontVariantNumeric: 'tabular-nums',
-                    width: 96,
-                    boxSizing: 'border-box',
-                  }}
-                  title={t('settings.load.firstFixedTooltip')}
-                >
+                <span className={styles.firstFixed} title={t('settings.load.firstFixedTooltip')}>
                   0%
-                  <LockOutlined style={{ marginLeft: 'auto', fontSize: 11 }} />
+                  <LockOutlined className={styles.firstFixedLock} />
                 </span>
               ) : (
                 <InputNumber
@@ -274,16 +341,14 @@ export function LoadBandCard({ committed }: { committed: LoadBandConfigurationDt
                   min={1}
                   addonAfter="%"
                   status={errors[`bound-${b.id}`] ? 'error' : ''}
-                  style={{ width: 120 }}
+                  className={styles.boundInput}
                 />
               )}
               {i === bands.length - 1 && (
-                <span style={{ fontSize: 12, color: token.colorTextTertiary }}>
-                  {t('settings.load.andBeyond')}
-                </span>
+                <span className={styles.beyond}>{t('settings.load.andBeyond')}</span>
               )}
             </span>
-            <span style={{ justifySelf: 'center' }}>
+            <span className={styles.removeCell}>
               {bands.length > 1 && i > 0 && (
                 <Button
                   type="text"
@@ -299,11 +364,7 @@ export function LoadBandCard({ committed }: { committed: LoadBandConfigurationDt
 
         {(() => {
           const firstError = errors.first ?? errors.general;
-          return firstError ? (
-            <div style={{ fontSize: 12, color: token.colorError, paddingLeft: 36 }}>
-              {firstError}
-            </div>
-          ) : null;
+          return firstError ? <div className={styles.rowError}>{firstError}</div> : null;
         })()}
 
         <div>
@@ -312,7 +373,7 @@ export function LoadBandCard({ committed }: { committed: LoadBandConfigurationDt
             type="dashed"
             icon={<PlusOutlined />}
             onClick={add}
-            style={{ marginTop: 4 }}
+            className={styles.addBtn}
           >
             {t('settings.load.addBand')}
           </Button>
@@ -320,50 +381,31 @@ export function LoadBandCard({ committed }: { committed: LoadBandConfigurationDt
       </div>
 
       {/* Probe / explainability */}
-      <div
-        style={{
-          marginTop: 18,
-          padding: 12,
-          background: token.colorInfoBg,
-          border: `1px solid ${token.colorInfoBorder}`,
-          borderRadius: token.borderRadius,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
-      >
-        <span style={{ fontSize: 13, color: token.colorText }}>{t('settings.load.probePrefix')}</span>
+      <div className={styles.probeBox}>
+        <span className={styles.probeText}>{t('settings.load.probePrefix')}</span>
         <InputNumber
           value={probe}
           onChange={(v) => setProbe(v ?? 0)}
           min={0}
           step={5}
           addonAfter="%"
-          style={{ width: 110 }}
+          className={styles.probeInput}
         />
-        <span style={{ fontSize: 13, color: token.colorText }}>{t('settings.load.probeSuffix')}</span>
+        <span className={styles.probeText}>{t('settings.load.probeSuffix')}</span>
         {probeBand ? (
           <span
+            className={styles.probeChip}
+            // dynamic: chip colour matches the resolved band's generated colour.
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              height: 24,
-              padding: '0 10px',
-              borderRadius: 12,
               background: bandColor(probeIdx, bands.length) + '22',
               border: `1px solid ${bandColor(probeIdx, bands.length)}`,
               color: bandColor(probeIdx, bands.length),
-              fontSize: 13,
-              fontWeight: 500,
             }}
           >
             {probeBand.label}
           </span>
         ) : (
-          <span style={{ fontSize: 13, color: token.colorError }}>
-            {t('settings.load.invalidConfig')}
-          </span>
+          <span className={styles.probeInvalid}>{t('settings.load.invalidConfig')}</span>
         )}
       </div>
 
