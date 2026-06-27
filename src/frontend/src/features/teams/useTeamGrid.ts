@@ -1,18 +1,16 @@
-import { useMemo, useState } from 'react';
-import { useQueries } from '@tanstack/react-query';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useTeamsGetAll } from '@/api/generated/teams/teams';
 import {
-  getResourcesGetCapacityQueryOptions,
+  resourcesGetCapacity,
   useResourcesGetAll,
 } from '@/api/generated/resources/resources';
-import { getLoadGetResourceLoadQueryOptions } from '@/api/generated/load/load';
+import { loadGetResourceLoad } from '@/api/generated/load/load';
 import { useRolesGetAll } from '@/api/generated/roles/roles';
 import { useLoadBandsGet } from '@/api/generated/load-bands/load-bands';
 import { useBucketingGet } from '@/api/generated/bucketing/bucketing';
 import type {
-  DailyCapacityDto,
   LoadResult,
   ResourceReadDto,
   RoleReadDto,
@@ -21,22 +19,32 @@ import type {
 import type { DailyLoadDto } from '@/api/load-types';
 import {
   buildBuckets,
-  fetchWindow,
-  grainOf,
+  CELL_WIDTH,
+  dateRangeForIndices,
   groupRuns,
-  membersSampler,
-  normalizeBands,
-  parseDurationHours,
-  resourceSampler,
-  rowLoads,
-  todayBucketIdx,
+  HORIZON,
+  useChunkedSeries,
+  useTimelineViewport,
   type Bucket,
-  type BucketLoad,
+  type ChunkedSeries,
+  type ChunkFetcher,
   type Grain,
   type Group,
+  type TimelineViewport,
+} from '@/components/timeline';
+import {
+  EMPTY_LOAD,
+  grainOf,
+  normalizeBands,
+  parseDurationHours,
+  rowLoads,
+  type BucketLoad,
+  type DaySample,
   type LoadBand,
-  type ResourceSeries,
 } from './loadModel';
+
+export const NAME_W = 300;
+const EMPTY_SAMPLE: DaySample = { alloc: 0, cap: 0 };
 
 const listOf = <T>(data: unknown): T[] => ((data as LoadResult | undefined)?.data ?? []) as T[];
 
@@ -47,9 +55,12 @@ export type TeamGrid = {
   setGrain: (g: Grain) => void;
   primaryGrain: Grain;
   secondaryGrain: Grain;
-  buckets: Bucket[];
+
+  viewport: TimelineViewport;
+  cellW: number;
+  nameW: number;
+  buckets: Bucket[]; // visible slice only
   groups: Group[];
-  todayIdx: number;
 
   teams: TeamReadDto[];
   allResources: ResourceReadDto[];
@@ -58,21 +69,24 @@ export type TeamGrid = {
   membersByTeam: Record<string, string[]>;
   unassigned: string[];
 
+  // Per-bucket loads, positionally aligned to `buckets`.
   overall: BucketLoad[];
   teamLoads: Record<string, BucketLoad[]>;
   personLoads: Record<string, BucketLoad[]>;
+  // Current-period (today) loads — independent of horizontal scroll.
+  nowOverall: BucketLoad;
+  nowByTeam: Record<string, BucketLoad>;
+  nowByPerson: Record<string, BucketLoad>;
 
+  isColumnLoading: (b: Bucket) => boolean;
   isLoading: boolean;
   isSeriesFetching: boolean;
 };
 
 export function useTeamGrid(): TeamGrid {
   const { i18n } = useTranslation();
-  // Anchored once at mount so the fetch window and query keys stay stable.
+  // Epoch anchored once at mount; k = 0 is today's bucket for the active grain.
   const today = useMemo(() => dayjs(), []);
-  const window = useMemo(() => fetchWindow(today), [today]);
-  const fromISO = window.from.format('YYYY-MM-DD');
-  const toISO = window.to.format('YYYY-MM-DD');
 
   const teamsQuery = useTeamsGetAll();
   const resourcesQuery = useResourcesGetAll();
@@ -107,7 +121,10 @@ export function useTeamGrid(): TeamGrid {
     return out;
   }, [allResources]);
 
-  const teamIdSet = useMemo(() => new Set(teams.map((t) => t.id).filter(Boolean) as string[]), [teams]);
+  const teamIdSet = useMemo(
+    () => new Set(teams.map((t) => t.id).filter(Boolean) as string[]),
+    [teams],
+  );
 
   const membersByTeam = useMemo(() => {
     const out: Record<string, string[]> = {};
@@ -142,39 +159,6 @@ export function useTeamGrid(): TeamGrid {
     [membersByTeam],
   );
 
-  const loadResults = useQueries({
-    queries: memberResourceIds.map((id) => ({
-      ...getLoadGetResourceLoadQueryOptions<DailyLoadDto[]>(id, { from: fromISO, to: toISO }),
-      staleTime: 60_000,
-    })),
-  });
-  const capResults = useQueries({
-    queries: memberResourceIds.map((id) => ({
-      ...getResourcesGetCapacityQueryOptions(id, { from: fromISO, to: toISO }),
-      staleTime: 60_000,
-    })),
-  });
-
-  const loadSig = loadResults.map((r) => r.dataUpdatedAt).join(',');
-  const capSig = capResults.map((r) => r.dataUpdatedAt).join(',');
-  const series = useMemo(() => {
-    const map: Record<string, ResourceSeries> = {};
-    memberResourceIds.forEach((id, i) => {
-      const s: ResourceSeries = new Map();
-      for (const c of (capResults[i]?.data ?? []) as DailyCapacityDto[]) {
-        if (c.date) s.set(c.date, { alloc: 0, cap: parseDurationHours(c.hours) });
-      }
-      for (const l of (loadResults[i]?.data ?? []) as DailyLoadDto[]) {
-        if (!l.date) continue;
-        const prev = s.get(l.date) ?? { alloc: 0, cap: 0 };
-        s.set(l.date, { alloc: parseDurationHours(l.hours), cap: prev.cap });
-      }
-      map[id] = s;
-    });
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [memberResourceIds, loadSig, capSig]);
-
   // ── Config ──
   const bands = useMemo(() => normalizeBands(bandsQuery.data?.bands), [bandsQuery.data]);
   const primaryGrain = grainOf(bucketingQuery.data?.primaryGrain);
@@ -182,36 +166,157 @@ export function useTeamGrid(): TeamGrid {
   const [pickedGrain, setPickedGrain] = useState<Grain | null>(null);
   const grain = pickedGrain ?? primaryGrain;
 
+  // ── Virtualized horizontal viewport ──
+  const cellW = CELL_WIDTH[grain];
+  const horizon = HORIZON[grain];
+  const viewport = useTimelineViewport({
+    cellW,
+    nameW: NAME_W,
+    kMin: -horizon,
+    kMax: horizon,
+    recenterKey: grain,
+  });
+  const { kStart, kEnd } = viewport.visible;
+
   const buckets = useMemo(
-    () => buildBuckets(grain, today),
-    // i18n.language drives the localized month/day labels inside buildBuckets.
+    () => buildBuckets(grain, today, kStart, kEnd, today),
+    // i18n.language drives the localized month/day labels.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [grain, today, i18n.language],
+    [grain, today, kStart, kEnd, i18n.language],
   );
   const groups = useMemo(() => groupRuns(buckets), [buckets]);
-  const todayIdx = useMemo(() => todayBucketIdx(buckets), [buckets]);
 
-  // ── Computed loads ──
+  // ── Lazy chunked load+capacity, merged into DaySample ──
+  const fetchChunk = useCallback<ChunkFetcher<DaySample>>(async (id, from, to, signal) => {
+    // `loadGetResourceLoad` is generated as `Promise<void>` — the LoadController
+    // GETs predate the `[ProducesResponseType<T>]` regen (see api/load-types.ts);
+    // the axios mutator returns the parsed body at runtime, so assert the real
+    // shape here. `resourcesGetCapacity` is already typed, hence the asymmetry.
+    const [load, cap] = await Promise.all([
+      loadGetResourceLoad(id, { from, to }, undefined, signal) as unknown as Promise<DailyLoadDto[]>,
+      resourcesGetCapacity(id, { from, to }, undefined, signal),
+    ]);
+    const m = new Map<string, DaySample>();
+    for (const c of cap ?? []) {
+      if (c.date) m.set(c.date, { alloc: 0, cap: parseDurationHours(c.hours) });
+    }
+    for (const l of load ?? []) {
+      if (!l.date) continue;
+      const prev = m.get(l.date);
+      m.set(l.date, { alloc: parseDurationHours(l.hours), cap: prev?.cap ?? 0 });
+    }
+    return m;
+  }, []);
+
+  // Two windows over the same chunk-aligned cache. Sharing `namespace` means the
+  // chunk covering today is fetched once and reused by both: the visible slice
+  // drives the grid (strictly windowed — O(visible) active queries, regardless
+  // of how far we've scrolled), while a single today-bucket window keeps the
+  // scroll-independent "now" stats/chips populated. This is deliberately NOT a
+  // widen-visible-to-include-today range, which would fill the whole gap with
+  // contiguous chunks and keep every intermediate query mounted.
+  const visRange = useMemo(
+    () => dateRangeForIndices(grain, today, kStart, kEnd),
+    [grain, today, kStart, kEnd],
+  );
+  const todayRange = useMemo(() => dateRangeForIndices(grain, today, 0, 0), [grain, today]);
+
+  const chunkedVisible = useChunkedSeries<DaySample>({
+    namespace: 'resource-load',
+    entityIds: memberResourceIds,
+    from: visRange.from,
+    to: visRange.to,
+    chunkDays: 90,
+    fetchChunk,
+    enabled: viewport.ready && memberResourceIds.length > 0,
+  });
+  const chunkedToday = useChunkedSeries<DaySample>({
+    namespace: 'resource-load',
+    entityIds: memberResourceIds,
+    from: todayRange.from,
+    to: todayRange.to,
+    chunkDays: 90,
+    fetchChunk,
+    enabled: memberResourceIds.length > 0,
+  });
+
+  // ── Samplers + computed loads ──
+  const sampleMembersOf = useCallback(
+    (series: ChunkedSeries<DaySample>, ids: string[]) =>
+      (date: string): DaySample => {
+        let alloc = 0;
+        let cap = 0;
+        for (const id of ids) {
+          const v = series.sample(id, date);
+          if (v) {
+            alloc += v.alloc;
+            cap += v.cap;
+          }
+        }
+        return { alloc, cap };
+      },
+    [],
+  );
+  const sampleOneOf = useCallback(
+    (series: ChunkedSeries<DaySample>, id: string) =>
+      (date: string): DaySample =>
+        series.sample(id, date) ?? EMPTY_SAMPLE,
+    [],
+  );
+
   const overall = useMemo(
-    () => rowLoads(buckets, membersSampler(memberResourceIds.map((id) => series[id]))),
-    [buckets, series, memberResourceIds],
+    () => rowLoads(buckets, sampleMembersOf(chunkedVisible, memberResourceIds)),
+    [buckets, sampleMembersOf, chunkedVisible, memberResourceIds],
   );
   const teamLoads = useMemo(() => {
     const out: Record<string, BucketLoad[]> = {};
     teams.forEach((t) => {
       if (!t.id) return;
-      const members = membersByTeam[t.id] ?? [];
-      out[t.id] = rowLoads(buckets, membersSampler(members.map((id) => series[id])));
+      out[t.id] = rowLoads(buckets, sampleMembersOf(chunkedVisible, membersByTeam[t.id] ?? []));
     });
     return out;
-  }, [teams, membersByTeam, buckets, series]);
+  }, [teams, membersByTeam, buckets, sampleMembersOf, chunkedVisible]);
   const personLoads = useMemo(() => {
     const out: Record<string, BucketLoad[]> = {};
     memberResourceIds.forEach((id) => {
-      out[id] = rowLoads(buckets, resourceSampler(series[id]));
+      out[id] = rowLoads(buckets, sampleOneOf(chunkedVisible, id));
     });
     return out;
-  }, [memberResourceIds, buckets, series]);
+  }, [memberResourceIds, buckets, sampleOneOf, chunkedVisible]);
+
+  // ── "Now" loads (today bucket), scroll-independent ──
+  const todayBuckets = useMemo(
+    () => buildBuckets(grain, today, 0, 0, today),
+    [grain, today],
+  );
+  const nowOf = useCallback(
+    (sample: (d: string) => DaySample): BucketLoad => rowLoads(todayBuckets, sample)[0] ?? EMPTY_LOAD,
+    [todayBuckets],
+  );
+  const nowOverall = useMemo(
+    () => nowOf(sampleMembersOf(chunkedToday, memberResourceIds)),
+    [nowOf, sampleMembersOf, chunkedToday, memberResourceIds],
+  );
+  const nowByTeam = useMemo(() => {
+    const out: Record<string, BucketLoad> = {};
+    teams.forEach((t) => {
+      if (t.id) out[t.id] = nowOf(sampleMembersOf(chunkedToday, membersByTeam[t.id] ?? []));
+    });
+    return out;
+  }, [teams, membersByTeam, nowOf, sampleMembersOf, chunkedToday]);
+  const nowByPerson = useMemo(() => {
+    const out: Record<string, BucketLoad> = {};
+    memberResourceIds.forEach((id) => {
+      out[id] = nowOf(sampleOneOf(chunkedToday, id));
+    });
+    return out;
+  }, [memberResourceIds, nowOf, sampleOneOf, chunkedToday]);
+
+  const isColumnLoading = useCallback(
+    (b: Bucket) =>
+      memberResourceIds.length > 0 && !chunkedVisible.isChunkReady(b.start.format('YYYY-MM-DD')),
+    [chunkedVisible, memberResourceIds],
+  );
 
   return {
     today,
@@ -220,9 +325,11 @@ export function useTeamGrid(): TeamGrid {
     setGrain: setPickedGrain,
     primaryGrain,
     secondaryGrain,
+    viewport,
+    cellW,
+    nameW: NAME_W,
     buckets,
     groups,
-    todayIdx,
     teams,
     allResources,
     resourcesById,
@@ -232,12 +339,15 @@ export function useTeamGrid(): TeamGrid {
     overall,
     teamLoads,
     personLoads,
+    nowOverall,
+    nowByTeam,
+    nowByPerson,
+    isColumnLoading,
     isLoading:
       teamsQuery.isLoading ||
       resourcesQuery.isLoading ||
       bandsQuery.isLoading ||
       bucketingQuery.isLoading,
-    isSeriesFetching:
-      loadResults.some((r) => r.isFetching) || capResults.some((r) => r.isFetching),
+    isSeriesFetching: chunkedVisible.isFetching || chunkedToday.isFetching,
   };
 }

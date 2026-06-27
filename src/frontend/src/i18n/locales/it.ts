@@ -124,6 +124,7 @@ export const it = {
       collapse: 'Comprimi',
       expandAll: 'Espandi tutti',
       collapseAll: 'Comprimi tutti',
+      goToToday: 'Oggi',
       showValues: 'Mostra valori',
       legendTitle: 'Soglie di carico',
       memberCount_one: '{{count}} persona',

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { App, Alert, Button, Col, Row, Segmented, Skeleton, Space, Spin, Switch } from 'antd';
+import { AimOutlined } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -19,9 +20,7 @@ import { useApiError } from '@/lib/errors';
 import { useTeamGrid } from './useTeamGrid';
 import { HeatGrid } from './HeatGrid';
 import { TeamCreateInline } from './TeamCreateInline';
-import { bandStop, legendStops, loadColor, overloadFloor, type BucketLoad } from './loadModel';
-
-const EMPTY_LOAD: BucketLoad = { capH: 0, allocH: 0, pct: 0, empty: true, reduced: false };
+import { bandStop, EMPTY_LOAD, legendStops, loadColor, overloadFloor } from './loadModel';
 
 export function TeamsPage() {
   const { t } = useTranslation();
@@ -120,22 +119,20 @@ export function TeamsPage() {
     deleteMutation.mutate({ id: team.id });
   };
 
-  // ── Stats (current bucket) ──
-  const idx = grid.todayIdx >= 0 ? grid.todayIdx : 0;
+  // ── Stats (current period, scroll-independent) ──
   const allocatedPeople = useMemo(() => {
     const set = new Set<string>();
     Object.values(grid.membersByTeam).forEach((ids) => ids.forEach((id) => set.add(id)));
     return set;
   }, [grid.membersByTeam]);
-  const overallNow = grid.overall[idx] ?? EMPTY_LOAD;
+  const overallNow = grid.nowOverall;
   const overloadThreshold = useMemo(() => overloadFloor(grid.bands), [grid.bands]);
   const overloadedNow = useMemo(
     () =>
-      [...allocatedPeople].filter((id) => {
-        const pct = (grid.personLoads[id]?.[idx] ?? EMPTY_LOAD).pct;
-        return pct >= overloadThreshold;
-      }).length,
-    [allocatedPeople, grid.personLoads, idx, overloadThreshold],
+      [...allocatedPeople].filter(
+        (id) => (grid.nowByPerson[id] ?? EMPTY_LOAD).pct >= overloadThreshold,
+      ).length,
+    [allocatedPeople, grid.nowByPerson, overloadThreshold],
   );
   const overallColor = loadColor(overallNow.pct, grid.bands);
 
@@ -198,6 +195,13 @@ export function TeamsPage() {
               onChange={(v) => grid.setGrain(v as 'day' | 'week' | 'month')}
             />
           )}
+          <Button
+            size="small"
+            icon={<AimOutlined />}
+            onClick={() => grid.viewport.scrollToIndex(0)}
+          >
+            {t('teams.grid.goToToday')}
+          </Button>
           <Button size="small" onClick={() => setExpandedState(new Set(allIds))}>
             {t('teams.grid.expandAll')}
           </Button>

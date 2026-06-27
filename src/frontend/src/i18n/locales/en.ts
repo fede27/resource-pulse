@@ -136,6 +136,7 @@ export const en: Loose<typeof it> = {
       collapse: 'Collapse',
       expandAll: 'Expand all',
       collapseAll: 'Collapse all',
+      goToToday: 'Today',
       showValues: 'Show values',
       legendTitle: 'Load thresholds',
       memberCount_one: '{{count}} person',
