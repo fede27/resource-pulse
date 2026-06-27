@@ -1,4 +1,4 @@
-import { Fragment, useRef, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, type ReactNode } from 'react';
 import { Button, Tag } from 'antd';
 import { DeleteOutlined, RightOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -148,6 +148,12 @@ export function HeatGrid({
   const onLeave = () => {
     if (overlayRef.current) overlayRef.current.style.display = 'none';
   };
+  useEffect(
+    () => () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    },
+    [],
+  );
 
   const headBg = '#fafafa';
   const headYearH = 26;

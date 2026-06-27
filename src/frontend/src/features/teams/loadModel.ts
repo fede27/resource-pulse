@@ -78,6 +78,12 @@ export function bandStop(index: number, total: number): (typeof LOAD_STOPS)[numb
   return LOAD_STOPS[1 + Math.round(t * 2)]!;
 }
 
+// The last band is the open-ended overload band; its lower bound is the
+// overload threshold. Kept config-driven — never hard-code 100 at call sites.
+export function overloadFloor(bands: LoadBand[]): number {
+  return bands.length ? bands[bands.length - 1]!.lowerBound : 100;
+}
+
 export function bandIndexFor(pct: number, bands: LoadBand[]): number {
   let hit = 0;
   for (let i = 0; i < bands.length; i += 1) {

@@ -66,7 +66,7 @@ export function TeamSettingsPopover({
       >
         <span style={{ fontSize: 13 }}>{t('common.active')}</span>
         <Switch
-          checked={team.isActive ?? false}
+          checked={team.isActive ?? true}
           loading={saving}
           onChange={(checked) => onToggleActive(checked)}
         />

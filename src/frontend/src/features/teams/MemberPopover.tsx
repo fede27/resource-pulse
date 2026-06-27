@@ -54,7 +54,9 @@ export function MemberPopover({ team, grid, onAssign, assigningId }: MemberPopov
     });
   }, [grid.allResources, grid.roleNameById, q, memberSet]);
 
-  const content = (
+  // Built only while the popover is open — avoids rendering the full member
+  // list (one per team row + add-member row) on every grid render.
+  const content = !open ? null : (
     <div style={{ width: 340 }}>
       <Input
         autoFocus

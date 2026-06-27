@@ -19,7 +19,7 @@ import { useApiError } from '@/lib/errors';
 import { useTeamGrid } from './useTeamGrid';
 import { HeatGrid } from './HeatGrid';
 import { TeamCreateInline } from './TeamCreateInline';
-import { bandStop, legendStops, loadColor, type BucketLoad } from './loadModel';
+import { bandStop, legendStops, loadColor, overloadFloor, type BucketLoad } from './loadModel';
 
 const EMPTY_LOAD: BucketLoad = { capH: 0, allocH: 0, pct: 0, empty: true, reduced: false };
 
@@ -128,13 +128,14 @@ export function TeamsPage() {
     return set;
   }, [grid.membersByTeam]);
   const overallNow = grid.overall[idx] ?? EMPTY_LOAD;
+  const overloadThreshold = useMemo(() => overloadFloor(grid.bands), [grid.bands]);
   const overloadedNow = useMemo(
     () =>
       [...allocatedPeople].filter((id) => {
         const pct = (grid.personLoads[id]?.[idx] ?? EMPTY_LOAD).pct;
-        return pct > 100;
+        return pct >= overloadThreshold;
       }).length,
-    [allocatedPeople, grid.personLoads, idx],
+    [allocatedPeople, grid.personLoads, idx, overloadThreshold],
   );
   const overallColor = loadColor(overallNow.pct, grid.bands);
 
