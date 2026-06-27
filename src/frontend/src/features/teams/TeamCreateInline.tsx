@@ -1,14 +1,8 @@
 import { useState } from 'react';
 import { Button, Input, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
-
-const useStyles = createStyles(({ css }) => ({
-  fullWidth: css`
-    width: 100%;
-  `,
-}));
+import { useStyles } from './TeamCreateInline.styles';
 
 type TeamCreateInlineProps = {
   onCreate: (name: string) => void;

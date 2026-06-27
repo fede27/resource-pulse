@@ -1,31 +1,9 @@
 import { useState } from 'react';
 import { App, Button, Input, Popover, Switch } from 'antd';
 import { DeleteOutlined, MoreOutlined } from '@ant-design/icons';
-import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 import type { TeamReadDto } from '@/api/generated/schemas';
-
-const useStyles = createStyles(({ token, css }) => ({
-  content: css`
-    width: 248px;
-    display: flex;
-    flex-direction: column;
-    gap: ${token.marginSM}px;
-  `,
-  label: css`
-    font-size: ${token.fontSizeSM}px;
-    color: ${token.colorTextTertiary};
-    margin-block-end: ${token.marginXXS}px;
-  `,
-  toggleRow: css`
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  `,
-  toggleLabel: css`
-    font-size: ${token.fontSizeSM}px;
-  `,
-}));
+import { useStyles } from './TeamSettingsPopover.styles';
 
 type TeamSettingsPopoverProps = {
   team: TeamReadDto;
