@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import { Button, Input, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
+
+const useStyles = createStyles(({ css }) => ({
+  fullWidth: css`
+    width: 100%;
+  `,
+}));
 
 type TeamCreateInlineProps = {
   onCreate: (name: string) => void;
@@ -10,6 +17,7 @@ type TeamCreateInlineProps = {
 
 export function TeamCreateInline({ onCreate, saving }: TeamCreateInlineProps) {
   const { t } = useTranslation();
+  const { styles } = useStyles();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
 
@@ -36,7 +44,7 @@ export function TeamCreateInline({ onCreate, saving }: TeamCreateInlineProps) {
   }
 
   return (
-    <Space.Compact style={{ width: '100%' }}>
+    <Space.Compact className={styles.fullWidth}>
       <Input
         autoFocus
         size="small"

@@ -1,8 +1,31 @@
 import { useState } from 'react';
 import { App, Button, Input, Popover, Switch } from 'antd';
 import { DeleteOutlined, MoreOutlined } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 import type { TeamReadDto } from '@/api/generated/schemas';
+
+const useStyles = createStyles(({ token, css }) => ({
+  content: css`
+    width: 248px;
+    display: flex;
+    flex-direction: column;
+    gap: ${token.marginSM}px;
+  `,
+  label: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+    margin-block-end: ${token.marginXXS}px;
+  `,
+  toggleRow: css`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  `,
+  toggleLabel: css`
+    font-size: ${token.fontSizeSM}px;
+  `,
+}));
 
 type TeamSettingsPopoverProps = {
   team: TeamReadDto;
@@ -20,6 +43,7 @@ export function TeamSettingsPopover({
   saving,
 }: TeamSettingsPopoverProps) {
   const { t } = useTranslation();
+  const { styles } = useStyles();
   const { modal } = App.useApp();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(team.name ?? '');
@@ -42,11 +66,9 @@ export function TeamSettingsPopover({
   };
 
   const content = (
-    <div style={{ width: 248, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className={styles.content}>
       <div>
-        <div style={{ fontSize: 12, color: 'rgba(0,0,0,.45)', marginBottom: 4 }}>
-          {t('common.name')}
-        </div>
+        <div className={styles.label}>{t('common.name')}</div>
         <Input.Search
           size="small"
           value={name}
@@ -57,14 +79,8 @@ export function TeamSettingsPopover({
           placeholder={t('teams.namePlaceholder')}
         />
       </div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <span style={{ fontSize: 13 }}>{t('common.active')}</span>
+      <div className={styles.toggleRow}>
+        <span className={styles.toggleLabel}>{t('common.active')}</span>
         <Switch
           checked={team.isActive ?? true}
           loading={saving}

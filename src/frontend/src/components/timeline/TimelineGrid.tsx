@@ -3,6 +3,11 @@
 // column, and an optional column-hover overlay. It owns only horizontal layout
 // and positioning; the consumer renders the body rows (via TimelineRow /
 // TimelineCell) using the same geometry. Domain-free and reusable.
+//
+// Almost every dimension here (left offsets, widths, row heights) is derived
+// from the viewport/axis at runtime, so those stay inline as documented
+// `// dynamic:` values; the structural colours/borders come from tokens via
+// createStyles.
 
 import {
   createContext,
@@ -11,6 +16,8 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
+import { theme } from 'antd';
+import { createStyles } from 'antd-style';
 import type { Bucket, Group } from './timeAxis';
 import type { TimelineViewport } from './useTimelineViewport';
 
@@ -29,7 +36,76 @@ function useTimelineCtx(): TimelineCtx {
   return c;
 }
 
-const HEAD_BG = '#fafafa';
+const useStyles = createStyles(({ token, css }) => ({
+  frame: css`
+    border: 1px solid ${token.colorBorderSecondary};
+    border-radius: 10px;
+    overflow: hidden;
+    background: ${token.colorBgContainer};
+  `,
+  scroll: css`
+    overflow: auto;
+    position: relative;
+  `,
+  overlay: css`
+    position: absolute;
+    top: 0;
+    height: 100%;
+    display: none;
+    background: color-mix(in srgb, ${token.colorPrimary} 6%, transparent);
+    pointer-events: none;
+    z-index: 6;
+  `,
+  stickyHead: css`
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  `,
+  headBand: css`
+    position: relative;
+    background: ${token.colorFillQuaternary};
+  `,
+  corner: css`
+    position: sticky;
+    left: 0;
+    z-index: 42;
+    background: ${token.colorFillQuaternary};
+    border-right: 1px solid ${token.colorBorder};
+    display: flex;
+    align-items: center;
+  `,
+  cornerBorderLight: css`
+    border-bottom: 1px solid ${token.colorBorderSecondary};
+  `,
+  cornerBorderDark: css`
+    border-bottom: 1px solid ${token.colorBorder};
+  `,
+  groupCell: css`
+    position: absolute;
+    top: 0;
+    background: ${token.colorFillQuaternary};
+    border-bottom: 1px solid ${token.colorBorderSecondary};
+    border-left: 1px solid ${token.colorBorder};
+    display: flex;
+    align-items: center;
+    padding: 0 ${token.paddingSM}px;
+    font-size: ${token.fontSizeSM}px;
+    font-weight: 600;
+    color: ${token.colorTextSecondary};
+  `,
+  bucketCell: css`
+    position: absolute;
+    top: 0;
+  `,
+  rowName: css`
+    position: sticky;
+    left: 0;
+    z-index: 20;
+    border-right: 1px solid ${token.colorBorder};
+    display: flex;
+    align-items: center;
+  `,
+}));
 
 export type TimelineGridProps = {
   viewport: TimelineViewport;
@@ -64,6 +140,7 @@ export function TimelineGrid({
   children,
   columnHover = true,
 }: TimelineGridProps) {
+  const { styles, cx } = useStyles();
   const { setScrollEl, onScroll, spacerWidth, leftOf } = viewport;
   const groupH = headerHeights.group;
   const bucketH = headerHeights.bucket;
@@ -93,77 +170,61 @@ export function TimelineGrid({
     if (overlayRef.current) overlayRef.current.style.display = 'none';
   };
 
-  const corner: CSSProperties = {
-    position: 'sticky',
-    left: 0,
-    zIndex: 42,
-    width: nameW,
-    background: HEAD_BG,
-    borderRight: '1px solid #e8e8e8',
-    display: 'flex',
-    alignItems: 'center',
-  };
-
   return (
     <Ctx.Provider value={{ leftOf, cellW, nameW, spacerWidth }}>
-      <div style={{ border: '1px solid #f0f0f0', borderRadius: 10, overflow: 'hidden', background: '#fff' }}>
+      <div className={styles.frame}>
         <div
           ref={setScrollEl}
           onScroll={onScroll}
           onMouseMove={onMove}
           onMouseLeave={onLeave}
-          style={{ overflow: 'auto', maxHeight, position: 'relative' }}
+          className={styles.scroll}
+          // dynamic: caller-provided viewport cap.
+          style={{ maxHeight }}
         >
+          {/* dynamic: spacer spans the full logical timeline width. */}
           <div style={{ position: 'relative', width: spacerWidth, minWidth: spacerWidth }}>
             {columnHover && (
-              <div
-                ref={overlayRef}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  height: '100%',
-                  display: 'none',
-                  background: 'rgba(22,119,255,.06)',
-                  pointerEvents: 'none',
-                  zIndex: 6,
-                }}
-              />
+              // left/width/display are driven imperatively in onMove (rAF) for
+              // per-frame hover tracking — runtime values, not author-time.
+              <div ref={overlayRef} className={styles.overlay} />
             )}
 
             {/* ── Sticky two-level header ── */}
-            <div style={{ position: 'sticky', top: 0, zIndex: 30 }}>
-              <div style={{ position: 'relative', width: spacerWidth, height: groupH, background: HEAD_BG }}>
-                <div style={{ ...corner, height: groupH, borderBottom: '1px solid #f0f0f0' }}>{cornerTop}</div>
+            <div className={styles.stickyHead}>
+              {/* dynamic: band spans the timeline and is groupH tall. */}
+              <div className={styles.headBand} style={{ width: spacerWidth, height: groupH }}>
+                <div
+                  className={cx(styles.corner, styles.cornerBorderLight)}
+                  // dynamic: frozen-column width + header-band height.
+                  style={{ width: nameW, height: groupH }}
+                >
+                  {cornerTop}
+                </div>
                 {groups.map((g) => (
                   <div
                     key={g.key}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: leftOf(g.startIdx),
-                      width: g.count * cellW,
-                      height: groupH,
-                      background: HEAD_BG,
-                      borderBottom: '1px solid #f0f0f0',
-                      borderLeft: '1px solid #e8e8e8',
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '0 10px',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: 'rgba(0,0,0,.75)',
-                    }}
+                    className={styles.groupCell}
+                    // dynamic: group spans `count` cells starting at its index.
+                    style={{ left: leftOf(g.startIdx), width: g.count * cellW, height: groupH }}
                   >
                     {renderGroup(g)}
                   </div>
                 ))}
               </div>
-              <div style={{ position: 'relative', width: spacerWidth, height: bucketH, background: HEAD_BG }}>
-                <div style={{ ...corner, height: bucketH, borderBottom: '1px solid #e8e8e8' }}>{cornerBottom}</div>
+              <div className={styles.headBand} style={{ width: spacerWidth, height: bucketH }}>
+                <div
+                  className={cx(styles.corner, styles.cornerBorderDark)}
+                  style={{ width: nameW, height: bucketH }}
+                >
+                  {cornerBottom}
+                </div>
                 {buckets.map((b) => (
                   <div
                     key={b.idx}
-                    style={{ position: 'absolute', top: 0, left: leftOf(b.idx), width: cellW, height: bucketH }}
+                    className={styles.bucketCell}
+                    // dynamic: each bucket sits at its computed left offset.
+                    style={{ left: leftOf(b.idx), width: cellW, height: bucketH }}
                   >
                     {renderBucketHeader(b)}
                   </div>
@@ -185,7 +246,7 @@ export function TimelineGrid({
 export function TimelineRow({
   height,
   name,
-  background = '#fff',
+  background,
   nameBackground,
   borderBottom,
   namePadding = '0 10px',
@@ -199,22 +260,17 @@ export function TimelineRow({
   namePadding?: string;
   children?: ReactNode;
 }) {
+  const { styles } = useStyles();
+  const { token } = theme.useToken();
   const { spacerWidth, nameW } = useTimelineCtx();
+  const rowBg = background ?? token.colorBgContainer;
   return (
-    <div style={{ position: 'relative', width: spacerWidth, height, background, ...(borderBottom ? { borderBottom } : {}) }}>
+    // dynamic: row geometry + caller-chosen background/divider.
+    <div style={{ position: 'relative', width: spacerWidth, height, background: rowBg, ...(borderBottom ? { borderBottom } : {}) }}>
       <div
-        style={{
-          position: 'sticky',
-          left: 0,
-          zIndex: 20,
-          width: nameW,
-          height,
-          background: nameBackground ?? background,
-          borderRight: '1px solid #e8e8e8',
-          display: 'flex',
-          alignItems: 'center',
-          padding: namePadding,
-        }}
+        className={styles.rowName}
+        // dynamic: frozen-column width/height, caller background + padding.
+        style={{ width: nameW, height, background: nameBackground ?? rowBg, padding: namePadding }}
       >
         {name}
       </div>
@@ -228,6 +284,7 @@ export function TimelineCell({
   height,
   width,
   title,
+  className,
   style,
   children,
 }: {
@@ -235,6 +292,7 @@ export function TimelineCell({
   height: number;
   width?: number;
   title?: string;
+  className?: string;
   style?: CSSProperties;
   children?: ReactNode;
 }) {
@@ -242,6 +300,8 @@ export function TimelineCell({
   return (
     <div
       title={title}
+      className={className}
+      // dynamic: cell position/size from the axis; `style` is caller content.
       style={{ position: 'absolute', top: 0, left: leftOf(k), width: width ?? cellW, height, ...style }}
     >
       {children}
@@ -255,6 +315,7 @@ export function TimelineRowFiller({ height, background }: { height: number; back
   const { spacerWidth, nameW } = useTimelineCtx();
   return (
     <div
+      // dynamic: spans from the frozen column to the end of the timeline.
       style={{
         position: 'absolute',
         top: 0,

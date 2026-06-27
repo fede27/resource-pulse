@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { App, Alert, Button, Col, Row, Segmented, Skeleton, Space, Spin, Switch } from 'antd';
+import { App, Alert, Button, Col, Row, Segmented, Skeleton, Space, Spin, Switch, theme } from 'antd';
 import { AimOutlined } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -22,8 +23,85 @@ import { HeatGrid } from './HeatGrid';
 import { TeamCreateInline } from './TeamCreateInline';
 import { bandStop, EMPTY_LOAD, legendStops, loadColor, overloadFloor } from './loadModel';
 
+const useStyles = createStyles(({ token, css }) => ({
+  statsRow: css`
+    margin-block-end: ${token.margin}px;
+  `,
+  toolbar: css`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: ${token.margin}px;
+    margin-block-end: ${token.marginSM}px;
+    flex-wrap: wrap;
+  `,
+  switchGroup: css`
+    margin-inline-start: ${token.marginXXS}px;
+  `,
+  switchLabel: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+  `,
+  legend: css`
+    display: flex;
+    align-items: center;
+    gap: ${token.marginSM}px;
+    flex-wrap: wrap;
+  `,
+  legendTitle: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+  `,
+  legendItems: css`
+    display: flex;
+    align-items: center;
+    gap: ${token.marginSM}px;
+  `,
+  legendItem: css`
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  `,
+  swatch: css`
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  `,
+  legendLabel: css`
+    font-size: ${token.fontSizeSM}px;
+    font-weight: 500;
+    color: ${token.colorTextSecondary};
+  `,
+  legendRange: css`
+    font-size: 11px;
+    color: ${token.colorTextTertiary};
+    font-variant-numeric: tabular-nums;
+  `,
+  footnote: css`
+    margin-block-start: ${token.marginSM}px;
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  `,
+  footnoteDot: css`
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: ${token.colorTextQuaternary};
+    display: inline-block;
+  `,
+  emptyHint: css`
+    margin-block-start: ${token.marginXXS}px;
+  `,
+}));
+
 export function TeamsPage() {
   const { t } = useTranslation();
+  const { styles } = useStyles();
+  const { token } = theme.useToken();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const showApiError = useApiError();
@@ -149,9 +227,9 @@ export function TeamsPage() {
     <div>
       <PageHeader title={t('teams.sectionTitle')} subtitle={t('teams.sectionSubtitle')} />
 
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16} className={styles.statsRow}>
         <Col xs={12} md={6}>
-          <StatCard label={t('teams.stats.teams')} value={grid.teams.length} accentColor="#1677ff" />
+          <StatCard label={t('teams.stats.teams')} value={grid.teams.length} accentColor={token.colorPrimary} />
         </Col>
         <Col xs={12} md={6}>
           <StatCard
@@ -164,28 +242,19 @@ export function TeamsPage() {
           <StatCard
             label={t('teams.stats.avgLoad')}
             value={overallNow.empty ? '—' : `${Math.round(overallNow.pct)}%`}
-            accentColor={overallNow.empty ? 'rgba(0,0,0,.45)' : overallColor.solid}
+            accentColor={overallNow.empty ? token.colorTextTertiary : overallColor.solid}
           />
         </Col>
         <Col xs={12} md={6}>
           <StatCard
             label={t('teams.stats.overloaded')}
             value={overloadedNow}
-            accentColor={overloadedNow ? '#cf1322' : 'rgba(0,0,0,.45)'}
+            accentColor={overloadedNow ? token.colorError : token.colorTextTertiary}
           />
         </Col>
       </Row>
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
-          marginBottom: 12,
-          flexWrap: 'wrap',
-        }}
-      >
+      <div className={styles.toolbar}>
         <Space size={8} wrap>
           {grainOptions.length > 1 && (
             <Segmented
@@ -208,31 +277,22 @@ export function TeamsPage() {
           <Button size="small" onClick={() => setExpandedState(new Set())}>
             {t('teams.grid.collapseAll')}
           </Button>
-          <Space size={6} style={{ marginLeft: 4 }}>
+          <Space size={6} className={styles.switchGroup}>
             <Switch size="small" checked={showValues} onChange={setShowValues} />
-            <span style={{ fontSize: 12, color: 'rgba(0,0,0,.5)' }}>{t('teams.grid.showValues')}</span>
+            <span className={styles.switchLabel}>{t('teams.grid.showValues')}</span>
           </Space>
           {grid.isSeriesFetching && <Spin size="small" />}
         </Space>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: 'rgba(0,0,0,.45)' }}>{t('teams.grid.legendTitle')}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className={styles.legend}>
+          <span className={styles.legendTitle}>{t('teams.grid.legendTitle')}</span>
+          <div className={styles.legendItems}>
             {bands.map((b, i) => (
-              <span key={`${b.label}-${i}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <span
-                  style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: 3,
-                    background: bandStop(i, bands.length).solid,
-                    flexShrink: 0,
-                  }}
-                />
-                <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(0,0,0,.7)' }}>{b.label}</span>
-                <span style={{ fontSize: 11, color: 'rgba(0,0,0,.4)', fontVariantNumeric: 'tabular-nums' }}>
-                  {b.range}
-                </span>
+              <span key={`${b.label}-${i}`} className={styles.legendItem}>
+                {/* dynamic: swatch colour is the band's generated stop colour. */}
+                <span className={styles.swatch} style={{ background: bandStop(i, bands.length).solid }} />
+                <span className={styles.legendLabel}>{b.label}</span>
+                <span className={styles.legendRange}>{b.range}</span>
               </span>
             ))}
           </div>
@@ -245,7 +305,7 @@ export function TeamsPage() {
           showIcon
           message={t('teams.emptyTitle')}
           description={
-            <Space direction="vertical" size={8} style={{ marginTop: 4 }}>
+            <Space direction="vertical" size={8} className={styles.emptyHint}>
               <span>{t('teams.emptyHint')}</span>
               <TeamCreateInline onCreate={(name) => createMutation.mutate({ data: { name } })} saving={createMutation.isPending} />
             </Space>
@@ -272,17 +332,8 @@ export function TeamsPage() {
         />
       )}
 
-      <div
-        style={{
-          marginTop: 10,
-          fontSize: 12,
-          color: 'rgba(0,0,0,.4)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-        }}
-      >
-        <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(0,0,0,.35)', display: 'inline-block' }} />
+      <div className={styles.footnote}>
+        <span className={styles.footnoteDot} />
         {t('teams.grid.footnote')}
       </div>
     </div>

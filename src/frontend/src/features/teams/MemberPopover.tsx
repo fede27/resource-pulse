@@ -6,10 +6,72 @@ import {
   SearchOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
 import type { TeamReadDto } from '@/api/generated/schemas';
 import type { TeamGrid } from './useTeamGrid';
+
+const useStyles = createStyles(({ token, css }) => ({
+  content: css`
+    width: 340px;
+  `,
+  searchIcon: css`
+    color: ${token.colorTextQuaternary};
+  `,
+  search: css`
+    margin-block-end: ${token.marginSM}px;
+  `,
+  countRow: css`
+    display: flex;
+    justify-content: space-between;
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+    padding: 0 2px 8px;
+  `,
+  list: css`
+    max-height: 340px;
+    overflow: auto;
+    margin: 0 -6px;
+  `,
+  row: css`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px;
+    border-radius: ${token.borderRadius}px;
+    background: transparent;
+  `,
+  rowMember: css`
+    background: ${token.colorPrimaryBg};
+  `,
+  rowBody: css`
+    flex: 1;
+    min-width: 0;
+  `,
+  name: css`
+    font-size: ${token.fontSizeSM}px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `,
+  role: css`
+    font-size: 11px;
+    color: ${token.colorTextTertiary};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `,
+  teamTag: css`
+    margin-inline-end: 0;
+    font-size: 10px;
+    line-height: 16px;
+  `,
+  empty: css`
+    margin: ${token.marginSM}px 0;
+  `,
+}));
 
 type MemberPopoverProps = {
   team: TeamReadDto;
@@ -20,6 +82,7 @@ type MemberPopoverProps = {
 
 export function MemberPopover({ team, grid, onAssign, assigningId }: MemberPopoverProps) {
   const { t } = useTranslation();
+  const { styles, cx } = useStyles();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
 
@@ -57,7 +120,7 @@ export function MemberPopover({ team, grid, onAssign, assigningId }: MemberPopov
   // Built only while the popover is open — avoids rendering the full member
   // list (one per team row + add-member row) on every grid render.
   const content = !open ? null : (
-    <div style={{ width: 340 }}>
+    <div className={styles.content}>
       <Input
         autoFocus
         allowClear
@@ -65,18 +128,10 @@ export function MemberPopover({ team, grid, onAssign, assigningId }: MemberPopov
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder={t('teams.members.searchPlaceholder')}
-        prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,.35)' }} />}
-        style={{ marginBottom: 10 }}
+        prefix={<SearchOutlined className={styles.searchIcon} />}
+        className={styles.search}
       />
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: 12,
-          color: 'rgba(0,0,0,.45)',
-          padding: '0 2px 8px',
-        }}
-      >
+      <div className={styles.countRow}>
         <span>
           {t('teams.members.count', {
             n: members.length,
@@ -84,7 +139,7 @@ export function MemberPopover({ team, grid, onAssign, assigningId }: MemberPopov
           })}
         </span>
       </div>
-      <div style={{ maxHeight: 340, overflow: 'auto', margin: '0 -6px' }}>
+      <div className={styles.list}>
         {ordered.map((r) => {
           const id = r.id!;
           const isMember = memberSet.has(id);
@@ -92,43 +147,15 @@ export function MemberPopover({ team, grid, onAssign, assigningId }: MemberPopov
           const role = r.roleId ? grid.roleNameById[r.roleId] ?? '' : '';
           const busy = assigningId === id;
           return (
-            <div
-              key={id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '6px 6px',
-                borderRadius: 8,
-                background: isMember ? '#f6faff' : 'transparent',
-              }}
-            >
+            <div key={id} className={cx(styles.row, isMember && styles.rowMember)}>
               <InitialsAvatar name={r.name ?? '?'} seed={id} size={30} style={{ fontSize: 11 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {r.name ?? '—'}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: 'rgba(0,0,0,.45)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
+              <div className={styles.rowBody}>
+                <div className={styles.name}>{r.name ?? '—'}</div>
+                <div className={styles.role}>
                   {otherTeam ? (
                     <>
                       {role ? `${role} · ` : ''}
-                      <Tag bordered={false} style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}>
+                      <Tag bordered={false} className={styles.teamTag}>
                         {otherTeam}
                       </Tag>
                     </>
@@ -168,7 +195,7 @@ export function MemberPopover({ team, grid, onAssign, assigningId }: MemberPopov
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={t('teams.members.noneFound')}
-            style={{ margin: '12px 0' }}
+            className={styles.empty}
           />
         )}
       </div>
