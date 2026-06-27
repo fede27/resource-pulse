@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { ClockCircleOutlined } from '@ant-design/icons';
-import { createStyles } from 'antd-style';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useBusinessCalendarsGetAll } from '@/api/generated/business-calendars/business-calendars';
@@ -12,22 +11,9 @@ import type {
 import { StickyTabStrip, type StickyTabItem } from '@/components/domain/StickyTabStrip';
 import { CalendarsTab } from './calendars/CalendarsTab';
 import { ClosuresTab } from './closures/ClosuresTab';
+import { useStyles } from './TimeConfigPage.styles';
 
 type TabKey = 'calendari' | 'chiusure';
-
-const useStyles = createStyles(({ token, css }) => ({
-  refIcon: css`
-    font-size: ${token.fontSizeSM}px;
-  `,
-  refDate: css`
-    font-variant-numeric: tabular-nums;
-    color: ${token.colorTextSecondary};
-  `,
-  content: css`
-    padding: ${token.pageGutter}px;
-    max-width: ${token.pageMaxWidth}px;
-  `,
-}));
 
 export function TimeConfigPage() {
   const { t } = useTranslation();

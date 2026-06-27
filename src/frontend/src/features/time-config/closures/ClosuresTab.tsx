@@ -1,16 +1,9 @@
 import { useMemo, useState } from 'react';
 import { App, Button, Card, Col, Empty, Flex, Row, Skeleton } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { createStyles } from 'antd-style';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-
-const useStyles = createStyles(({ token, css }) => ({
-  mb: css`
-    margin-block-end: ${token.margin}px;
-  `,
-}));
 import {
   getCompanyClosuresGetAllQueryKey,
   useCompanyClosuresCreate,
@@ -25,6 +18,7 @@ import { StatCard } from '@/components/domain/StatCard';
 import { YearSelector } from '@/components/domain/YearSelector';
 import { ClosureInlineForm, type ClosureFormValues } from './ClosureInlineForm';
 import { ClosureSection } from './ClosureSection';
+import { useStyles } from './ClosuresTab.styles';
 
 type EditState =
   | { kind: 'idle' }

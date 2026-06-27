@@ -1,36 +1,15 @@
 import { useEffect } from 'react';
 import { Button, Collapse, DatePicker, Form, Select, Space, TimePicker, Typography } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
-import { createStyles } from 'antd-style';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { DayOfWeek, WorkWindowDto } from '@/api/generated/schemas';
 import { useDays } from '@/i18n/useDays';
 import { columnIndexToDayOfWeek, timeToMinutes } from './workWindow.utils';
 import type { WorkWindowFormValues } from './workWindowForm';
+import { useStyles } from './WorkWindowPopover.styles';
 
 const { Text } = Typography;
-
-const useStyles = createStyles(({ token, css }) => ({
-  form: css`
-    width: 300px;
-  `,
-  fullWidth: css`
-    width: 100%;
-  `,
-  half: css`
-    width: 50%;
-  `,
-  caption: css`
-    font-size: ${token.fontSizeSM}px;
-  `,
-  footer: css`
-    margin-block-start: ${token.marginSM}px;
-    display: flex;
-    justify-content: space-between;
-    gap: ${token.marginXS}px;
-  `,
-}));
 
 export type WorkWindowPopoverContentProps = {
   initial: Partial<WorkWindowDto> | null;

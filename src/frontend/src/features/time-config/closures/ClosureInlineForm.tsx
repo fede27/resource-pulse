@@ -1,42 +1,12 @@
 import { useEffect } from 'react';
 import { Button, Card, DatePicker, Form, Input, Radio, Space, Tag, Typography } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
-import { createStyles } from 'antd-style';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { CompanyClosureReadDto } from '@/api/generated/schemas';
+import { useStyles } from './ClosureInlineForm.styles';
 
 const { Text } = Typography;
-
-const useStyles = createStyles(({ token, css }) => ({
-  card: css`
-    border: 1px solid ${token.colorPrimary};
-    box-shadow: 0 0 0 2px ${token.colorPrimaryBorder};
-  `,
-  header: css`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-block-end: ${token.marginSM}px;
-  `,
-  fieldSm: css`
-    margin-block-end: ${token.marginXS}px;
-  `,
-  fieldMd: css`
-    margin-block-end: ${token.marginSM}px;
-  `,
-  footer: css`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-block-start: ${token.marginSM}px;
-    gap: ${token.marginXS}px;
-  `,
-  daysTag: css`
-    font-variant-numeric: tabular-nums;
-    margin: 0;
-  `,
-}));
 
 export type ClosureFormValues = {
   reason: string;
