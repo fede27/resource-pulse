@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { App, Card, Col, Empty, Row, Skeleton, theme } from 'antd';
 import { TeamOutlined } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,9 +25,33 @@ import { PersonDetail } from './PersonDetail';
 import { PersonInlineCreate, type PersonCreateValues } from './PersonInlineCreate';
 import { PersonList } from './PersonList';
 
+const useStyles = createStyles(({ token, css }) => ({
+  statsRow: css`
+    margin-block-end: ${token.margin}px;
+  `,
+  col: css`
+    margin-block-end: ${token.margin}px;
+  `,
+  emptyIcon: css`
+    font-size: 48px;
+    color: ${token.colorTextQuaternary};
+  `,
+  noneTitle: css`
+    font-weight: 500;
+    margin-block-end: ${token.marginXXS}px;
+  `,
+  noneDesc: css`
+    color: ${token.colorTextTertiary};
+    font-size: ${token.fontSizeSM}px;
+  `,
+}));
+
+const EMPTY_IMAGE_STYLE = { height: 64, display: 'flex', justifyContent: 'center' } as const;
+
 export function PeoplePage() {
   const { t } = useTranslation();
   const { token } = theme.useToken();
+  const { styles } = useStyles();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const showApiError = useApiError();
@@ -157,7 +182,7 @@ export function PeoplePage() {
         subtitle={t('people.sectionSubtitle')}
       />
 
-      <Row gutter={16} style={{ marginBottom: 16 }}>
+      <Row gutter={16} className={styles.statsRow}>
         <Col xs={24} md={8}>
           <StatCard
             label={t('people.statsPeople')}
@@ -185,7 +210,7 @@ export function PeoplePage() {
       </Row>
 
       <Row gutter={16} align="top" wrap>
-        <Col xs={24} md={9} lg={8} xl={7} style={{ marginBottom: 16 }}>
+        <Col xs={24} md={9} lg={8} xl={7} className={styles.col}>
           <PersonList
             people={filtered}
             selectedId={selected?.id ?? null}
@@ -208,22 +233,18 @@ export function PeoplePage() {
             }
           />
         </Col>
-        <Col xs={24} md={15} lg={16} xl={17} style={{ marginBottom: 16 }}>
+        <Col xs={24} md={15} lg={16} xl={17} className={styles.col}>
           {selected ? (
             <PersonDetail person={selected} />
           ) : (
             <Card>
               <Empty
-                image={<TeamOutlined style={{ fontSize: 48, color: token.colorTextQuaternary }} />}
-                imageStyle={{ height: 64, display: 'flex', justifyContent: 'center' }}
+                image={<TeamOutlined className={styles.emptyIcon} />}
+                imageStyle={EMPTY_IMAGE_STYLE}
                 description={
                   <>
-                    <div style={{ fontWeight: 500, marginBottom: 4 }}>
-                      {t('people.noneSelectedTitle')}
-                    </div>
-                    <div style={{ color: token.colorTextTertiary, fontSize: 13 }}>
-                      {t('people.noneSelectedDescription')}
-                    </div>
+                    <div className={styles.noneTitle}>{t('people.noneSelectedTitle')}</div>
+                    <div className={styles.noneDesc}>{t('people.noneSelectedDescription')}</div>
                   </>
                 }
               />

@@ -1,12 +1,53 @@
-import { useState } from 'react';
-import { Button, Tag, theme, Tooltip, Typography } from 'antd';
+import { Button, Tag, Tooltip, Typography } from 'antd';
 import { CheckOutlined, ClockCircleOutlined, CloseCircleOutlined, DeleteOutlined } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 import { SkillApprovalStatus, SkillLevel } from '@/api/generated/schemas';
 import { SegmentedLevelControl } from '@/components/domain/SegmentedLevelControl';
 import { getSkillLevelOptions } from './skillLevel';
 
 const { Text } = Typography;
+
+const useStyles = createStyles(({ token, css }) => ({
+  // `--reveal` drives the delete icon's opacity; the row reveals it on hover so
+  // there's no hover state in React.
+  root: css`
+    display: flex;
+    align-items: center;
+    gap: ${token.marginSM}px;
+    padding: ${token.paddingXS}px;
+    margin: 0 -${token.marginXS}px;
+    border-radius: ${token.borderRadius}px;
+    background: transparent;
+    transition: background ${token.motionDurationFast};
+    --reveal: transparent;
+    &:hover {
+      background: ${token.colorFillQuaternary};
+      --reveal: ${token.colorTextTertiary};
+    }
+  `,
+  name: css`
+    flex: 1;
+    min-width: 0;
+    font-size: ${token.fontSize}px;
+    display: flex;
+    align-items: center;
+    gap: ${token.marginXS}px;
+    flex-wrap: wrap;
+  `,
+  nameText: css`
+    font-size: ${token.fontSize}px;
+  `,
+  chip: css`
+    margin: 0;
+  `,
+  deleteBtn: css`
+    transition: color ${token.motionDurationFast};
+    && {
+      color: var(--reveal);
+    }
+  `,
+}));
 
 export type PersonSkillRowProps = {
   name: string;
@@ -26,15 +67,14 @@ export function PersonSkillRow({
   busy = false,
 }: PersonSkillRowProps) {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
-  const [hover, setHover] = useState(false);
+  const { styles } = useStyles();
 
   const statusChip = (() => {
     switch (status) {
       case SkillApprovalStatus.Approved:
         return (
           <Tooltip title={t('people.skills.statusApprovedTooltip')}>
-            <Tag color="success" icon={<CheckOutlined />} style={{ margin: 0 }}>
+            <Tag color="success" icon={<CheckOutlined />} className={styles.chip}>
               {t('people.skills.statusApproved')}
             </Tag>
           </Tooltip>
@@ -42,7 +82,7 @@ export function PersonSkillRow({
       case SkillApprovalStatus.Rejected:
         return (
           <Tooltip title={t('people.skills.statusRejectedTooltip')}>
-            <Tag color="error" icon={<CloseCircleOutlined />} style={{ margin: 0 }}>
+            <Tag color="error" icon={<CloseCircleOutlined />} className={styles.chip}>
               {t('people.skills.statusRejected')}
             </Tag>
           </Tooltip>
@@ -51,7 +91,7 @@ export function PersonSkillRow({
       default:
         return (
           <Tooltip title={t('people.skills.statusPendingTooltip')}>
-            <Tag color="warning" icon={<ClockCircleOutlined />} style={{ margin: 0 }}>
+            <Tag color="warning" icon={<ClockCircleOutlined />} className={styles.chip}>
               {t('people.skills.statusPending')}
             </Tag>
           </Tooltip>
@@ -60,32 +100,9 @@ export function PersonSkillRow({
   })();
 
   return (
-    <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '8px 8px',
-        margin: '0 -8px',
-        borderRadius: token.borderRadius,
-        background: hover ? token.colorFillQuaternary : 'transparent',
-        transition: `background ${token.motionDurationFast}`,
-      }}
-    >
-      <span
-        style={{
-          flex: 1,
-          minWidth: 0,
-          fontSize: 14,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          flexWrap: 'wrap',
-        }}
-      >
-        <Text style={{ fontSize: 14 }}>{name}</Text>
+    <div className={styles.root}>
+      <span className={styles.name}>
+        <Text className={styles.nameText}>{name}</Text>
         {statusChip}
       </span>
       <SegmentedLevelControl<SkillLevel>
@@ -101,10 +118,7 @@ export function PersonSkillRow({
         onClick={onRemove}
         loading={busy}
         title={t('people.skills.removeAction')}
-        style={{
-          color: hover ? token.colorTextTertiary : 'transparent',
-          transition: `color ${token.motionDurationFast}`,
-        }}
+        className={styles.deleteBtn}
       />
     </div>
   );

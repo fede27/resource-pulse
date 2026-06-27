@@ -1,10 +1,111 @@
-import { Badge, Button, Empty, Input, theme, Tooltip, Typography } from 'antd';
+import { Badge, Button, Empty, Input, Tooltip, Typography } from 'antd';
 import { PlusOutlined, SearchOutlined, TeamOutlined } from '@ant-design/icons';
+import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
 import type { ResourceReadDto } from '@/api/generated/schemas';
 
 const { Text } = Typography;
+
+const useStyles = createStyles(({ token, css }) => ({
+  root: css`
+    background: ${token.colorBgContainer};
+    border: 1px solid ${token.colorBorderSecondary};
+    border-radius: ${token.borderRadiusLG}px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  `,
+  header: css`
+    padding: ${token.paddingSM}px ${token.padding}px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid ${token.colorBorderSecondary};
+    gap: ${token.marginXS}px;
+  `,
+  searchWrap: css`
+    padding: ${token.paddingXS}px ${token.paddingSM}px;
+    border-bottom: 1px solid ${token.colorBorderSecondary};
+  `,
+  searchIcon: css`
+    color: ${token.colorTextTertiary};
+    font-size: ${token.fontSizeSM}px;
+  `,
+  list: css`
+    overflow: auto;
+    flex: 1;
+    max-height: 620px;
+  `,
+  row: css`
+    position: relative;
+    padding: ${token.paddingSM}px ${token.padding}px;
+    cursor: pointer;
+    border-bottom: 1px solid ${token.colorBorderSecondary};
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: ${token.marginSM}px;
+    transition: background ${token.motionDurationFast};
+    &:hover {
+      background: ${token.colorFillTertiary};
+    }
+  `,
+  rowSelected: css`
+    background: ${token.colorPrimaryBg};
+    &:hover {
+      background: ${token.colorPrimaryBg};
+    }
+  `,
+  accent: css`
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: ${token.colorPrimary};
+  `,
+  rowBody: css`
+    flex: 1;
+    min-width: 0;
+  `,
+  name: css`
+    font-size: ${token.fontSize}px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: ${token.colorText};
+  `,
+  nameInactive: css`
+    color: ${token.colorTextTertiary};
+  `,
+  secondary: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `,
+  pendingBadge: css`
+    .ant-badge-count {
+      background: ${token.colorWarningBg};
+      color: ${token.colorWarningText};
+      border: 1px solid ${token.colorWarningBorder};
+      box-shadow: none;
+      font-variant-numeric: tabular-nums;
+    }
+  `,
+  emptyWrap: css`
+    padding: ${token.paddingLG}px;
+  `,
+  emptyIcon: css`
+    font-size: 44px;
+    color: ${token.colorTextQuaternary};
+  `,
+}));
+
+const EMPTY_IMAGE_STYLE = { height: 56, display: 'flex', justifyContent: 'center' } as const;
 
 export type PersonListProps = {
   people: ResourceReadDto[];
@@ -35,32 +136,12 @@ export function PersonList({
   roleNameByPerson,
 }: PersonListProps) {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles, cx } = useStyles();
 
   return (
-    <div
-      style={{
-        background: token.colorBgContainer,
-        border: `1px solid ${token.colorBorderSecondary}`,
-        borderRadius: token.borderRadiusLG,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <div
-        style={{
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: `1px solid ${token.colorBorderSecondary}`,
-          gap: 8,
-        }}
-      >
-        <Text strong>
-          {t('people.listCount', { count: people.length })}
-        </Text>
+    <div className={styles.root}>
+      <div className={styles.header}>
+        <Text strong>{t('people.listCount', { count: people.length })}</Text>
         {!isCreating && (
           <Button
             size="small"
@@ -73,27 +154,20 @@ export function PersonList({
         )}
       </div>
 
-      <div
-        style={{
-          padding: '10px 12px',
-          borderBottom: `1px solid ${token.colorBorderSecondary}`,
-        }}
-      >
+      <div className={styles.searchWrap}>
         <Input
           size="small"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={t('people.searchPlaceholder')}
-          prefix={
-            <SearchOutlined style={{ color: token.colorTextTertiary, fontSize: 13 }} />
-          }
+          prefix={<SearchOutlined className={styles.searchIcon} />}
           allowClear
         />
       </div>
 
       {inlineSlot}
 
-      <div style={{ overflow: 'auto', flex: 1, maxHeight: 620 }}>
+      <div className={styles.list}>
         {people.map((p) => {
           const id = p.id ?? '';
           const selected = id === selectedId;
@@ -107,90 +181,29 @@ export function PersonList({
             <div
               key={id}
               onClick={() => onSelect(id)}
-              style={{
-                position: 'relative',
-                padding: '12px 16px',
-                cursor: 'pointer',
-                borderBottom: `1px solid ${token.colorBorderSecondary}`,
-                background: selected ? token.colorPrimaryBg : 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                transition: `background ${token.motionDurationFast}`,
-              }}
-              onMouseEnter={(e) => {
-                if (!selected)
-                  e.currentTarget.style.background = token.colorFillTertiary;
-              }}
-              onMouseLeave={(e) => {
-                if (!selected) e.currentTarget.style.background = 'transparent';
-              }}
+              className={cx(styles.row, selected && styles.rowSelected)}
             >
-              {selected && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: 3,
-                    background: token.colorPrimary,
-                  }}
-                />
-              )}
+              {selected && <span className={styles.accent} />}
               <InitialsAvatar name={p.name ?? '?'} size={36} seed={id} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    color: p.isActive ? token.colorText : token.colorTextTertiary,
-                  }}
-                >
+              <div className={styles.rowBody}>
+                <div className={cx(styles.name, !p.isActive && styles.nameInactive)}>
                   {p.name || '—'}
                 </div>
-                {secondary && (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: token.colorTextTertiary,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {secondary}
-                  </div>
-                )}
+                {secondary && <div className={styles.secondary}>{secondary}</div>}
               </div>
               {pending > 0 && (
-                <Tooltip
-                  title={t('people.pendingBadgeTooltip', { count: pending })}
-                >
-                  <Badge
-                    count={pending}
-                    style={{
-                      backgroundColor: token.colorWarningBg,
-                      color: token.colorWarningText,
-                      border: `1px solid ${token.colorWarningBorder}`,
-                      boxShadow: 'none',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                    overflowCount={99}
-                  />
+                <Tooltip title={t('people.pendingBadgeTooltip', { count: pending })}>
+                  <Badge count={pending} className={styles.pendingBadge} overflowCount={99} />
                 </Tooltip>
               )}
             </div>
           );
         })}
         {people.length === 0 && (
-          <div style={{ padding: 24 }}>
+          <div className={styles.emptyWrap}>
             <Empty
-              image={<TeamOutlined style={{ fontSize: 44, color: token.colorTextQuaternary }} />}
-              imageStyle={{ height: 56, display: 'flex', justifyContent: 'center' }}
+              image={<TeamOutlined className={styles.emptyIcon} />}
+              imageStyle={EMPTY_IMAGE_STYLE}
               description={
                 search.trim()
                   ? t('people.emptyListSearch')

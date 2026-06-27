@@ -13,6 +13,7 @@ import {
   theme,
   Typography,
 } from 'antd';
+import { createStyles } from 'antd-style';
 import {
   ExclamationCircleOutlined,
   MoreOutlined,
@@ -70,13 +71,111 @@ const { Text, Title } = Typography;
 
 const EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
+const useStyles = createStyles(({ token, css }) => ({
+  stack: css`
+    width: 100%;
+  `,
+  headerRow: css`
+    display: flex;
+    gap: ${token.margin}px;
+    align-items: flex-start;
+  `,
+  headerBody: css`
+    flex: 1;
+    min-width: 0;
+  `,
+  title: css`
+    margin: 0;
+    font-weight: 600;
+  `,
+  email: css`
+    margin-block-start: ${token.marginXXS}px;
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextSecondary};
+  `,
+  roleRow: css`
+    margin-block-start: ${token.marginSM}px;
+    display: flex;
+    align-items: center;
+    gap: ${token.marginXS}px;
+    flex-wrap: wrap;
+  `,
+  caption: css`
+    font-size: ${token.fontSizeSM}px;
+  `,
+  cardTitleRow: css`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  `,
+  cardTitleText: css`
+    font-size: 15px;
+  `,
+  cardTitleSub: css`
+    font-size: ${token.fontSizeSM}px;
+  `,
+  cardDesc: css`
+    display: block;
+    margin-block-end: ${token.marginSM}px;
+    font-size: ${token.fontSizeSM}px;
+  `,
+  tagWrap: css`
+    display: flex;
+    flex-wrap: wrap;
+    gap: ${token.marginXS}px;
+    align-items: center;
+    margin-block-end: ${token.marginSM}px;
+    min-height: 24px;
+  `,
+  muted: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+  `,
+  mutedBlock: css`
+    display: block;
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+    margin-block-end: ${token.marginSM}px;
+  `,
+  tagItem: css`
+    margin-inline-end: 0;
+  `,
+  comboWrap: css`
+    max-width: 340px;
+  `,
+  skillList: css`
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-block-end: ${token.marginSM}px;
+  `,
+  alert: css`
+    margin-block-end: ${token.marginSM}px;
+  `,
+  roleSelect: css`
+    min-width: 220px;
+  `,
+  roleDivider: css`
+    margin: ${token.marginXXS}px 0;
+  `,
+  roleCreateRow: css`
+    padding: ${token.paddingXXS}px ${token.paddingXS}px;
+    display: flex;
+    gap: 6px;
+  `,
+}));
+
 export type PersonDetailProps = {
   person: ResourceReadDto;
 };
 
 export function PersonDetail({ person }: PersonDetailProps) {
   const { t } = useTranslation();
+  // token is still read directly for the two icon-colour props handed to
+  // imperative/prop slots (modal.confirm icon, Alert icon) that can't take a
+  // className.
   const { token } = theme.useToken();
+  const { styles } = useStyles();
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const showApiError = useApiError();
@@ -425,18 +524,18 @@ export function PersonDetail({ person }: PersonDetailProps) {
   );
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space direction="vertical" size={16} className={styles.stack}>
       {/* Header card */}
       <Card>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+        <div className={styles.headerRow}>
           <InitialsAvatar
             name={personName || '?'}
             size={56}
             seed={personId}
             style={{ fontSize: 20 }}
           />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Title level={4} style={{ margin: 0, fontWeight: 600 }}>
+          <div className={styles.headerBody}>
+            <Title level={4} className={styles.title}>
               <InlineEditableText
                 value={personName}
                 fontSize={20}
@@ -453,7 +552,7 @@ export function PersonDetail({ person }: PersonDetailProps) {
               />
             </Title>
 
-            <div style={{ marginTop: 6, fontSize: 13, color: token.colorTextSecondary }}>
+            <div className={styles.email}>
               <InlineEditableText
                 value={person.email ?? ''}
                 fontSize={13}
@@ -467,19 +566,11 @@ export function PersonDetail({ person }: PersonDetailProps) {
               />
             </div>
 
-            <div
-              style={{
-                marginTop: 10,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                flexWrap: 'wrap',
-              }}
-            >
+            <div className={styles.roleRow}>
               {!(person.isActive ?? true) && (
                 <Tag color="default">{t('people.inactiveBadge')}</Tag>
               )}
-              <Text type="secondary" style={{ fontSize: 12 }}>
+              <Text type="secondary" className={styles.caption}>
                 {t('people.role')}
               </Text>
               <RoleSelect
@@ -521,29 +612,18 @@ export function PersonDetail({ person }: PersonDetailProps) {
       {/* Tags card */}
       <Card
         title={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text strong style={{ fontSize: 15 }}>{t('people.tags.title')}</Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>{t('people.tags.subtitle')}</Text>
+          <div className={styles.cardTitleRow}>
+            <Text strong className={styles.cardTitleText}>{t('people.tags.title')}</Text>
+            <Text type="secondary" className={styles.cardTitleSub}>{t('people.tags.subtitle')}</Text>
           </div>
         }
       >
-        <Text type="secondary" style={{ display: 'block', marginBottom: 12, fontSize: 13 }}>
+        <Text type="secondary" className={styles.cardDesc}>
           {t('people.tags.description')}
         </Text>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 8,
-            alignItems: 'center',
-            marginBottom: 14,
-            minHeight: 24,
-          }}
-        >
+        <div className={styles.tagWrap}>
           {attachedTags.length === 0 && (
-            <Text style={{ fontSize: 13, color: token.colorTextTertiary }}>
-              {t('people.tags.empty')}
-            </Text>
+            <Text className={styles.muted}>{t('people.tags.empty')}</Text>
           )}
           {attachedTags.map((tag) => (
             <Tag
@@ -557,13 +637,13 @@ export function PersonDetail({ person }: PersonDetailProps) {
                   tagId: tag.id,
                 });
               }}
-              style={{ marginInlineEnd: 0 }}
+              className={styles.tagItem}
             >
               {tag.name}
             </Tag>
           ))}
         </div>
-        <div style={{ maxWidth: 340 }}>
+        <div className={styles.comboWrap}>
           <SuggestCombobox
             pool={tagPool}
             exclude={excludedTagLabels}
@@ -583,22 +663,20 @@ export function PersonDetail({ person }: PersonDetailProps) {
       {/* Skills card */}
       <Card
         title={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text strong style={{ fontSize: 15 }}>{t('people.skills.title')}</Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>{t('people.skills.subtitle')}</Text>
+          <div className={styles.cardTitleRow}>
+            <Text strong className={styles.cardTitleText}>{t('people.skills.title')}</Text>
+            <Text type="secondary" className={styles.cardTitleSub}>{t('people.skills.subtitle')}</Text>
           </div>
         }
       >
-        <Text type="secondary" style={{ display: 'block', marginBottom: 14, fontSize: 13 }}>
+        <Text type="secondary" className={styles.cardDesc}>
           {t('people.skills.description')}
         </Text>
 
         {attachedSkills.length === 0 ? (
-          <Text style={{ fontSize: 13, color: token.colorTextTertiary, display: 'block', marginBottom: 14 }}>
-            {t('people.skills.empty')}
-          </Text>
+          <Text className={styles.mutedBlock}>{t('people.skills.empty')}</Text>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 14 }}>
+          <div className={styles.skillList}>
             {attachedSkills.map((skill) => (
               <PersonSkillRow
                 key={skill.id}
@@ -635,11 +713,11 @@ export function PersonDetail({ person }: PersonDetailProps) {
             showIcon
             icon={<WarningFilled style={{ color: token.colorWarning }} />}
             message={t('people.skills.pendingCount', { count: pendingCount })}
-            style={{ marginBottom: 14 }}
+            className={styles.alert}
           />
         )}
 
-        <div style={{ maxWidth: 340 }}>
+        <div className={styles.comboWrap}>
           <SuggestCombobox
             pool={skillPool}
             exclude={excludedSkillLabels}
@@ -680,6 +758,7 @@ function RoleSelect({
   onCreate,
 }: RoleSelectProps) {
   const { t } = useTranslation();
+  const { styles } = useStyles();
   const [draft, setDraft] = useState('');
 
   const exactExists = options.some(
@@ -696,7 +775,7 @@ function RoleSelect({
   return (
     <Select
       size="small"
-      style={{ minWidth: 220 }}
+      className={styles.roleSelect}
       allowClear
       showSearch
       optionFilterProp="label"
@@ -710,8 +789,8 @@ function RoleSelect({
       dropdownRender={(menu) => (
         <>
           {menu}
-          <Divider style={{ margin: '4px 0' }} />
-          <div style={{ padding: '4px 8px', display: 'flex', gap: 6 }}>
+          <Divider className={styles.roleDivider} />
+          <div className={styles.roleCreateRow}>
             <Input
               size="small"
               placeholder={t('people.roleCreateLabel')}

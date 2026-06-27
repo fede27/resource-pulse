@@ -1,10 +1,46 @@
 import { useEffect, useRef } from 'react';
-import { Button, Form, Input, Select, Space, theme, Typography } from 'antd';
+import { Button, Form, Input, Select, Space, Typography } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import type { InputRef } from 'antd';
+import { createStyles } from 'antd-style';
 import { useTranslation } from 'react-i18next';
 
 const { Text } = Typography;
+
+const useStyles = createStyles(({ token, css }) => ({
+  root: css`
+    padding: 14px;
+    background: ${token.colorFillQuaternary};
+    border-bottom: 1px solid ${token.colorBorderSecondary};
+  `,
+  header: css`
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-block-end: ${token.marginSM}px;
+  `,
+  title: css`
+    font-size: ${token.fontSizeSM}px;
+  `,
+  close: css`
+    cursor: pointer;
+    color: ${token.colorTextTertiary};
+    display: inline-flex;
+  `,
+  closeGlyph: css`
+    font-size: 11px;
+  `,
+  field: css`
+    margin-block-end: ${token.marginXS}px;
+  `,
+  fieldLast: css`
+    margin-block-end: ${token.marginSM}px;
+  `,
+  footer: css`
+    display: flex;
+    justify-content: flex-end;
+  `,
+}));
 
 export type PersonCreateValues = {
   name: string;
@@ -31,7 +67,7 @@ export function PersonInlineCreate({
   roleOptions,
 }: PersonInlineCreateProps) {
   const { t } = useTranslation();
-  const { token } = theme.useToken();
+  const { styles } = useStyles();
   const [form] = Form.useForm<PersonCreateValues>();
   const ref = useRef<InputRef>(null);
 
@@ -41,37 +77,22 @@ export function PersonInlineCreate({
 
   return (
     <div
-      style={{
-        padding: 14,
-        background: token.colorFillQuaternary,
-        borderBottom: `1px solid ${token.colorBorderSecondary}`,
-      }}
+      className={styles.root}
       onKeyDown={(e) => {
         if (e.key === 'Escape') onCancel();
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 10,
-        }}
-      >
-        <Text strong style={{ fontSize: 13 }}>
+      <div className={styles.header}>
+        <Text strong className={styles.title}>
           {t('people.newPersonTitle')}
         </Text>
         <span
           onClick={onCancel}
-          style={{
-            cursor: 'pointer',
-            color: token.colorTextTertiary,
-            display: 'inline-flex',
-          }}
+          className={styles.close}
           role="button"
           aria-label={t('common.cancel')}
         >
-          <CloseOutlined style={{ fontSize: 11 }} />
+          <CloseOutlined className={styles.closeGlyph} />
         </span>
       </div>
 
@@ -90,7 +111,7 @@ export function PersonInlineCreate({
       >
         <Form.Item
           name="name"
-          style={{ marginBottom: 8 }}
+          className={styles.field}
           rules={[
             { required: true, message: t('people.nameRequired') },
             { max: 200, message: t('people.nameMaxLength') },
@@ -104,7 +125,7 @@ export function PersonInlineCreate({
 
         <Form.Item
           name="email"
-          style={{ marginBottom: 8 }}
+          className={styles.field}
           rules={[
             { type: 'email', message: t('people.emailInvalid') },
             { max: 256, message: t('people.emailMaxLength') },
@@ -113,7 +134,7 @@ export function PersonInlineCreate({
           <Input placeholder={t('people.emailPlaceholder')} />
         </Form.Item>
 
-        <Form.Item name="roleId" style={{ marginBottom: 10 }}>
+        <Form.Item name="roleId" className={styles.fieldLast}>
           <Select
             allowClear
             placeholder={t('people.rolePlaceholder')}
@@ -123,7 +144,7 @@ export function PersonInlineCreate({
           />
         </Form.Item>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div className={styles.footer}>
           <Space size={6}>
             <Button size="small" onClick={onCancel} disabled={saving}>
               {t('common.cancel')}
