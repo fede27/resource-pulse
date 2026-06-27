@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { App, Segmented } from 'antd';
-import { createStyles } from 'antd-style';
 import { useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
 import {
@@ -12,32 +11,10 @@ import { useApiError } from '@/lib/errors';
 import { ConfigCard } from './ConfigCard';
 import { ConstantNote } from './ConstantNote';
 import { grainKey } from './helpers';
+import { useStyles } from './BucketingCard.styles';
 
 const nowTime = () =>
   new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-
-const useStyles = createStyles(({ token, css }) => ({
-  row: css`
-    display: flex;
-    gap: 40px;
-    flex-wrap: wrap;
-  `,
-  fieldLabel: css`
-    font-size: ${token.fontSizeSM}px;
-    font-weight: 500;
-    margin-block-end: ${token.marginXS}px;
-  `,
-  error: css`
-    font-size: ${token.fontSizeSM}px;
-    color: ${token.colorError};
-    margin-block-start: ${token.marginSM}px;
-  `,
-  summary: css`
-    margin-block-start: ${token.margin}px;
-    font-size: ${token.fontSizeSM}px;
-    color: ${token.colorText};
-  `,
-}));
 
 export function BucketingCard({ committed }: { committed: BucketingDefaultsDto }) {
   const { t } = useTranslation();
