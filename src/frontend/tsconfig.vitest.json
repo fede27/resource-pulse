@@ -1,0 +1,15 @@
+{
+  // Typecheck config for the test suite (harness + *.test.* files), which the
+  // production build (tsconfig.app.json) deliberately excludes. Run via
+  // `npm run typecheck`. Inherits every strict flag from tsconfig.app.json —
+  // test code is held to the same standard as app code. The generated mocks
+  // that would otherwise violate `exactOptionalPropertyTypes` carry a
+  // `// @ts-nocheck` header (added by `generate:api`), so they don't force a
+  // relaxation here.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.vitest.tsbuildinfo"
+  },
+  "include": ["src"],
+  "exclude": []
+}
