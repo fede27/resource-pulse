@@ -3,7 +3,9 @@ import { defineConfig } from 'orval';
 export default defineConfig({
   resourcePulse: {
     input: {
-      target: 'http://localhost:5157/swagger/v1/swagger.json',
+      // Snapshot of the backend spec (refresh with: npm run snapshot:api).
+      // Decouples client + MSW mock generation from a running backend / CI.
+      target: './openapi/swagger.json',
     },
     output: {
       mode: 'tags-split',
@@ -11,6 +13,9 @@ export default defineConfig({
       schemas: 'src/api/generated/schemas',
       client: 'react-query',
       httpClient: 'axios',
+      // Emit MSW request handlers (one <tag>.msw.ts per tag) used by the test
+      // harness as the always-on baseline server. Never hand-write mock JSON.
+      mock: true,
       prettier: true,
       clean: true,
       override: {

@@ -1,0 +1,18 @@
+{
+  // Typecheck config for the test suite (harness + *.test.* files), which the
+  // production build (tsconfig.app.json) deliberately excludes. Run via
+  // `npm run typecheck`.
+  //
+  // `exactOptionalPropertyTypes` is relaxed here ONLY because orval's generated
+  // MSW mocks (src/api/generated/**/*.msw.ts, machine-generated, never edited)
+  // construct objects with explicit `undefined` optional props. App code keeps
+  // the strict flag (tsconfig.app.json). This relaxation is scoped to the test
+  // program and does not affect the shipped bundle.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "exactOptionalPropertyTypes": false,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.vitest.tsbuildinfo"
+  },
+  "include": ["src"],
+  "exclude": []
+}

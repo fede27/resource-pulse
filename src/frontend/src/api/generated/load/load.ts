@@ -20,8 +20,12 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  DailyLoadDto,
+  DailyNodeLoadDto,
+  HttpValidationProblemDetails,
   LoadGetProjectNodeLoadParams,
-  LoadGetResourceLoadParams
+  LoadGetResourceLoadParams,
+  ProblemDetails
 } from '../schemas';
 
 import { apiClient } from '../../client';
@@ -39,7 +43,7 @@ export const loadGetResourceLoad = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<DailyLoadDto[]>(
       {url: `/api/resources/${id}/load`, method: 'GET',
         params, signal
     },
@@ -57,7 +61,7 @@ export const getLoadGetResourceLoadQueryKey = (id: string,
     }
 
 
-export const getLoadGetResourceLoadQueryOptions = <TData = Awaited<ReturnType<typeof loadGetResourceLoad>>, TError = ErrorType<unknown>>(id: string,
+export const getLoadGetResourceLoadQueryOptions = <TData = Awaited<ReturnType<typeof loadGetResourceLoad>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(id: string,
     params?: LoadGetResourceLoadParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoad>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
@@ -77,10 +81,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type LoadGetResourceLoadQueryResult = NonNullable<Awaited<ReturnType<typeof loadGetResourceLoad>>>
-export type LoadGetResourceLoadQueryError = ErrorType<unknown>
+export type LoadGetResourceLoadQueryError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
 
 
-export function useLoadGetResourceLoad<TData = Awaited<ReturnType<typeof loadGetResourceLoad>>, TError = ErrorType<unknown>>(
+export function useLoadGetResourceLoad<TData = Awaited<ReturnType<typeof loadGetResourceLoad>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string,
     params: undefined |  LoadGetResourceLoadParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoad>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -91,7 +95,7 @@ export function useLoadGetResourceLoad<TData = Awaited<ReturnType<typeof loadGet
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useLoadGetResourceLoad<TData = Awaited<ReturnType<typeof loadGetResourceLoad>>, TError = ErrorType<unknown>>(
+export function useLoadGetResourceLoad<TData = Awaited<ReturnType<typeof loadGetResourceLoad>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string,
     params?: LoadGetResourceLoadParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoad>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -102,13 +106,13 @@ export function useLoadGetResourceLoad<TData = Awaited<ReturnType<typeof loadGet
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useLoadGetResourceLoad<TData = Awaited<ReturnType<typeof loadGetResourceLoad>>, TError = ErrorType<unknown>>(
+export function useLoadGetResourceLoad<TData = Awaited<ReturnType<typeof loadGetResourceLoad>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string,
     params?: LoadGetResourceLoadParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoad>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useLoadGetResourceLoad<TData = Awaited<ReturnType<typeof loadGetResourceLoad>>, TError = ErrorType<unknown>>(
+export function useLoadGetResourceLoad<TData = Awaited<ReturnType<typeof loadGetResourceLoad>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string,
     params?: LoadGetResourceLoadParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoad>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
@@ -133,7 +137,7 @@ export const loadGetProjectNodeLoad = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<DailyNodeLoadDto[]>(
       {url: `/api/project-nodes/${id}/load`, method: 'GET',
         params, signal
     },
@@ -151,7 +155,7 @@ export const getLoadGetProjectNodeLoadQueryKey = (id: string,
     }
 
 
-export const getLoadGetProjectNodeLoadQueryOptions = <TData = Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError = ErrorType<unknown>>(id: string,
+export const getLoadGetProjectNodeLoadQueryOptions = <TData = Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(id: string,
     params?: LoadGetProjectNodeLoadParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
@@ -171,10 +175,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type LoadGetProjectNodeLoadQueryResult = NonNullable<Awaited<ReturnType<typeof loadGetProjectNodeLoad>>>
-export type LoadGetProjectNodeLoadQueryError = ErrorType<unknown>
+export type LoadGetProjectNodeLoadQueryError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
 
 
-export function useLoadGetProjectNodeLoad<TData = Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError = ErrorType<unknown>>(
+export function useLoadGetProjectNodeLoad<TData = Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string,
     params: undefined |  LoadGetProjectNodeLoadParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -185,7 +189,7 @@ export function useLoadGetProjectNodeLoad<TData = Awaited<ReturnType<typeof load
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useLoadGetProjectNodeLoad<TData = Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError = ErrorType<unknown>>(
+export function useLoadGetProjectNodeLoad<TData = Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string,
     params?: LoadGetProjectNodeLoadParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -196,13 +200,13 @@ export function useLoadGetProjectNodeLoad<TData = Awaited<ReturnType<typeof load
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useLoadGetProjectNodeLoad<TData = Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError = ErrorType<unknown>>(
+export function useLoadGetProjectNodeLoad<TData = Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string,
     params?: LoadGetProjectNodeLoadParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useLoadGetProjectNodeLoad<TData = Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError = ErrorType<unknown>>(
+export function useLoadGetProjectNodeLoad<TData = Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string,
     params?: LoadGetProjectNodeLoadParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetProjectNodeLoad>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient

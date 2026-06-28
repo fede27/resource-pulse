@@ -31,5 +31,10 @@
     }
   },
   "include": ["src"],
-  "exclude": ["src/api/generated"]
+  "exclude": [
+    "src/api/generated",
+    "src/test",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
+  ]
 }
