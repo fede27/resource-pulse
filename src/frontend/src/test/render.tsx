@@ -59,13 +59,16 @@ export function renderWithProviders(
   options?: Omit<RenderOptions, 'wrapper'> & { queryClient?: QueryClient },
 ): RenderWithProvidersResult {
   const queryClient = options?.queryClient ?? makeTestQueryClient();
+  // Set up the user instance BEFORE rendering (user-event convention: it
+  // installs clipboard/pointer state the component may read on mount).
+  const user = userEvent.setup();
   const result = render(ui, {
     wrapper: ({ children }) => (
       <AppProviders queryClient={queryClient}>{children}</AppProviders>
     ),
     ...options,
   });
-  return { ...result, queryClient, user: userEvent.setup() };
+  return { ...result, queryClient, user };
 }
 
 /** Render a hook inside the full app provider stack (for query/composition hooks). */

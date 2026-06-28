@@ -76,9 +76,11 @@ describe('<TeamsPage>', () => {
     await user.click(screen.getByRole('button', { name: 'Espandi tutti' }));
     expect(screen.getByText('Zoe')).toBeInTheDocument();
 
-    // The show-values switch flips without error.
-    await user.click(screen.getByRole('switch'));
-    expect(screen.getByText('Alpha')).toBeInTheDocument();
+    // The show-values switch reflects its toggled-on state.
+    const valuesSwitch = screen.getByRole('switch');
+    expect(valuesSwitch).not.toBeChecked();
+    await user.click(valuesSwitch);
+    expect(valuesSwitch).toBeChecked();
   });
 
   it('opens the member and settings popovers from a team row', async () => {

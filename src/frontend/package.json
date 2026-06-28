@@ -9,9 +9,9 @@
     "typecheck": "tsc -b && tsc -p tsconfig.vitest.json",
     "lint": "eslint .",
     "preview": "vite preview",
-    "generate:api": "orval --config ./orval.config.ts",
+    "generate:api": "orval --config ./orval.config.ts && node scripts/add-nocheck.mjs",
     "generate:api:watch": "orval --config ./orval.config.ts --watch",
-    "snapshot:api": "node -e \"require('fs').mkdirSync('openapi',{recursive:true});require('http').get('http://localhost:5157/swagger/v1/swagger.json',r=>r.pipe(require('fs').createWriteStream('openapi/swagger.json')))\"",
+    "snapshot:api": "node scripts/snapshot-api.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

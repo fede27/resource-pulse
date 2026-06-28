@@ -43,8 +43,12 @@ describe('<CalendarDetail>', () => {
     const { user } = renderWithProviders(
       <CalendarDetail calendar={calendar} onDeleted={vi.fn()} />,
     );
-    // The "all" segmented option is enabled because there is a window.
+    // The "all" segmented option is enabled because there is a window; picking
+    // it selects that view. (AntD Segmented routes clicks through the label, so
+    // click the text but assert on the underlying radio's checked state.)
+    const allRadio = screen.getByRole('radio', { name: /Tutte \(1\)/ });
+    expect(allRadio).not.toBeChecked();
     await user.click(screen.getByText(/Tutte \(1\)/));
-    expect(screen.getByRole('heading', { name: 'Standard' })).toBeInTheDocument();
+    expect(allRadio).toBeChecked();
   });
 });
