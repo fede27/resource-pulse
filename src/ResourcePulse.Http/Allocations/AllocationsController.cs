@@ -29,6 +29,9 @@ public sealed class AllocationsController(IAllocationService service) : Controll
         CancellationToken ct) =>
         FromResult(await service.GetForResourceAsync(resourceId, from, to, ct));
 
+    // Aggregates over the node's subtree (node + descendants via Path prefix),
+    // not the exact node — phase-level allocations/holes are included (ADR-0022 /
+    // gap #5).
     [HttpGet("by-project-node/{projectNodeId}")]
     public async Task<IActionResult> GetForProjectNodeAsync(
         Guid projectNodeId,

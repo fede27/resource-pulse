@@ -19,6 +19,9 @@ public sealed class LoadController(ILoadQueryService service) : ControllerFounda
         CancellationToken ct) =>
         FromResult(await service.GetForResourceAsync(id, from, to, ct));
 
+    // Aggregates over the node's subtree (node + descendants via Path prefix),
+    // not the exact node — a project that staffs its Phases includes them here
+    // (ADR-0022 / gap #5).
     [HttpGet("api/project-nodes/{id}/load")]
     [ProducesResponseType<IReadOnlyList<DailyNodeLoadDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]

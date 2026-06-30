@@ -95,6 +95,7 @@ public static class LoadCalculator
         return (hours, any);
     }
 
+    // Exact-node load: only blocks whose ProjectNodeId == projectNodeId.
     public static IEnumerable<DailyNodeLoad> ForProjectNodeAndRange(
         Guid projectNodeId,
         IReadOnlyCollection<Allocation> allocations,
@@ -105,12 +106,43 @@ public static class LoadCalculator
         ArgumentNullException.ThrowIfNull(allocations);
         ArgumentNullException.ThrowIfNull(capacityByResourceAndDate);
 
+        // Pre-filter once; the per-date loop only needs allocations on this node.
+        return AggregateNodeLoad(
+            allocations.Where(a => a.ProjectNodeId == projectNodeId),
+            capacityByResourceAndDate, from, toInclusive);
+    }
+
+    // Subtree load (ADR-0022): the caller passes the allocations of the whole
+    // subtree (root + descendants, scoped via Path prefix at the service layer);
+    // the calculator sums them ALL, regardless of which node each block sits on.
+    // Invariant I1 only permits allocations on Project/Phase nodes, so a subtree
+    // can carry blocks at the root AND at intermediate Phase nodes — this is the
+    // aggregate a "whole project" view needs. No node-id filter here: the scoping
+    // already happened in the query.
+    public static IEnumerable<DailyNodeLoad> ForProjectSubtreeAndRange(
+        IReadOnlyCollection<Allocation> subtreeAllocations,
+        IReadOnlyDictionary<(Guid ResourceId, DateOnly Date), TimeSpan> capacityByResourceAndDate,
+        DateOnly from,
+        DateOnly toInclusive)
+    {
+        ArgumentNullException.ThrowIfNull(subtreeAllocations);
+        ArgumentNullException.ThrowIfNull(capacityByResourceAndDate);
+
+        return AggregateNodeLoad(subtreeAllocations, capacityByResourceAndDate, from, toInclusive);
+    }
+
+    // Shared per-date aggregation. `scopedAllocations` is already scoped by the
+    // caller (exact node or whole subtree); this method does not filter by node.
+    private static IEnumerable<DailyNodeLoad> AggregateNodeLoad(
+        IEnumerable<Allocation> scopedAllocations,
+        IReadOnlyDictionary<(Guid ResourceId, DateOnly Date), TimeSpan> capacityByResourceAndDate,
+        DateOnly from,
+        DateOnly toInclusive)
+    {
         if (from > toInclusive)
             yield break;
 
-        // Pre-filter once; the per-date loop only needs allocations on this node.
-        var nodeAllocations = allocations
-            .Where(a => a.ProjectNodeId == projectNodeId)
+        var nodeAllocations = scopedAllocations
             .OrderBy(a => a.Id)
             .ToList();
 

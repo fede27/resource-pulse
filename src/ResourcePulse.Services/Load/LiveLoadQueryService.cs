@@ -96,7 +96,7 @@ public sealed class LiveLoadQueryService(
         var nodeMeta = await db.ProjectNodes
             .AsNoTracking()
             .Where(p => p.Id == projectNodeId)
-            .Select(p => new { p.Id, p.NodeType })
+            .Select(p => new { p.Id, p.NodeType, p.Path })
             .FirstOrDefaultAsync(ct);
 
         if (nodeMeta is null)
@@ -108,9 +108,15 @@ public sealed class LiveLoadQueryService(
                 [nameof(projectNodeId)] = [$"ProjectNode {projectNodeId} is a {nodeMeta.NodeType}; load is only defined for Project and Phase nodes."]
             });
 
+        // Subtree aggregation (ADR-0022): the node itself + every descendant via
+        // the materialized-path prefix. Invariant I1 permits allocations on
+        // Project/Phase nodes, so a project that staffs its Phases would otherwise
+        // lose those blocks under an exact-node filter (gap #5 / D1).
+        var subtreePrefix = nodeMeta.Path + "/";
         var allocations = await db.Allocations
             .AsNoTracking()
-            .Where(a => a.ProjectNodeId == projectNodeId
+            .Where(a => db.ProjectNodes.Any(p => p.Id == a.ProjectNodeId
+                          && (p.Id == projectNodeId || p.Path.StartsWith(subtreePrefix)))
                      && a.PeriodStart <= toInclusive
                      && a.PeriodEnd >= from)
             .ToListAsync(ct);
@@ -143,7 +149,7 @@ public sealed class LiveLoadQueryService(
             .ToDictionaryAsync(r => r.Id, r => r.Name, ct);
 
         var dtos = LoadCalculator
-            .ForProjectNodeAndRange(projectNodeId, allocations, capacityByResourceAndDate, from, toInclusive)
+            .ForProjectSubtreeAndRange(allocations, capacityByResourceAndDate, from, toInclusive)
             .Select(d => new DailyNodeLoadDto
             {
                 Date = d.Date,

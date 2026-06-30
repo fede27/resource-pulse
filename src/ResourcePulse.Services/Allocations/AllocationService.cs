@@ -54,8 +54,22 @@ public sealed class AllocationService(
         if (from > toInclusive)
             return RangeValidation<IReadOnlyList<AllocationReadDto>>();
 
+        // Subtree aggregation (ADR-0022): the node + every descendant via the
+        // materialized-path prefix, not just the exact node. A project that staffs
+        // its Phases would otherwise drop those blocks/holes from the aggregate
+        // view (gap #5 / D1). BuildReadQuery already projects the allocation's
+        // node Path, so we filter on it after projection.
+        var nodePath = await db.ProjectNodes.AsNoTracking()
+            .Where(p => p.Id == projectNodeId)
+            .Select(p => p.Path)
+            .FirstOrDefaultAsync(ct);
+
+        if (nodePath is null)
+            return ServiceResult<IReadOnlyList<AllocationReadDto>>.Success(Array.Empty<AllocationReadDto>());
+
+        var subtreePrefix = nodePath + "/";
         var list = await BuildReadQuery()
-            .Where(x => x.ProjectNodeId == projectNodeId
+            .Where(x => (x.ProjectNodePath == nodePath || x.ProjectNodePath.StartsWith(subtreePrefix))
                      && x.PeriodStart <= toInclusive
                      && x.PeriodEnd >= from)
             .OrderBy(x => x.PeriodStart)
