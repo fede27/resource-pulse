@@ -26,6 +26,12 @@ public sealed class ProjectNode : Entity<Guid>, IAuditable
     public Guid? LeadResourceId { get; private set; }
     public ProjectStatus? Status { get; private set; }
 
+    // Free-text customer / committente (M1). Project-only, like the fields above:
+    // populated only on root (Project) nodes, NULL on Phase/WorkPackage. A plain
+    // string is sufficient today; if the customer ever becomes an anagrafica it
+    // will be a later evolution (see project-gap.md §M1).
+    public string? Client { get; private set; }
+
     // ── Planning (Project|Phase only) ───────────────────────────────────────
     // Initialized to Unspecified by CreateRoot/CreateChild for Project|Phase;
     // null on WorkPackage (gated by the same capacity-planning rule).
@@ -56,7 +62,8 @@ public sealed class ProjectNode : Entity<Guid>, IAuditable
         string? code,
         ProjectType type,
         CommitmentLevel commitmentLevel,
-        Guid? leadResourceId)
+        Guid? leadResourceId,
+        string? client = null)
     {
         var trimmedName = (name ?? string.Empty).Trim();
         if (trimmedName.Length == 0)
@@ -82,6 +89,7 @@ public sealed class ProjectNode : Entity<Guid>, IAuditable
             CommitmentLevel = commitmentLevel,
             LeadResourceId = leadResourceId == Guid.Empty ? null : leadResourceId,
             Status = ProjectStatus.Draft,
+            Client = NormalizeOptional(client),
             PlanningMode = Projects.PlanningMode.Unspecified
         };
 
@@ -164,6 +172,14 @@ public sealed class ProjectNode : Entity<Guid>, IAuditable
     {
         AssertIsProject();
         LeadResourceId = leadResourceId == Guid.Empty ? null : leadResourceId;
+    }
+
+    // M1: set / clear the customer. Project-only, mirrors AssignLead — no public
+    // setter; blank normalizes to null.
+    public void ChangeClient(string? client)
+    {
+        AssertIsProject();
+        Client = NormalizeOptional(client);
     }
 
     // ── Tree mutations ──────────────────────────────────────────────────────

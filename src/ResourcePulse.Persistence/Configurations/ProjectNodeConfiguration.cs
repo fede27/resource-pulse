@@ -32,6 +32,10 @@ public sealed class ProjectNodeConfiguration : IEntityTypeConfiguration<ProjectN
         builder.Property(p => p.Type).HasConversion<string>().HasMaxLength(20);
         builder.Property(p => p.CommitmentLevel).HasConversion<string>().HasMaxLength(20);
         builder.Property(p => p.Status).HasConversion<string>().HasMaxLength(20);
+        // Customer / committente (M1). Free text, project-only; the "non-root ⇒
+        // NULL" rule is enforced by a CHECK added in the migration, matching the
+        // ck_project_nodes_project_only_fields pattern.
+        builder.Property(p => p.Client).HasMaxLength(500);
 
         // ── Planning (Project|Phase only) ───────────────────────────────────
         builder.Property(p => p.PlanningMode).HasConversion<string>().HasMaxLength(20);

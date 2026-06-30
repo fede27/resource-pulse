@@ -31,6 +31,9 @@ public sealed class ProjectNodeReadDto
     public Guid? LeadResourceId { get; init; }
     public ProjectStatus? Status { get; init; }
 
+    // Customer / committente (M1). Project-only; null on Phase/WorkPackage.
+    public string? Client { get; init; }
+
     public DateOnly? BaselineStart { get; init; }
     public DateOnly? BaselineEnd { get; init; }
     public DateTimeOffset? BaselinedAt { get; init; }
@@ -51,6 +54,15 @@ public sealed class ProjectNodeReadDto
     public bool? IsLate { get; set; }
     public DerivedExecutionStatus? DerivedStatus { get; set; }
 
+    // Provenance "proposto" (M3 / project-gap.md §M3): a project root is
+    // "proposed" when its CommitmentLevel is NOT in CommitmentPolicy.HardCommitLevels
+    // (i.e. not Committed/Critical by default) — the complement of the hard-commit
+    // threshold (ADR-0020). It is the PROJECT axis, distinct from the per-block
+    // Allocation.Status (Tentative/Hard). No new storage: computed in
+    // ToDtoWithMetrics from the policy. Null on non-root nodes and on listing
+    // endpoints that skip the derived enrichment.
+    public bool? IsProposed { get; set; }
+
     public IReadOnlyList<ProjectSkillRequirementDto> SkillRequirements { get; init; } = Array.Empty<ProjectSkillRequirementDto>();
     public IReadOnlyList<ProjectNodeTagDto> Tags { get; init; } = Array.Empty<ProjectNodeTagDto>();
 }
@@ -68,6 +80,9 @@ public sealed class CreateProjectNodeDto
     public ProjectType? Type { get; init; }
     public CommitmentLevel? CommitmentLevel { get; init; }
     public Guid? LeadResourceId { get; init; }
+
+    // Customer / committente (M1). Project-only; ignored on non-root nodes.
+    public string? Client { get; init; }
 }
 
 public sealed class UpdateProjectNodeDto
@@ -81,6 +96,9 @@ public sealed class UpdateProjectDto
     public ProjectType Type { get; init; }
     public CommitmentLevel CommitmentLevel { get; init; }
     public Guid? LeadResourceId { get; init; }
+
+    // Customer / committente (M1).
+    public string? Client { get; init; }
 
     // Conferma esplicita richiesta dall'invariante I6 (ADR-0015 §4): un
     // downgrade da {Committed, Critical} a {Exploratory, Planned} con

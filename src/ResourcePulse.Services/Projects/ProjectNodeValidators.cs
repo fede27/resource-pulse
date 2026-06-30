@@ -9,6 +9,7 @@ public sealed class CreateProjectNodeDtoValidator : AbstractValidator<CreateProj
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(500);
         RuleFor(x => x.Code).MaximumLength(100);
+        RuleFor(x => x.Client).MaximumLength(500);
         RuleFor(x => x.NodeType).IsInEnum();
 
         // Root nodes don't carry a parent and must specify Type + CommitmentLevel.
@@ -42,6 +43,7 @@ public sealed class UpdateProjectDtoValidator : AbstractValidator<UpdateProjectD
     {
         RuleFor(x => x.Type).IsInEnum();
         RuleFor(x => x.CommitmentLevel).IsInEnum();
+        RuleFor(x => x.Client).MaximumLength(500);
     }
 }
 

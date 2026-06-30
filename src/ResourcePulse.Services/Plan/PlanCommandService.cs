@@ -100,7 +100,7 @@ public sealed class PlanCommandService(
     {
         var (nodeErr, _) = await LoadPlanningNodeAsync(c.ProjectNodeId, ct);
         if (nodeErr is { } e1) return Fail(e1);
-        if (await CheckPlaceholderRefsAsync(c.RoleSkillId, c.OwnerResourceId, ct) is { } e2) return Fail(e2);
+        if (await CheckPlaceholderRefsAsync(c.RoleId, c.OwnerResourceId, ct) is { } e2) return Fail(e2);
         if (await CheckProjectStatusByNodeAsync(c.ProjectNodeId, ct) is { } e3) return Fail(e3);
         if (c.Status == AllocationStatus.Hard && await CheckHardCommitmentAsync(c.ProjectNodeId, ct) is { } e4)
             return Fail(e4);
@@ -109,7 +109,7 @@ public sealed class PlanCommandService(
         try
         {
             a = Allocation.CreatePlaceholder(
-                c.ProjectNodeId, c.PeriodStart, c.PeriodEnd, c.Percent, c.RoleSkillId, c.OwnerResourceId, c.Notes, c.Status);
+                c.ProjectNodeId, c.PeriodStart, c.PeriodEnd, c.Percent, c.RoleId, c.OwnerResourceId, c.Notes, c.Status);
         }
         catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
 
@@ -303,9 +303,9 @@ public sealed class PlanCommandService(
         if (a is null) return NotFound(c.Id);
         if (a.IsPlaceholder) return Fail(ServiceError.Conflict("Allocation is already a placeholder."));
         if (await CheckProjectStatusByNodeAsync(a.ProjectNodeId, ct) is { } e1) return Fail(e1);
-        if (await CheckPlaceholderRefsAsync(c.RoleSkillId, c.OwnerResourceId, ct) is { } e2) return Fail(e2);
+        if (await CheckPlaceholderRefsAsync(c.RoleId, c.OwnerResourceId, ct) is { } e2) return Fail(e2);
 
-        try { a.ConvertToPlaceholder(c.RoleSkillId, c.OwnerResourceId); }
+        try { a.ConvertToPlaceholder(c.RoleId, c.OwnerResourceId); }
         catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
 
         return await FinalizeAsync(c, "convertToPlaceholder", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
@@ -403,7 +403,7 @@ public sealed class PlanCommandService(
         PeriodEnd = a.PeriodEnd,
         AllocationPercent = a.AllocationPercent,
         Status = a.Status,
-        RoleSkillId = a.RoleSkillId,
+        RoleId = a.RoleId,
         OwnerResourceId = a.OwnerResourceId,
         Notes = a.Notes
     };
@@ -495,13 +495,14 @@ public sealed class PlanCommandService(
         return null;
     }
 
-    // Placeholder references exist (RoleSkillId required; OwnerResourceId optional).
-    private async Task<ServiceError?> CheckPlaceholderRefsAsync(Guid roleSkillId, Guid? ownerResourceId, CancellationToken ct)
+    // Placeholder references exist (RoleId required; OwnerResourceId optional).
+    // RoleId targets the Role catalogue (ADR-0021 / M2), not Skill.
+    private async Task<ServiceError?> CheckPlaceholderRefsAsync(Guid roleId, Guid? ownerResourceId, CancellationToken ct)
     {
-        if (!await db.Skills.AnyAsync(s => s.Id == roleSkillId, ct))
+        if (!await db.Roles.AnyAsync(r => r.Id == roleId, ct))
             return ServiceError.Validation(new Dictionary<string, string[]>
             {
-                ["RoleSkillId"] = [$"Skill {roleSkillId} does not exist."]
+                ["RoleId"] = [$"Role {roleId} does not exist."]
             });
 
         if (ownerResourceId is Guid o && !await db.Resources.AnyAsync(r => r.Id == o, ct))

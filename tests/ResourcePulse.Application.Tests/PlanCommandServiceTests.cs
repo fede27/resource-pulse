@@ -278,7 +278,7 @@ public class PlanCommandServiceTests
 
         var convert = await h.Service.ExecuteAsync(new ConvertToPlaceholderCommand
         {
-            Id = secondId, RoleSkillId = h.RoleSkillId
+            Id = secondId, RoleId = h.RoleId
         });
 
         convert.IsSuccess.Should().BeTrue();
@@ -286,7 +286,7 @@ public class PlanCommandServiceTests
         h.Reload(id).IsPlaceholder.Should().BeFalse();
         var second = h.Reload(secondId);
         second.IsPlaceholder.Should().BeTrue();
-        second.RoleSkillId.Should().Be(h.RoleSkillId);
+        second.RoleId.Should().Be(h.RoleId);
         second.PeriodStart.Should().Be(split);
     }
 
@@ -315,7 +315,7 @@ public class PlanCommandServiceTests
         var create = await h.Service.ExecuteAsync(new CreatePlaceholderCommand
         {
             ProjectNodeId = h.ProjectNodeId, PeriodStart = D1, PeriodEnd = D14,
-            Percent = 50m, RoleSkillId = h.RoleSkillId
+            Percent = 50m, RoleId = h.RoleId
         });
         var id = create.Value.Changes.Single().Id;
 

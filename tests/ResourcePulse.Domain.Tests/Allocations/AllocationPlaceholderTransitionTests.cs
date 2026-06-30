@@ -7,7 +7,7 @@ public class AllocationPlaceholderTransitionTests
 {
     private static readonly Guid Resource = Guid.NewGuid();
     private static readonly Guid Node = Guid.NewGuid();
-    private static readonly Guid RoleSkill = Guid.NewGuid();
+    private static readonly Guid Role = Guid.NewGuid();
     private static readonly Guid Owner = Guid.NewGuid();
     private static readonly DateOnly Start = new(2026, 6, 1);
     private static readonly DateOnly End = new(2026, 6, 14);
@@ -21,12 +21,12 @@ public class AllocationPlaceholderTransitionTests
         a.ClearDomainEvents();
         var originalId = a.Id;
 
-        a.ConvertToPlaceholder(RoleSkill, Owner);
+        a.ConvertToPlaceholder(Role, Owner);
 
         a.Id.Should().Be(originalId);
         a.ResourceId.Should().BeNull();
         a.IsPlaceholder.Should().BeTrue();
-        a.RoleSkillId.Should().Be(RoleSkill);
+        a.RoleId.Should().Be(Role);
         a.OwnerResourceId.Should().Be(Owner);
         a.PeriodStart.Should().Be(Start);
         a.PeriodEnd.Should().Be(End);
@@ -41,7 +41,7 @@ public class AllocationPlaceholderTransitionTests
         var a = Allocation.Create(Resource, Node, Start, End, 50m);
         a.ClearDomainEvents();
 
-        a.ConvertToPlaceholder(RoleSkill, Owner);
+        a.ConvertToPlaceholder(Role, Owner);
 
         a.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<AllocationConvertedToPlaceholder>()
@@ -49,14 +49,14 @@ public class AllocationPlaceholderTransitionTests
                 e.AllocationId == a.Id &&
                 e.OldResourceId == Resource &&
                 e.ProjectNodeId == Node &&
-                e.RoleSkillId == RoleSkill &&
+                e.RoleId == Role &&
                 e.OwnerResourceId == Owner);
     }
 
     [Fact]
     public void ConvertToPlaceholder_AlreadyPlaceholder_Throws()
     {
-        var a = Allocation.CreatePlaceholder(Node, Start, End, 50m, RoleSkill, Owner);
+        var a = Allocation.CreatePlaceholder(Node, Start, End, 50m, Role, Owner);
 
         var act = () => a.ConvertToPlaceholder(Guid.NewGuid(), null);
 
@@ -64,13 +64,13 @@ public class AllocationPlaceholderTransitionTests
     }
 
     [Fact]
-    public void ConvertToPlaceholder_EmptyRoleSkill_Throws()
+    public void ConvertToPlaceholder_EmptyRole_Throws()
     {
         var a = Allocation.Create(Resource, Node, Start, End, 50m);
 
         var act = () => a.ConvertToPlaceholder(Guid.Empty, Owner);
 
-        act.Should().Throw<DomainException>().WithMessage("*role skill*");
+        act.Should().Throw<DomainException>().WithMessage("*role*");
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public class AllocationPlaceholderTransitionTests
         var a = Allocation.Create(Resource, Node, Start, End, 50m);
         a.ClearDomainEvents();
 
-        a.ConvertToPlaceholder(RoleSkill, ownerResourceId: null);
+        a.ConvertToPlaceholder(Role, ownerResourceId: null);
 
         a.OwnerResourceId.Should().BeNull();
         a.IsPlaceholder.Should().BeTrue();
@@ -90,7 +90,7 @@ public class AllocationPlaceholderTransitionTests
     [Fact]
     public void AssignTo_HappyPath_PreservesIdSpanRateStatus()
     {
-        var a = Allocation.CreatePlaceholder(Node, Start, End, 80m, RoleSkill, Owner, notes: "ctx",
+        var a = Allocation.CreatePlaceholder(Node, Start, End, 80m, Role, Owner, notes: "ctx",
             status: AllocationStatus.Hard);
         a.ClearDomainEvents();
         var originalId = a.Id;
@@ -101,7 +101,7 @@ public class AllocationPlaceholderTransitionTests
         a.Id.Should().Be(originalId);
         a.ResourceId.Should().Be(newResource);
         a.IsPlaceholder.Should().BeFalse();
-        a.RoleSkillId.Should().BeNull();
+        a.RoleId.Should().BeNull();
         a.OwnerResourceId.Should().BeNull();
         a.AllocationPercent.Should().Be(80m);
         a.PeriodStart.Should().Be(Start);
@@ -113,7 +113,7 @@ public class AllocationPlaceholderTransitionTests
     [Fact]
     public void AssignTo_RaisesEvent()
     {
-        var a = Allocation.CreatePlaceholder(Node, Start, End, 50m, RoleSkill, Owner);
+        var a = Allocation.CreatePlaceholder(Node, Start, End, 50m, Role, Owner);
         var newResource = Guid.NewGuid();
 
         a.AssignTo(newResource);
@@ -139,7 +139,7 @@ public class AllocationPlaceholderTransitionTests
     [Fact]
     public void AssignTo_EmptyResourceId_Throws()
     {
-        var a = Allocation.CreatePlaceholder(Node, Start, End, 50m, RoleSkill, Owner);
+        var a = Allocation.CreatePlaceholder(Node, Start, End, 50m, Role, Owner);
 
         var act = () => a.AssignTo(Guid.Empty);
 
@@ -154,7 +154,7 @@ public class AllocationPlaceholderTransitionTests
         var a = Allocation.Create(Resource, Node, Start, End, 60m);
         var originalId = a.Id;
 
-        a.ConvertToPlaceholder(RoleSkill, Owner);
+        a.ConvertToPlaceholder(Role, Owner);
         a.AssignTo(Guid.NewGuid());
 
         a.Id.Should().Be(originalId);

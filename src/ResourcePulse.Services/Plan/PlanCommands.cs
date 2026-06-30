@@ -71,7 +71,8 @@ public sealed class CreatePlaceholderCommand : PlanCommand
     public DateOnly PeriodStart { get; init; }
     public DateOnly PeriodEnd { get; init; }
     public decimal Percent { get; init; }
-    public Guid RoleSkillId { get; init; }
+    // Open role from the Role catalogue (ADR-0021 / M2), not Skill.
+    public Guid RoleId { get; init; }
     public Guid? OwnerResourceId { get; init; }
     public AllocationStatus Status { get; init; } = AllocationStatus.Tentative;
     public string? Notes { get; init; }
@@ -147,7 +148,8 @@ public sealed class ShiftFromCommand : PlanCommand
 public sealed class ConvertToPlaceholderCommand : PlanCommand
 {
     public Guid Id { get; init; }
-    public Guid RoleSkillId { get; init; }
+    // Open role from the Role catalogue (ADR-0021 / M2), not Skill.
+    public Guid RoleId { get; init; }
     public Guid? OwnerResourceId { get; init; }
 }
 

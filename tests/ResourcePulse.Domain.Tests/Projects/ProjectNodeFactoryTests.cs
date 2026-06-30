@@ -57,6 +57,66 @@ public class ProjectNodeFactoryTests
         node.LeadResourceId.Should().BeNull();
     }
 
+    // ── Client (M1) ─────────────────────────────────────────────────────────
+
+    [Fact]
+    public void CreateRoot_WithClient_StoresTrimmed()
+    {
+        var node = ProjectNode.CreateRoot("Apollo", null,
+            ProjectType.Customer, CommitmentLevel.Committed, null, "  ACME S.p.A.  ");
+
+        node.Client.Should().Be("ACME S.p.A.");
+    }
+
+    [Fact]
+    public void CreateRoot_NoClient_DefaultsToNull()
+    {
+        var node = ProjectNode.CreateRoot("Apollo", null,
+            ProjectType.Internal, CommitmentLevel.Planned, null);
+
+        node.Client.Should().BeNull();
+    }
+
+    [Fact]
+    public void CreateRoot_BlankClient_StoresNull()
+    {
+        var node = ProjectNode.CreateRoot("Apollo", null,
+            ProjectType.Internal, CommitmentLevel.Planned, null, "   ");
+
+        node.Client.Should().BeNull();
+    }
+
+    [Fact]
+    public void ChangeClient_OnProject_UpdatesValue()
+    {
+        var node = Project();
+
+        node.ChangeClient("Globex");
+        node.Client.Should().Be("Globex");
+
+        node.ChangeClient("  ");
+        node.Client.Should().BeNull(); // blank clears
+    }
+
+    [Fact]
+    public void ChangeClient_OnNonProject_Throws()
+    {
+        var phase = Phase(Project());
+
+        var act = () => phase.ChangeClient("ACME");
+
+        act.Should().Throw<DomainException>()
+            .WithMessage("*only allowed on Project root nodes*");
+    }
+
+    [Fact]
+    public void CreateChild_NeverCarriesClient()
+    {
+        var phase = Phase(Project());
+
+        phase.Client.Should().BeNull();
+    }
+
     [Fact]
     public void CreateChild_PhaseUnderProject_OK()
     {

@@ -25,8 +25,10 @@ public sealed class AllocationReadDto
     public AllocationStatus Status { get; init; }
 
     // Placeholder fields — valorizzati iff ResourceId is null (ADR-0016).
-    public Guid? RoleSkillId { get; init; }
-    public string? RoleSkillName { get; init; }
+    // RoleId/RoleName target the Role catalogue (ADR-0021 / M2), so the open
+    // role lines up with the person's Role (Resource.RoleId).
+    public Guid? RoleId { get; init; }
+    public string? RoleName { get; init; }
     public Guid? OwnerResourceId { get; init; }
     public string? OwnerResourceName { get; init; }
     public bool IsPlaceholder => ResourceId is null;

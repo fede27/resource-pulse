@@ -7,6 +7,7 @@ using ResourcePulse.Common.Domain;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
 using ResourcePulse.Domain.Allocations;
+using ResourcePulse.Domain.Configuration;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Persistence;
 using ResourcePulse.Services.Configuration;
@@ -34,7 +35,8 @@ public sealed class ProjectNodeService(
     {
         var node = await repository.GetByIdAsync(id, ct);
         if (node is null) return ServiceResult<ProjectNodeReadDto>.NotFound($"ProjectNode {id} not found.");
-        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node));
+        var policy = await commitmentPolicy.GetConfigurationAsync(ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy));
     }
 
     public async Task<ServiceResult<IReadOnlyList<ProjectNodeReadDto>>> GetSubtreeAsync(Guid id, CancellationToken ct = default)
@@ -54,7 +56,8 @@ public sealed class ProjectNodeService(
             .OrderBy(p => p.Path)
             .ToListAsync(ct);
 
-        var dtos = nodes.Select(ToDtoWithMetrics).ToList();
+        var policy = await commitmentPolicy.GetConfigurationAsync(ct);
+        var dtos = nodes.Select(n => ToDtoWithMetrics(n, policy)).ToList();
         return ServiceResult<IReadOnlyList<ProjectNodeReadDto>>.Success(dtos);
     }
 
@@ -79,7 +82,7 @@ public sealed class ProjectNodeService(
 
                 node = ProjectNode.CreateRoot(
                     dto.Name, dto.Code,
-                    dto.Type!.Value, dto.CommitmentLevel!.Value, dto.LeadResourceId);
+                    dto.Type!.Value, dto.CommitmentLevel!.Value, dto.LeadResourceId, dto.Client);
             }
             else
             {
@@ -108,7 +111,8 @@ public sealed class ProjectNodeService(
             return ServiceResult<ProjectNodeReadDto>.Conflict("Code is already in use under this parent.");
         }
 
-        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node));
+        var policy = await commitmentPolicy.GetConfigurationAsync(ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy));
     }
 
     public async Task<ServiceResult<ProjectNodeReadDto>> UpdateAsync(Guid id, UpdateProjectNodeDto dto, CancellationToken ct = default)
@@ -135,7 +139,8 @@ public sealed class ProjectNodeService(
             return ServiceResult<ProjectNodeReadDto>.Conflict("Code is already in use under this parent.");
         }
 
-        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node));
+        var policy = await commitmentPolicy.GetConfigurationAsync(ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy));
     }
 
     public async Task<ServiceResult<Unit>> DeleteAsync(Guid id, CancellationToken ct = default)
@@ -346,6 +351,7 @@ public sealed class ProjectNodeService(
             node.ChangeType(dto.Type);
             node.ChangeCommitmentLevel(dto.CommitmentLevel);
             node.AssignLead(dto.LeadResourceId);
+            node.ChangeClient(dto.Client);
 
             foreach (var a in hardAllocationsToDemote)
                 a.ChangeStatus(AllocationStatus.Tentative, "ProjectCommitmentDowngrade");
@@ -356,7 +362,8 @@ public sealed class ProjectNodeService(
         }
 
         await repository.SaveChangesAsync(ct);
-        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node));
+        // Reuse the policy already fetched above for the cascade-demotion check.
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy));
     }
 
     // ── Project-only: state transitions ─────────────────────────────────────
@@ -493,7 +500,8 @@ public sealed class ProjectNodeService(
             .OrderBy(p => p.Name)
             .ToListAsync(ct);
 
-        var dtos = results.Select(ToDtoWithMetrics).ToList();
+        var policy = await commitmentPolicy.GetConfigurationAsync(ct);
+        var dtos = results.Select(n => ToDtoWithMetrics(n, policy)).ToList();
         return ServiceResult<IReadOnlyList<ProjectNodeReadDto>>.Success(dtos);
     }
 
@@ -537,7 +545,7 @@ public sealed class ProjectNodeService(
         return ServiceResult.Ok();
     }
 
-    private ProjectNodeReadDto ToDtoWithMetrics(ProjectNode node)
+    private ProjectNodeReadDto ToDtoWithMetrics(ProjectNode node, CommitmentPolicyConfiguration policy)
     {
         var dto = mapper.Map<ProjectNodeReadDto>(node);
         dto.ScheduleVarianceStart = ProjectNodeMetrics.ScheduleVarianceStart(node);
@@ -545,6 +553,13 @@ public sealed class ProjectNodeService(
         dto.ForecastVarianceEnd = ProjectNodeMetrics.ForecastVarianceEnd(node);
         dto.IsLate = ProjectNodeMetrics.IsLate(node);
         dto.DerivedStatus = ProjectNodeMetrics.DerivedStatus(node);
+
+        // M3: project-level provenance. "Proposed" = the complement of the
+        // hard-commit threshold (ADR-0020 / CommitmentPolicy). Project roots only;
+        // null on Phase/WorkPackage (no commitment level).
+        dto.IsProposed = node.NodeType == ProjectNodeType.Project
+            ? !policy.IsHardCommitted(node.CommitmentLevel)
+            : null;
         return dto;
     }
 

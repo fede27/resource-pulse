@@ -25,7 +25,8 @@ public sealed class PlanBlockChange
     public DateOnly PeriodEnd { get; init; }
     public decimal AllocationPercent { get; init; }
     public AllocationStatus Status { get; init; }
-    public Guid? RoleSkillId { get; init; }
+    // Open role from the Role catalogue (ADR-0021 / M2).
+    public Guid? RoleId { get; init; }
     public Guid? OwnerResourceId { get; init; }
     public string? Notes { get; init; }
 }

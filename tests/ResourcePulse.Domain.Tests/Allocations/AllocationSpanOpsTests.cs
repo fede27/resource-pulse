@@ -12,7 +12,7 @@ public class AllocationSpanOpsTests
 {
     private static readonly Guid Resource = Guid.NewGuid();
     private static readonly Guid Node = Guid.NewGuid();
-    private static readonly Guid RoleSkill = Guid.NewGuid();
+    private static readonly Guid Role = Guid.NewGuid();
     private static readonly Guid Owner = Guid.NewGuid();
     private static readonly DateOnly Start = new(2026, 6, 1);
     private static readonly DateOnly End = new(2026, 6, 14);
@@ -90,13 +90,13 @@ public class AllocationSpanOpsTests
     [Fact]
     public void SplitAt_OnPlaceholder_PreservesPlaceholderForm()
     {
-        var ph = Allocation.CreatePlaceholder(Node, Start, End, 40m, RoleSkill, Owner);
+        var ph = Allocation.CreatePlaceholder(Node, Start, End, 40m, Role, Owner);
 
         var second = ph.SplitAt(new DateOnly(2026, 6, 8));
 
         second.IsPlaceholder.Should().BeTrue();
         second.ResourceId.Should().BeNull();
-        second.RoleSkillId.Should().Be(RoleSkill);
+        second.RoleId.Should().Be(Role);
         second.OwnerResourceId.Should().Be(Owner);
         second.AllocationPercent.Should().Be(40m);
     }
@@ -197,7 +197,7 @@ public class AllocationSpanOpsTests
         var date = new DateOnly(2026, 6, 8);
 
         var second = original.SplitAt(date);
-        second.ConvertToPlaceholder(RoleSkill, Owner);
+        second.ConvertToPlaceholder(Role, Owner);
 
         // First half: still assigned to the resource.
         original.IsPlaceholder.Should().BeFalse();
@@ -206,7 +206,7 @@ public class AllocationSpanOpsTests
 
         // Second half: now an open role, same span/rate.
         second.IsPlaceholder.Should().BeTrue();
-        second.RoleSkillId.Should().Be(RoleSkill);
+        second.RoleId.Should().Be(Role);
         second.PeriodStart.Should().Be(date);
         second.PeriodEnd.Should().Be(End);
         second.AllocationPercent.Should().Be(50m);

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Resources;
-using ResourcePulse.Domain.Skills;
+using ResourcePulse.Domain.Roles;
 
 namespace ResourcePulse.Persistence.Configurations;
 
@@ -15,11 +15,12 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
         {
             // I7 (ADR-0016): forma XOR — exactly one branch valued at any time.
             // The role/owner columns sit outside the assigned-branch; the
-            // resource pointer sits outside the placeholder-branch.
+            // resource pointer sits outside the placeholder-branch. role_id
+            // targets the Role catalogue (ADR-0021 / M2).
             t.HasCheckConstraint(
                 "ck_allocations_form_xor",
-                "(resource_id IS NOT NULL AND role_skill_id IS NULL AND owner_resource_id IS NULL) " +
-                "OR (resource_id IS NULL AND role_skill_id IS NOT NULL)");
+                "(resource_id IS NOT NULL AND role_id IS NULL AND owner_resource_id IS NULL) " +
+                "OR (resource_id IS NULL AND role_id IS NOT NULL)");
         });
         builder.HasKey(a => a.Id);
 
@@ -45,7 +46,8 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
 
         // Placeholder fields (ADR-0016). Valorizzati IFF ResourceId is null;
         // enforced by ck_allocations_form_xor declared on the table above.
-        builder.Property(a => a.RoleSkillId);
+        // RoleId targets the Role catalogue (ADR-0021 / M2).
+        builder.Property(a => a.RoleId);
         builder.Property(a => a.OwnerResourceId);
 
         builder.Property(a => a.Notes).HasMaxLength(2000);
@@ -64,12 +66,13 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
             .HasForeignKey(a => a.ProjectNodeId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Placeholder FKs — both Restrict: can't delete a Skill that is the
-        // role of an open placeholder; can't delete the OwnerResource of one
-        // either. Forces explicit reassignment first.
-        builder.HasOne<Skill>()
+        // Placeholder FKs — both Restrict: can't delete a Role that is the
+        // open role of a placeholder; can't delete the OwnerResource of one
+        // either. Forces explicit reassignment first. RoleId targets the Role
+        // catalogue — the same catalogue as Resource.RoleId (ADR-0021 / M2).
+        builder.HasOne<Role>()
             .WithMany()
-            .HasForeignKey(a => a.RoleSkillId)
+            .HasForeignKey(a => a.RoleId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne<Resource>()

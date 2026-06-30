@@ -104,8 +104,8 @@ public sealed class AllocationService(
         join p in db.ProjectNodes.AsNoTracking() on a.ProjectNodeId equals p.Id
         from r in db.Resources.AsNoTracking()
             .Where(r => r.Id == a.ResourceId).DefaultIfEmpty()
-        from s in db.Skills.AsNoTracking()
-            .Where(s => s.Id == a.RoleSkillId).DefaultIfEmpty()
+        from role in db.Roles.AsNoTracking()
+            .Where(role => role.Id == a.RoleId).DefaultIfEmpty()
         from o in db.Resources.AsNoTracking()
             .Where(o => o.Id == a.OwnerResourceId).DefaultIfEmpty()
         select new AllocationReadDto
@@ -119,8 +119,8 @@ public sealed class AllocationService(
             PeriodEnd = a.PeriodEnd,
             AllocationPercent = a.AllocationPercent,
             Status = a.Status,
-            RoleSkillId = a.RoleSkillId,
-            RoleSkillName = s != null ? s.Name : null,
+            RoleId = a.RoleId,
+            RoleName = role != null ? role.Name : null,
             OwnerResourceId = a.OwnerResourceId,
             OwnerResourceName = o != null ? o.Name : null,
             ResolvedHours = null,
@@ -154,8 +154,8 @@ public sealed class AllocationService(
             PeriodEnd = dto.PeriodEnd,
             AllocationPercent = dto.AllocationPercent,
             Status = dto.Status,
-            RoleSkillId = dto.RoleSkillId,
-            RoleSkillName = dto.RoleSkillName,
+            RoleId = dto.RoleId,
+            RoleName = dto.RoleName,
             OwnerResourceId = dto.OwnerResourceId,
             OwnerResourceName = dto.OwnerResourceName,
             ResolvedHours = hours,

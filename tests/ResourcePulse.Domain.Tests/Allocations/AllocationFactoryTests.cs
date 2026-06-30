@@ -135,17 +135,18 @@ public class AllocationFactoryTests
 
     // ── CreatePlaceholder (ADR-0016) ────────────────────────────────────────
 
-    private static readonly Guid RoleSkill = Guid.NewGuid();
+    // RoleId targets the Role catalogue (ADR-0021 / M2).
+    private static readonly Guid Role = Guid.NewGuid();
     private static readonly Guid Owner = Guid.NewGuid();
 
     [Fact]
     public void CreatePlaceholder_HappyPath_SetsPlaceholderFields()
     {
-        var a = Allocation.CreatePlaceholder(Node, Start, End, 25m, RoleSkill, Owner);
+        var a = Allocation.CreatePlaceholder(Node, Start, End, 25m, Role, Owner);
 
         a.ResourceId.Should().BeNull();
         a.IsPlaceholder.Should().BeTrue();
-        a.RoleSkillId.Should().Be(RoleSkill);
+        a.RoleId.Should().Be(Role);
         a.OwnerResourceId.Should().Be(Owner);
         a.ProjectNodeId.Should().Be(Node);
         a.AllocationPercent.Should().Be(25m);
@@ -155,24 +156,24 @@ public class AllocationFactoryTests
     [Fact]
     public void CreatePlaceholder_OwnerOptional()
     {
-        var a = Allocation.CreatePlaceholder(Node, Start, End, 25m, RoleSkill, ownerResourceId: null);
+        var a = Allocation.CreatePlaceholder(Node, Start, End, 25m, Role, ownerResourceId: null);
 
         a.OwnerResourceId.Should().BeNull();
-        a.RoleSkillId.Should().Be(RoleSkill);
+        a.RoleId.Should().Be(Role);
     }
 
     [Fact]
-    public void CreatePlaceholder_EmptyRoleSkill_Throws()
+    public void CreatePlaceholder_EmptyRole_Throws()
     {
         var act = () => Allocation.CreatePlaceholder(Node, Start, End, 25m, Guid.Empty, null);
 
-        act.Should().Throw<DomainException>().WithMessage("*role skill*");
+        act.Should().Throw<DomainException>().WithMessage("*role*");
     }
 
     [Fact]
     public void CreatePlaceholder_EmptyOwnerWhenProvided_Throws()
     {
-        var act = () => Allocation.CreatePlaceholder(Node, Start, End, 25m, RoleSkill, Guid.Empty);
+        var act = () => Allocation.CreatePlaceholder(Node, Start, End, 25m, Role, Guid.Empty);
 
         act.Should().Throw<DomainException>().WithMessage("*OwnerResourceId*");
     }
@@ -182,7 +183,7 @@ public class AllocationFactoryTests
     {
         // Comment in CreatePlaceholder explains: no AllocationCreated event for
         // placeholders. The conversion/assign events carry the lifecycle.
-        var a = Allocation.CreatePlaceholder(Node, Start, End, 25m, RoleSkill, Owner);
+        var a = Allocation.CreatePlaceholder(Node, Start, End, 25m, Role, Owner);
 
         a.DomainEvents.Should().BeEmpty();
     }

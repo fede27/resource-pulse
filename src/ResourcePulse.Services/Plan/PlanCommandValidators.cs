@@ -52,7 +52,7 @@ public sealed class CreatePlaceholderCommandValidator : AbstractValidator<Create
         RuleFor(x => x.Percent)
             .GreaterThan(0m).LessThanOrEqualTo(Allocation.MaxAllocationPercent)
             .WithMessage($"Percent must be in the range (0, {Allocation.MaxAllocationPercent}].");
-        RuleFor(x => x.RoleSkillId).NotEqual(Guid.Empty);
+        RuleFor(x => x.RoleId).NotEqual(Guid.Empty);
         RuleFor(x => x.OwnerResourceId)
             .Must(o => o is null || o != Guid.Empty)
             .WithMessage("OwnerResourceId, when provided, must not be Guid.Empty.");
@@ -136,7 +136,7 @@ public sealed class ConvertToPlaceholderCommandValidator : AbstractValidator<Con
     public ConvertToPlaceholderCommandValidator()
     {
         RuleFor(x => x.Id).NotEqual(Guid.Empty);
-        RuleFor(x => x.RoleSkillId).NotEqual(Guid.Empty);
+        RuleFor(x => x.RoleId).NotEqual(Guid.Empty);
         RuleFor(x => x.OwnerResourceId)
             .Must(o => o is null || o != Guid.Empty)
             .WithMessage("OwnerResourceId, when provided, must not be Guid.Empty.");

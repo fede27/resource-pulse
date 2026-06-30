@@ -6,9 +6,11 @@ namespace ResourcePulse.Domain.Allocations;
 // A commitment over an inclusive date window on a project node. Aggregate root
 // with its own lifecycle.
 //
-// Status di forma (ADR-0016, I7 — XOR sull'atomo):
+// Status di forma (ADR-0016, I7 — XOR sull'atomo; ruolo re-targettato a Role da
+// ADR-0021 / M2):
 //   - Assegnato:    ResourceId valorizzato, campi placeholder nulli.
-//   - Placeholder:  ResourceId nullo, RoleSkillId valorizzato (ruolo scoperto).
+//   - Placeholder:  ResourceId nullo, RoleId valorizzato (ruolo scoperto, dal
+//                   catalogo Role — lo stesso di Resource.RoleId).
 // La transizione Assegnato ↔ Placeholder conserva Id, span, rate%, status.
 //
 // Status di impegno (ADR-0015):
@@ -40,8 +42,9 @@ public sealed class Allocation : Entity<Guid>, IAuditable
     public AllocationStatus Status { get; private set; }
     public string? Notes { get; private set; }
 
-    // Placeholder fields — valorizzati iff ResourceId is null.
-    public Guid? RoleSkillId { get; private set; }
+    // Placeholder fields — valorizzati iff ResourceId is null. RoleId punta al
+    // catalogo Role (ADR-0021 / M2), non a Skill.
+    public Guid? RoleId { get; private set; }
     public Guid? OwnerResourceId { get; private set; }
 
     public DateTime CreatedAt { get; set; }
@@ -80,7 +83,7 @@ public sealed class Allocation : Entity<Guid>, IAuditable
             AllocationPercent = allocationPercent,
             Status = status,
             Notes = NormalizeNotes(notes),
-            RoleSkillId = null,
+            RoleId = null,
             OwnerResourceId = null
         };
 
@@ -89,21 +92,21 @@ public sealed class Allocation : Entity<Guid>, IAuditable
         return allocation;
     }
 
-    // Crea direttamente un placeholder (ruolo scoperto). ADR-0016 §2:
-    // ResourceId è null, RoleSkillId è il ruolo richiesto, OwnerResourceId è
-    // chi presidia la riassegnazione (opzionale).
+    // Crea direttamente un placeholder (ruolo scoperto). ADR-0016 §2 +
+    // ADR-0021 / M2: ResourceId è null, RoleId è il ruolo richiesto (catalogo
+    // Role), OwnerResourceId è chi presidia la riassegnazione (opzionale).
     public static Allocation CreatePlaceholder(
         Guid projectNodeId,
         DateOnly periodStart,
         DateOnly periodEnd,
         decimal allocationPercent,
-        Guid roleSkillId,
+        Guid roleId,
         Guid? ownerResourceId,
         string? notes = null,
         AllocationStatus status = AllocationStatus.Tentative)
     {
-        if (roleSkillId == Guid.Empty)
-            throw new DomainException("Placeholder allocation must reference a role skill.");
+        if (roleId == Guid.Empty)
+            throw new DomainException("Placeholder allocation must reference a role.");
         if (ownerResourceId is Guid o && o == Guid.Empty)
             throw new DomainException("OwnerResourceId, when provided, must not be Guid.Empty.");
         AssertCommonInputs(projectNodeId, periodStart, periodEnd, allocationPercent);
@@ -120,7 +123,7 @@ public sealed class Allocation : Entity<Guid>, IAuditable
             AllocationPercent = allocationPercent,
             Status = status,
             Notes = NormalizeNotes(notes),
-            RoleSkillId = roleSkillId,
+            RoleId = roleId,
             OwnerResourceId = ownerResourceId
         };
 
@@ -232,7 +235,7 @@ public sealed class Allocation : Entity<Guid>, IAuditable
             AllocationPercent = AllocationPercent,
             Status = Status,
             Notes = Notes,
-            RoleSkillId = RoleSkillId,
+            RoleId = RoleId,
             OwnerResourceId = OwnerResourceId
         };
 
@@ -265,22 +268,22 @@ public sealed class Allocation : Entity<Guid>, IAuditable
     // Transizione Assegnato → Placeholder (ADR-0016 §4). Conserva tutto
     // tranne il puntatore alla risorsa, che viene "convertito" in ruolo
     // scoperto + owner.
-    public void ConvertToPlaceholder(Guid roleSkillId, Guid? ownerResourceId)
+    public void ConvertToPlaceholder(Guid roleId, Guid? ownerResourceId)
     {
         if (IsPlaceholder)
             throw new DomainException("Allocation is already a placeholder.");
-        if (roleSkillId == Guid.Empty)
-            throw new DomainException("Placeholder allocation must reference a role skill.");
+        if (roleId == Guid.Empty)
+            throw new DomainException("Placeholder allocation must reference a role.");
         if (ownerResourceId is Guid o && o == Guid.Empty)
             throw new DomainException("OwnerResourceId, when provided, must not be Guid.Empty.");
 
         var oldResourceId = ResourceId!.Value;
         ResourceId = null;
-        RoleSkillId = roleSkillId;
+        RoleId = roleId;
         OwnerResourceId = ownerResourceId;
 
         RaiseEvent(new AllocationConvertedToPlaceholder(
-            Id, oldResourceId, ProjectNodeId, roleSkillId, ownerResourceId, DateTimeOffset.UtcNow));
+            Id, oldResourceId, ProjectNodeId, roleId, ownerResourceId, DateTimeOffset.UtcNow));
     }
 
     // Transizione Placeholder → Assegnato (ADR-0016 §4). Inverso di
@@ -294,7 +297,7 @@ public sealed class Allocation : Entity<Guid>, IAuditable
             throw new DomainException("Allocation must reference a resource.");
 
         ResourceId = resourceId;
-        RoleSkillId = null;
+        RoleId = null;
         OwnerResourceId = null;
 
         RaiseEvent(new PlaceholderAssignedToResource(Id, resourceId, ProjectNodeId, DateTimeOffset.UtcNow));

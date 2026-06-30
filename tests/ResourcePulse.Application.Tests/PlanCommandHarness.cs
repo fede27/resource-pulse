@@ -4,7 +4,7 @@ using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Configuration;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Resources;
-using ResourcePulse.Domain.Skills;
+using ResourcePulse.Domain.Roles;
 using ResourcePulse.Persistence;
 using ResourcePulse.Services.Capacity;
 using ResourcePulse.Services.Configuration;
@@ -28,7 +28,8 @@ internal sealed class PlanCommandHarness
     public Guid ResourceId { get; private set; }
     public Guid OtherResourceId { get; private set; }
     public Guid ProjectNodeId { get; private set; }
-    public Guid RoleSkillId { get; private set; }
+    // Open-role catalogue id for placeholder commands (ADR-0021 / M2).
+    public Guid RoleId { get; private set; }
 
     private PlanCommandHarness(ResourcePulseDbContext db, TimeSpan capacityPerDay)
     {
@@ -41,7 +42,8 @@ internal sealed class PlanCommandHarness
     }
 
     // Seeds an active resource, a root Project node (Draft, given commitment),
-    // a second resource and a skill. Returns the harness ready to run commands.
+    // a second resource and a role (the open-role catalogue for placeholders,
+    // ADR-0021 / M2). Returns the harness ready to run commands.
     public static PlanCommandHarness Create(
         CommitmentLevel commitment = CommitmentLevel.Committed,
         TimeSpan? capacityPerDay = null)
@@ -57,18 +59,18 @@ internal sealed class PlanCommandHarness
         var resource = Resource.Create("Tizio", h.CalendarId);
         var other = Resource.Create("Caio", h.CalendarId);
         var node = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Internal, commitment, leadResourceId: null);
-        var skill = Skill.Create("Backend");
+        var role = Role.Create("Backend");
 
         db.Resources.AddRange(resource, other);
         db.ProjectNodes.Add(node);
-        db.Skills.Add(skill);
+        db.Roles.Add(role);
         db.SaveChanges();
         db.ChangeTracker.Clear();
 
         h.ResourceId = resource.Id;
         h.OtherResourceId = other.Id;
         h.ProjectNodeId = node.Id;
-        h.RoleSkillId = skill.Id;
+        h.RoleId = role.Id;
         return h;
     }
 
