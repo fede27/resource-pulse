@@ -17,6 +17,7 @@ using ResourcePulse.Services.BusinessCalendars;
 using ResourcePulse.Services.Capacity;
 using ResourcePulse.Services.CompanyClosures;
 using ResourcePulse.Services.Configuration;
+using ResourcePulse.Services.Identity;
 using ResourcePulse.Services.Load;
 using ResourcePulse.Services.Plan;
 using ResourcePulse.Services.Projects;
@@ -99,6 +100,7 @@ builder.Services.AddScoped<IProjectNodeService, ProjectNodeService>();
 builder.Services.AddScoped<IAllocationService, AllocationService>();
 builder.Services.AddScoped<IPlanCommandService, PlanCommandService>();
 builder.Services.AddScoped<ILoadQueryService, LiveLoadQueryService>();
+builder.Services.AddScoped<IMeService, MeService>();
 
 // Org-level configuration singletons (ADR-0020): boundaries & thresholds.
 builder.Services.AddScoped<ILoadBandConfigurationService, LoadBandConfigurationService>();

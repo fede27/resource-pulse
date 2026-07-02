@@ -29,6 +29,10 @@ public sealed class ProjectNodeReadDto
     public ProjectType? Type { get; init; }
     public CommitmentLevel? CommitmentLevel { get; init; }
     public Guid? LeadResourceId { get; init; }
+    // Owner (PM) name resolved from LeadResourceId (gap #7 / ADR-0024). Populated
+    // on detail/subtree/range reads; null on the DevExtreme list projection
+    // (GetAllAsync), like the derived metrics below.
+    public string? LeadResourceName { get; set; }
     public ProjectStatus? Status { get; init; }
 
     // Customer / committente (M1). Project-only; null on Phase/WorkPackage.

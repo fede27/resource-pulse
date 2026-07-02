@@ -15,6 +15,13 @@ public sealed class AllocationReadDto
     public Guid? ResourceId { get; init; }
     public string? ResourceName { get; init; }
 
+    // The assigned person's ROLE from the Role catalogue (Resource.RoleId),
+    // resolved here so the page shows "person.role" without extra round-trips
+    // (gap #7 / ADR-0024). Null for placeholders and for resources without a role.
+    // Distinct from RoleId/RoleName below, which is the placeholder's OPEN role.
+    public Guid? ResourceRoleId { get; init; }
+    public string? ResourceRoleName { get; init; }
+
     public Guid ProjectNodeId { get; init; }
     public string ProjectNodePath { get; init; } = string.Empty;
     public DateOnly PeriodStart { get; init; }

@@ -36,7 +36,8 @@ public sealed class ProjectNodeService(
         var node = await repository.GetByIdAsync(id, ct);
         if (node is null) return ServiceResult<ProjectNodeReadDto>.NotFound($"ProjectNode {id} not found.");
         var policy = await commitmentPolicy.GetConfigurationAsync(ct);
-        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy));
+        var leadNames = await ResolveLeadNamesAsync([node], ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames));
     }
 
     public async Task<ServiceResult<IReadOnlyList<ProjectNodeReadDto>>> GetSubtreeAsync(Guid id, CancellationToken ct = default)
@@ -57,7 +58,8 @@ public sealed class ProjectNodeService(
             .ToListAsync(ct);
 
         var policy = await commitmentPolicy.GetConfigurationAsync(ct);
-        var dtos = nodes.Select(n => ToDtoWithMetrics(n, policy)).ToList();
+        var leadNames = await ResolveLeadNamesAsync(nodes, ct);
+        var dtos = nodes.Select(n => ToDtoWithMetrics(n, policy, leadNames)).ToList();
         return ServiceResult<IReadOnlyList<ProjectNodeReadDto>>.Success(dtos);
     }
 
@@ -112,7 +114,8 @@ public sealed class ProjectNodeService(
         }
 
         var policy = await commitmentPolicy.GetConfigurationAsync(ct);
-        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy));
+        var leadNames = await ResolveLeadNamesAsync([node], ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames));
     }
 
     public async Task<ServiceResult<ProjectNodeReadDto>> UpdateAsync(Guid id, UpdateProjectNodeDto dto, CancellationToken ct = default)
@@ -140,7 +143,8 @@ public sealed class ProjectNodeService(
         }
 
         var policy = await commitmentPolicy.GetConfigurationAsync(ct);
-        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy));
+        var leadNames = await ResolveLeadNamesAsync([node], ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames));
     }
 
     public async Task<ServiceResult<Unit>> DeleteAsync(Guid id, CancellationToken ct = default)
@@ -363,7 +367,8 @@ public sealed class ProjectNodeService(
 
         await repository.SaveChangesAsync(ct);
         // Reuse the policy already fetched above for the cascade-demotion check.
-        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy));
+        var leadNames = await ResolveLeadNamesAsync([node], ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames));
     }
 
     // ── Project-only: state transitions ─────────────────────────────────────
@@ -501,7 +506,8 @@ public sealed class ProjectNodeService(
             .ToListAsync(ct);
 
         var policy = await commitmentPolicy.GetConfigurationAsync(ct);
-        var dtos = results.Select(n => ToDtoWithMetrics(n, policy)).ToList();
+        var leadNames = await ResolveLeadNamesAsync(results, ct);
+        var dtos = results.Select(n => ToDtoWithMetrics(n, policy, leadNames)).ToList();
         return ServiceResult<IReadOnlyList<ProjectNodeReadDto>>.Success(dtos);
     }
 
@@ -545,7 +551,10 @@ public sealed class ProjectNodeService(
         return ServiceResult.Ok();
     }
 
-    private ProjectNodeReadDto ToDtoWithMetrics(ProjectNode node, CommitmentPolicyConfiguration policy)
+    private ProjectNodeReadDto ToDtoWithMetrics(
+        ProjectNode node,
+        CommitmentPolicyConfiguration policy,
+        IReadOnlyDictionary<Guid, string>? leadNames = null)
     {
         var dto = mapper.Map<ProjectNodeReadDto>(node);
         dto.ScheduleVarianceStart = ProjectNodeMetrics.ScheduleVarianceStart(node);
@@ -560,7 +569,30 @@ public sealed class ProjectNodeService(
         dto.IsProposed = node.NodeType == ProjectNodeType.Project
             ? !policy.IsHardCommitted(node.CommitmentLevel)
             : null;
+
+        // #7 (ADR-0024): resolve the owner (PM) name from LeadResourceId.
+        if (node.LeadResourceId is { } lid && leadNames is not null)
+            dto.LeadResourceName = leadNames.GetValueOrDefault(lid);
         return dto;
+    }
+
+    // Batch-resolve lead (PM) names for a set of nodes (gap #7 / ADR-0024).
+    private async Task<IReadOnlyDictionary<Guid, string>> ResolveLeadNamesAsync(
+        IEnumerable<ProjectNode> nodes, CancellationToken ct)
+    {
+        var ids = nodes
+            .Select(n => n.LeadResourceId)
+            .Where(id => id is not null)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+
+        if (ids.Count == 0)
+            return new Dictionary<Guid, string>();
+
+        return await db.Resources.AsNoTracking()
+            .Where(r => ids.Contains(r.Id))
+            .ToDictionaryAsync(r => r.Id, r => r.Name, ct);
     }
 
     // FindAsync (used by the generic repository) does not include OwnsMany

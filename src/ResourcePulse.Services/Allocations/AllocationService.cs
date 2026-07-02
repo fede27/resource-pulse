@@ -118,6 +118,8 @@ public sealed class AllocationService(
         join p in db.ProjectNodes.AsNoTracking() on a.ProjectNodeId equals p.Id
         from r in db.Resources.AsNoTracking()
             .Where(r => r.Id == a.ResourceId).DefaultIfEmpty()
+        from prole in db.Roles.AsNoTracking()
+            .Where(prole => r != null && prole.Id == r.RoleId).DefaultIfEmpty()
         from role in db.Roles.AsNoTracking()
             .Where(role => role.Id == a.RoleId).DefaultIfEmpty()
         from o in db.Resources.AsNoTracking()
@@ -127,6 +129,8 @@ public sealed class AllocationService(
             Id = a.Id,
             ResourceId = a.ResourceId,
             ResourceName = r != null ? r.Name : null,
+            ResourceRoleId = r != null ? r.RoleId : null,
+            ResourceRoleName = prole != null ? prole.Name : null,
             ProjectNodeId = a.ProjectNodeId,
             ProjectNodePath = p.Path,
             PeriodStart = a.PeriodStart,
@@ -162,6 +166,8 @@ public sealed class AllocationService(
             Id = dto.Id,
             ResourceId = dto.ResourceId,
             ResourceName = dto.ResourceName,
+            ResourceRoleId = dto.ResourceRoleId,
+            ResourceRoleName = dto.ResourceRoleName,
             ProjectNodeId = dto.ProjectNodeId,
             ProjectNodePath = dto.ProjectNodePath,
             PeriodStart = dto.PeriodStart,
