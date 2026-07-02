@@ -19,4 +19,13 @@ public interface ILoadQueryService
         DateOnly from,
         DateOnly toInclusive,
         CancellationToken ct = default);
+
+    // Resource commitment profile (gap #4+#10 / ADR-0023): run-length segments of
+    // the resource's committed rate% over [from, toInclusive], decomposed by root
+    // project. Capacity-independent — no per-resource capacity series is loaded.
+    Task<ServiceResult<IReadOnlyList<LoadSegmentDto>>> GetCommitmentProfileForResourceAsync(
+        Guid resourceId,
+        DateOnly from,
+        DateOnly toInclusive,
+        CancellationToken ct = default);
 }

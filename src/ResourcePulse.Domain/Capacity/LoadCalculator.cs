@@ -181,6 +181,82 @@ public static class LoadCalculator
         }
     }
 
+    // Resource commitment profile (gap #4+#10): a run-length-encoded view of the
+    // resource's committed rate% over [from, toInclusive], decomposed by ROOT
+    // project. Capacity-independent — the percent is the sum of active assigned
+    // rate% (placeholders carry no ResourceId, so they are naturally excluded),
+    // not a capacity-normalised figure. This keeps the read-model cheap (no
+    // per-resource capacity series) and the per-project decomposition exact (the
+    // shares sum to the segment percent). See ADR-0023.
+    //
+    // `projectRootByNodeId` maps each allocation's ProjectNodeId to the id of its
+    // root project node (the service resolves this from the materialized Path).
+    // A node missing from the map falls back to grouping under its own id.
+    public static IReadOnlyList<LoadSegment> ResourceCommitmentProfile(
+        Guid resourceId,
+        IReadOnlyCollection<Allocation> allocations,
+        IReadOnlyDictionary<Guid, Guid> projectRootByNodeId,
+        DateOnly from,
+        DateOnly toInclusive)
+    {
+        ArgumentNullException.ThrowIfNull(allocations);
+        ArgumentNullException.ThrowIfNull(projectRootByNodeId);
+
+        var segments = new List<LoadSegment>();
+        if (from > toInclusive)
+            return segments;
+
+        var ordered = allocations
+            .Where(a => a.ResourceId == resourceId)
+            .OrderBy(a => a.Id)
+            .ToList();
+
+        DateOnly runStart = from;
+        var (runPercent, runByProject) = DayCommitment(ordered, projectRootByNodeId, from);
+
+        for (var date = from.AddDays(1); date <= toInclusive; date = date.AddDays(1))
+        {
+            var (percent, byProject) = DayCommitment(ordered, projectRootByNodeId, date);
+            if (percent == runPercent && SameShares(runByProject, byProject))
+                continue; // extend the current run
+
+            segments.Add(new LoadSegment(runStart, date.AddDays(-1), runPercent, runByProject));
+            runStart = date;
+            runPercent = percent;
+            runByProject = byProject;
+        }
+
+        segments.Add(new LoadSegment(runStart, toInclusive, runPercent, runByProject));
+        return segments;
+    }
+
+    // Committed rate% on a single date, total and decomposed by root project.
+    private static (decimal Percent, Dictionary<Guid, decimal> ByProject) DayCommitment(
+        IReadOnlyList<Allocation> resourceAllocations,
+        IReadOnlyDictionary<Guid, Guid> projectRootByNodeId,
+        DateOnly date)
+    {
+        var total = 0m;
+        var byProject = new Dictionary<Guid, decimal>();
+        foreach (var a in resourceAllocations)
+        {
+            if (date < a.PeriodStart || date > a.PeriodEnd) continue;
+            var root = projectRootByNodeId.TryGetValue(a.ProjectNodeId, out var r) ? r : a.ProjectNodeId;
+            byProject.TryGetValue(root, out var existing);
+            byProject[root] = existing + a.AllocationPercent;
+            total += a.AllocationPercent;
+        }
+        return (total, byProject);
+    }
+
+    private static bool SameShares(IReadOnlyDictionary<Guid, decimal> a, IReadOnlyDictionary<Guid, decimal> b)
+    {
+        if (a.Count != b.Count) return false;
+        foreach (var (k, v) in a)
+            if (!b.TryGetValue(k, out var bv) || bv != v) return false;
+        return true;
+    }
+
     // capacity * (percent / 100), carried in decimal ticks to avoid double drift.
     private static TimeSpan HoursFor(TimeSpan capacity, decimal percent)
     {

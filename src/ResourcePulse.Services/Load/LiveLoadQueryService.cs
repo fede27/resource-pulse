@@ -169,4 +169,86 @@ public sealed class LiveLoadQueryService(
 
         return ServiceResult<IReadOnlyList<DailyNodeLoadDto>>.Success(dtos);
     }
+
+    public async Task<ServiceResult<IReadOnlyList<LoadSegmentDto>>> GetCommitmentProfileForResourceAsync(
+        Guid resourceId,
+        DateOnly from,
+        DateOnly toInclusive,
+        CancellationToken ct = default)
+    {
+        if (from > toInclusive)
+            return ServiceResult<IReadOnlyList<LoadSegmentDto>>.Validation(new Dictionary<string, string[]>
+            {
+                ["range"] = ["'from' must be on or before 'to'."]
+            });
+
+        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
+        if (rangeDays > MaxRangeDays)
+            return ServiceResult<IReadOnlyList<LoadSegmentDto>>.Validation(new Dictionary<string, string[]>
+            {
+                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
+            });
+
+        var resourceExists = await db.Resources.AnyAsync(r => r.Id == resourceId, ct);
+        if (!resourceExists)
+            return ServiceResult<IReadOnlyList<LoadSegmentDto>>.NotFound($"Resource {resourceId} not found.");
+
+        // Assigned allocations of this resource overlapping the horizon. Placeholders
+        // have no ResourceId, so they are excluded by construction (ADR-0016 §5).
+        var allocations = await db.Allocations
+            .AsNoTracking()
+            .Where(a => a.ResourceId == resourceId
+                     && a.PeriodStart <= toInclusive
+                     && a.PeriodEnd >= from)
+            .ToListAsync(ct);
+
+        // Map each allocation's node to its ROOT project node id (first segment of
+        // the materialized Path), so the profile decomposes by project.
+        var nodeIds = allocations.Select(a => a.ProjectNodeId).Distinct().ToList();
+        var nodePaths = await db.ProjectNodes
+            .AsNoTracking()
+            .Where(p => nodeIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.Path })
+            .ToListAsync(ct);
+
+        var rootByNode = nodePaths.ToDictionary(p => p.Id, p => RootIdFromPath(p.Path));
+
+        var segments = LoadCalculator.ResourceCommitmentProfile(
+            resourceId, allocations, rootByNode, from, toInclusive);
+
+        // Resolve root project names for the breakdown (cheap, gap #7).
+        var rootIds = rootByNode.Values.Distinct().ToList();
+        var rootNames = await db.ProjectNodes
+            .AsNoTracking()
+            .Where(p => rootIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
+
+        var dtos = segments
+            .Select(s => new LoadSegmentDto
+            {
+                From = s.From,
+                To = s.To,
+                Percent = s.Percent,
+                ByProject = s.ByProject
+                    .Select(kvp => new LoadSegmentProjectDto
+                    {
+                        ProjectNodeId = kvp.Key,
+                        ProjectName = rootNames.GetValueOrDefault(kvp.Key, string.Empty),
+                        Percent = kvp.Value
+                    })
+                    .OrderByDescending(x => x.Percent)
+                    .ThenBy(x => x.ProjectName)
+                    .ToList()
+            })
+            .ToList();
+
+        return ServiceResult<IReadOnlyList<LoadSegmentDto>>.Success(dtos);
+    }
+
+    // Root project node id = first segment of the materialized Path "/{rootId}/...".
+    private static Guid RootIdFromPath(string path)
+    {
+        var first = path.TrimStart('/').Split('/', StringSplitOptions.RemoveEmptyEntries)[0];
+        return Guid.Parse(first);
+    }
 }
