@@ -9,8 +9,8 @@ import type { AllocationStatus } from './allocationStatus';
 import type { PlanCommand } from './planCommand';
 
 export type CreateCommand = PlanCommand & ({
+  demandId?: string;
   resourceId?: string;
-  projectNodeId?: string;
   periodStart?: string;
   periodEnd?: string;
   percent?: number;

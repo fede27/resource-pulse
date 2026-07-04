@@ -6,15 +6,18 @@
  * OpenAPI spec version: 1.0
  */
 import type { AllocationStatus } from './allocationStatus';
-import type { PlanCommand } from './planCommand';
+import type { PlanChangeKind } from './planChangeKind';
 
-export type CreateByHoursCommand = PlanCommand & ({
+export interface PlanBlockChange {
+  kind?: PlanChangeKind;
+  id?: string;
   demandId?: string;
   resourceId?: string;
+  projectNodeId?: string;
   periodStart?: string;
   periodEnd?: string;
-  targetHours?: string;
+  allocationPercent?: number;
   status?: AllocationStatus;
   /** @nullable */
   notes?: string | null;
-});
+}

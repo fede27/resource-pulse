@@ -21,9 +21,15 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AllocationReadDto,
+  AllocationResolvedHoursDto,
   AllocationsGetAllParams,
   AllocationsGetForProjectNodeParams,
-  AllocationsGetForResourceParams
+  AllocationsGetForResourceParams,
+  HttpValidationProblemDetails,
+  LoadResult,
+  ProblemDetails,
+  ValidationProblemDetails
 } from '../schemas';
 
 import { apiClient } from '../../client';
@@ -40,7 +46,7 @@ export const allocationsGetAll = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<LoadResult>(
       {url: `/api/allocations`, method: 'GET',
         params, signal
     },
@@ -127,7 +133,7 @@ export const allocationsGetById = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<AllocationReadDto>(
       {url: `/api/allocations/${id}`, method: 'GET', signal
     },
       options);
@@ -143,7 +149,7 @@ export const getAllocationsGetByIdQueryKey = (id: string,) => {
     }
 
 
-export const getAllocationsGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof allocationsGetById>>, TError = ErrorType<unknown>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+export const getAllocationsGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof allocationsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -162,10 +168,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type AllocationsGetByIdQueryResult = NonNullable<Awaited<ReturnType<typeof allocationsGetById>>>
-export type AllocationsGetByIdQueryError = ErrorType<unknown>
+export type AllocationsGetByIdQueryError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
 
 
-export function useAllocationsGetById<TData = Awaited<ReturnType<typeof allocationsGetById>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetById<TData = Awaited<ReturnType<typeof allocationsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetById>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof allocationsGetById>>,
@@ -175,7 +181,7 @@ export function useAllocationsGetById<TData = Awaited<ReturnType<typeof allocati
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useAllocationsGetById<TData = Awaited<ReturnType<typeof allocationsGetById>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetById<TData = Awaited<ReturnType<typeof allocationsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetById>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof allocationsGetById>>,
@@ -185,12 +191,12 @@ export function useAllocationsGetById<TData = Awaited<ReturnType<typeof allocati
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useAllocationsGetById<TData = Awaited<ReturnType<typeof allocationsGetById>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetById<TData = Awaited<ReturnType<typeof allocationsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useAllocationsGetById<TData = Awaited<ReturnType<typeof allocationsGetById>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetById<TData = Awaited<ReturnType<typeof allocationsGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -214,7 +220,7 @@ export const allocationsGetForResource = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<AllocationReadDto[]>(
       {url: `/api/allocations/by-resource/${resourceId}`, method: 'GET',
         params, signal
     },
@@ -232,7 +238,7 @@ export const getAllocationsGetForResourceQueryKey = (resourceId: string,
     }
 
 
-export const getAllocationsGetForResourceQueryOptions = <TData = Awaited<ReturnType<typeof allocationsGetForResource>>, TError = ErrorType<unknown>>(resourceId: string,
+export const getAllocationsGetForResourceQueryOptions = <TData = Awaited<ReturnType<typeof allocationsGetForResource>>, TError = ErrorType<ValidationProblemDetails>>(resourceId: string,
     params?: AllocationsGetForResourceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetForResource>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
@@ -252,10 +258,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type AllocationsGetForResourceQueryResult = NonNullable<Awaited<ReturnType<typeof allocationsGetForResource>>>
-export type AllocationsGetForResourceQueryError = ErrorType<unknown>
+export type AllocationsGetForResourceQueryError = ErrorType<ValidationProblemDetails>
 
 
-export function useAllocationsGetForResource<TData = Awaited<ReturnType<typeof allocationsGetForResource>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetForResource<TData = Awaited<ReturnType<typeof allocationsGetForResource>>, TError = ErrorType<ValidationProblemDetails>>(
  resourceId: string,
     params: undefined |  AllocationsGetForResourceParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetForResource>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -266,7 +272,7 @@ export function useAllocationsGetForResource<TData = Awaited<ReturnType<typeof a
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useAllocationsGetForResource<TData = Awaited<ReturnType<typeof allocationsGetForResource>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetForResource<TData = Awaited<ReturnType<typeof allocationsGetForResource>>, TError = ErrorType<ValidationProblemDetails>>(
  resourceId: string,
     params?: AllocationsGetForResourceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetForResource>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -277,13 +283,13 @@ export function useAllocationsGetForResource<TData = Awaited<ReturnType<typeof a
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useAllocationsGetForResource<TData = Awaited<ReturnType<typeof allocationsGetForResource>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetForResource<TData = Awaited<ReturnType<typeof allocationsGetForResource>>, TError = ErrorType<ValidationProblemDetails>>(
  resourceId: string,
     params?: AllocationsGetForResourceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetForResource>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useAllocationsGetForResource<TData = Awaited<ReturnType<typeof allocationsGetForResource>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetForResource<TData = Awaited<ReturnType<typeof allocationsGetForResource>>, TError = ErrorType<ValidationProblemDetails>>(
  resourceId: string,
     params?: AllocationsGetForResourceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetForResource>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
@@ -308,7 +314,7 @@ export const allocationsGetForProjectNode = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<AllocationReadDto[]>(
       {url: `/api/allocations/by-project-node/${projectNodeId}`, method: 'GET',
         params, signal
     },
@@ -326,7 +332,7 @@ export const getAllocationsGetForProjectNodeQueryKey = (projectNodeId: string,
     }
 
 
-export const getAllocationsGetForProjectNodeQueryOptions = <TData = Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError = ErrorType<unknown>>(projectNodeId: string,
+export const getAllocationsGetForProjectNodeQueryOptions = <TData = Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError = ErrorType<ValidationProblemDetails>>(projectNodeId: string,
     params?: AllocationsGetForProjectNodeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
@@ -346,10 +352,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type AllocationsGetForProjectNodeQueryResult = NonNullable<Awaited<ReturnType<typeof allocationsGetForProjectNode>>>
-export type AllocationsGetForProjectNodeQueryError = ErrorType<unknown>
+export type AllocationsGetForProjectNodeQueryError = ErrorType<ValidationProblemDetails>
 
 
-export function useAllocationsGetForProjectNode<TData = Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetForProjectNode<TData = Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError = ErrorType<ValidationProblemDetails>>(
  projectNodeId: string,
     params: undefined |  AllocationsGetForProjectNodeParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
@@ -360,7 +366,7 @@ export function useAllocationsGetForProjectNode<TData = Awaited<ReturnType<typeo
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useAllocationsGetForProjectNode<TData = Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetForProjectNode<TData = Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError = ErrorType<ValidationProblemDetails>>(
  projectNodeId: string,
     params?: AllocationsGetForProjectNodeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
@@ -371,13 +377,13 @@ export function useAllocationsGetForProjectNode<TData = Awaited<ReturnType<typeo
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useAllocationsGetForProjectNode<TData = Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetForProjectNode<TData = Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError = ErrorType<ValidationProblemDetails>>(
  projectNodeId: string,
     params?: AllocationsGetForProjectNodeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useAllocationsGetForProjectNode<TData = Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetForProjectNode<TData = Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError = ErrorType<ValidationProblemDetails>>(
  projectNodeId: string,
     params?: AllocationsGetForProjectNodeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetForProjectNode>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
@@ -401,7 +407,7 @@ export const allocationsGetResolvedHours = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<AllocationResolvedHoursDto>(
       {url: `/api/allocations/${id}/resolved-hours`, method: 'GET', signal
     },
       options);
@@ -417,7 +423,7 @@ export const getAllocationsGetResolvedHoursQueryKey = (id: string,) => {
     }
 
 
-export const getAllocationsGetResolvedHoursQueryOptions = <TData = Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError = ErrorType<unknown>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+export const getAllocationsGetResolvedHoursQueryOptions = <TData = Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -436,10 +442,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type AllocationsGetResolvedHoursQueryResult = NonNullable<Awaited<ReturnType<typeof allocationsGetResolvedHours>>>
-export type AllocationsGetResolvedHoursQueryError = ErrorType<unknown>
+export type AllocationsGetResolvedHoursQueryError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
 
 
-export function useAllocationsGetResolvedHours<TData = Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetResolvedHours<TData = Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof allocationsGetResolvedHours>>,
@@ -449,7 +455,7 @@ export function useAllocationsGetResolvedHours<TData = Awaited<ReturnType<typeof
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useAllocationsGetResolvedHours<TData = Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetResolvedHours<TData = Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof allocationsGetResolvedHours>>,
@@ -459,12 +465,12 @@ export function useAllocationsGetResolvedHours<TData = Awaited<ReturnType<typeof
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useAllocationsGetResolvedHours<TData = Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetResolvedHours<TData = Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useAllocationsGetResolvedHours<TData = Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError = ErrorType<unknown>>(
+export function useAllocationsGetResolvedHours<TData = Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetResolvedHours>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {

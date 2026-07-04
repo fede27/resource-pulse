@@ -200,7 +200,24 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadResult"
+                }
+              }
+            }
           }
         }
       }
@@ -224,7 +241,65 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllocationReadDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllocationReadDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllocationReadDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -264,7 +339,53 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AllocationReadDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AllocationReadDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AllocationReadDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -304,7 +425,53 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AllocationReadDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AllocationReadDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AllocationReadDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
           }
         }
       }
@@ -328,7 +495,106 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllocationResolvedHoursDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllocationResolvedHoursDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllocationResolvedHoursDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -1632,6 +1898,355 @@
         }
       }
     },
+    "/api/demands": {
+      "get": {
+        "tags": [
+          "Demands"
+        ],
+        "operationId": "Demands_GetAll",
+        "parameters": [
+          {
+            "name": "RequireTotalCount",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "RequireGroupCount",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "IsCountQuery",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "IsSummaryQuery",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "Skip",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Take",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/SortingInfo"
+                  },
+                  {
+                    "$ref": "#/components/schemas/GroupingInfo"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "name": "Group",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/GroupingInfo"
+              }
+            }
+          },
+          {
+            "name": "Filter",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": { }
+            }
+          },
+          {
+            "name": "TotalSummary",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/SummaryInfo"
+              }
+            }
+          },
+          {
+            "name": "GroupSummary",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/SummaryInfo"
+              }
+            }
+          },
+          {
+            "name": "Select",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "PreSelect",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "RemoteSelect",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "RemoteGrouping",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "ExpandLinqSumType",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "PrimaryKey",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "DefaultSort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "StringToLower",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "PaginateViaPrimaryKey",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "SortByPrimaryKey",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "AllowAsyncOverSync",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/demands/{id}": {
+      "get": {
+        "tags": [
+          "Demands"
+        ],
+        "operationId": "Demands_GetById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemandReadDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemandReadDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemandReadDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/demands/by-project-node/{projectNodeId}": {
+      "get": {
+        "tags": [
+          "Demands"
+        ],
+        "operationId": "Demands_GetForProjectNode",
+        "parameters": [
+          {
+            "name": "projectNodeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DemandReadDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DemandReadDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DemandReadDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/resources/{id}/load": {
       "get": {
         "tags": [
@@ -1690,6 +2305,113 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/DailyLoadDto"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/resources/{id}/load-profile": {
+      "get": {
+        "tags": [
+          "Load"
+        ],
+        "operationId": "Load_GetResourceLoadProfile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LoadSegmentDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LoadSegmentDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LoadSegmentDto"
                   }
                 }
               }
@@ -1846,6 +2568,211 @@
         }
       }
     },
+    "/api/project-nodes/{id}/demand-coverage": {
+      "get": {
+        "tags": [
+          "Load"
+        ],
+        "operationId": "Load_GetProjectNodeDemandCoverage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DemandCoverageDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DemandCoverageDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DemandCoverageDto"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/demands/{id}/coverage": {
+      "get": {
+        "tags": [
+          "Load"
+        ],
+        "operationId": "Load_GetDemandCoverage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemandCoverageDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemandCoverageDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemandCoverageDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/config/load-bands": {
       "get": {
         "tags": [
@@ -1943,6 +2870,36 @@
         }
       }
     },
+    "/api/me": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "operationId": "Me_Get",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/plan/commands": {
       "post": {
         "tags": [
@@ -1955,13 +2912,22 @@
               "schema": {
                 "oneOf": [
                   {
+                    "$ref": "#/components/schemas/CreateDemandCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EditDemandCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DeleteDemandCommand"
+                  },
+                  {
                     "$ref": "#/components/schemas/CreateCommand"
                   },
                   {
                     "$ref": "#/components/schemas/CreateByHoursCommand"
                   },
                   {
-                    "$ref": "#/components/schemas/CreatePlaceholderCommand"
+                    "$ref": "#/components/schemas/CoverInferredCommand"
                   },
                   {
                     "$ref": "#/components/schemas/EditCommand"
@@ -1983,9 +2949,6 @@
                   },
                   {
                     "$ref": "#/components/schemas/ShiftFromCommand"
-                  },
-                  {
-                    "$ref": "#/components/schemas/ConvertToPlaceholderCommand"
                   },
                   {
                     "$ref": "#/components/schemas/ReassignCommand"
@@ -2003,13 +2966,22 @@
               "schema": {
                 "oneOf": [
                   {
+                    "$ref": "#/components/schemas/CreateDemandCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EditDemandCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DeleteDemandCommand"
+                  },
+                  {
                     "$ref": "#/components/schemas/CreateCommand"
                   },
                   {
                     "$ref": "#/components/schemas/CreateByHoursCommand"
                   },
                   {
-                    "$ref": "#/components/schemas/CreatePlaceholderCommand"
+                    "$ref": "#/components/schemas/CoverInferredCommand"
                   },
                   {
                     "$ref": "#/components/schemas/EditCommand"
@@ -2031,9 +3003,6 @@
                   },
                   {
                     "$ref": "#/components/schemas/ShiftFromCommand"
-                  },
-                  {
-                    "$ref": "#/components/schemas/ConvertToPlaceholderCommand"
                   },
                   {
                     "$ref": "#/components/schemas/ReassignCommand"
@@ -2051,13 +3020,22 @@
               "schema": {
                 "oneOf": [
                   {
+                    "$ref": "#/components/schemas/CreateDemandCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EditDemandCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DeleteDemandCommand"
+                  },
+                  {
                     "$ref": "#/components/schemas/CreateCommand"
                   },
                   {
                     "$ref": "#/components/schemas/CreateByHoursCommand"
                   },
                   {
-                    "$ref": "#/components/schemas/CreatePlaceholderCommand"
+                    "$ref": "#/components/schemas/CoverInferredCommand"
                   },
                   {
                     "$ref": "#/components/schemas/EditCommand"
@@ -2081,9 +3059,6 @@
                     "$ref": "#/components/schemas/ShiftFromCommand"
                   },
                   {
-                    "$ref": "#/components/schemas/ConvertToPlaceholderCommand"
-                  },
-                  {
                     "$ref": "#/components/schemas/ReassignCommand"
                   },
                   {
@@ -2099,7 +3074,126 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanCommandResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanCommandResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -7348,6 +8442,112 @@
           "ExtraTime"
         ]
       },
+      "AllocationReadDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resourceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "resourceRoleId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "resourceRoleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "demandId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "demandRoleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "demandRoleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "projectNodeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectNodePath": {
+            "type": "string",
+            "nullable": true
+          },
+          "periodStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date"
+          },
+          "allocationPercent": {
+            "type": "number",
+            "format": "double"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AllocationStatus"
+          },
+          "resolvedHours": {
+            "type": "string",
+            "format": "date-span",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "AllocationResolvedHoursDto": {
+        "type": "object",
+        "properties": {
+          "allocationPercent": {
+            "type": "number",
+            "format": "double"
+          },
+          "resolvedHours": {
+            "type": "string",
+            "format": "date-span"
+          },
+          "capacityInWindow": {
+            "type": "string",
+            "format": "date-span"
+          }
+        },
+        "additionalProperties": false
+      },
       "AllocationStatus": {
         "enum": [
           0,
@@ -7562,7 +8762,7 @@
         },
         "additionalProperties": false
       },
-      "ConvertToPlaceholderCommand": {
+      "CoverInferredCommand": {
         "allOf": [
           {
             "$ref": "#/components/schemas/PlanCommand"
@@ -7570,13 +8770,36 @@
           {
             "type": "object",
             "properties": {
-              "id": {
+              "projectNodeId": {
                 "type": "string",
                 "format": "uuid"
               },
-              "roleSkillId": {
+              "roleId": {
                 "type": "string",
                 "format": "uuid"
+              },
+              "resourceId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "periodStart": {
+                "type": "string",
+                "format": "date"
+              },
+              "periodEnd": {
+                "type": "string",
+                "format": "date"
+              },
+              "percent": {
+                "type": "number",
+                "format": "double"
+              },
+              "status": {
+                "$ref": "#/components/schemas/AllocationStatus"
+              },
+              "notes": {
+                "type": "string",
+                "nullable": true
               },
               "ownerResourceId": {
                 "type": "string",
@@ -7616,11 +8839,11 @@
           {
             "type": "object",
             "properties": {
-              "resourceId": {
+              "demandId": {
                 "type": "string",
                 "format": "uuid"
               },
-              "projectNodeId": {
+              "resourceId": {
                 "type": "string",
                 "format": "uuid"
               },
@@ -7656,11 +8879,11 @@
           {
             "type": "object",
             "properties": {
-              "resourceId": {
+              "demandId": {
                 "type": "string",
                 "format": "uuid"
               },
-              "projectNodeId": {
+              "resourceId": {
                 "type": "string",
                 "format": "uuid"
               },
@@ -7706,7 +8929,7 @@
         },
         "additionalProperties": false
       },
-      "CreatePlaceholderCommand": {
+      "CreateDemandCommand": {
         "allOf": [
           {
             "$ref": "#/components/schemas/PlanCommand"
@@ -7718,29 +8941,19 @@
                 "type": "string",
                 "format": "uuid"
               },
-              "periodStart": {
-                "type": "string",
-                "format": "date"
-              },
-              "periodEnd": {
-                "type": "string",
-                "format": "date"
-              },
-              "percent": {
-                "type": "number",
-                "format": "double"
-              },
-              "roleSkillId": {
+              "roleId": {
                 "type": "string",
                 "format": "uuid"
+              },
+              "requiredHours": {
+                "type": "string",
+                "format": "date-span",
+                "nullable": true
               },
               "ownerResourceId": {
                 "type": "string",
                 "format": "uuid",
                 "nullable": true
-              },
-              "status": {
-                "$ref": "#/components/schemas/AllocationStatus"
               },
               "notes": {
                 "type": "string",
@@ -7779,6 +8992,10 @@
           "leadResourceId": {
             "type": "string",
             "format": "uuid",
+            "nullable": true
+          },
+          "client": {
+            "type": "string",
             "nullable": true
           }
         },
@@ -7938,10 +9155,6 @@
               "$ref": "#/components/schemas/NodeLoadByResourceDto"
             },
             "nullable": true
-          },
-          "placeholderRatePercent": {
-            "type": "number",
-            "format": "double"
           }
         },
         "additionalProperties": false
@@ -8117,6 +9330,155 @@
           }
         ]
       },
+      "DeleteDemandCommand": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlanCommand"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "DemandCoverageDto": {
+        "type": "object",
+        "properties": {
+          "demandId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "roleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DemandProvenance"
+          },
+          "requiredHours": {
+            "type": "string",
+            "format": "date-span",
+            "nullable": true
+          },
+          "coveredHours": {
+            "type": "string",
+            "format": "date-span"
+          },
+          "gapHours": {
+            "type": "string",
+            "format": "date-span",
+            "nullable": true
+          },
+          "isBestEffort": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "ownerResourceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "ownerResourceName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DemandProvenance": {
+        "enum": [
+          0,
+          1
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "Declared",
+          "Inferred"
+        ]
+      },
+      "DemandReadDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectNodePath": {
+            "type": "string",
+            "nullable": true
+          },
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "roleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "requiredHours": {
+            "type": "string",
+            "format": "date-span",
+            "nullable": true
+          },
+          "isBestEffort": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DemandProvenance"
+          },
+          "ownerResourceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "ownerResourceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "DurationDto": {
         "type": "object",
         "properties": {
@@ -8171,6 +9533,51 @@
               "notes": {
                 "type": "string",
                 "nullable": true
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "EditDemandCommand": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlanCommand"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "roleId": {
+                "type": "string",
+                "format": "uuid",
+                "nullable": true
+              },
+              "requiredHours": {
+                "type": "string",
+                "format": "date-span",
+                "nullable": true
+              },
+              "requiredHoursSet": {
+                "type": "boolean"
+              },
+              "ownerResourceId": {
+                "type": "string",
+                "format": "uuid",
+                "nullable": true
+              },
+              "ownerResourceIdSet": {
+                "type": "boolean"
+              },
+              "notes": {
+                "type": "string",
+                "nullable": true
+              },
+              "notesSet": {
+                "type": "boolean"
               }
             },
             "additionalProperties": false
@@ -8308,6 +9715,87 @@
         },
         "additionalProperties": false
       },
+      "LoadSegmentDto": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "percent": {
+            "type": "number",
+            "format": "double"
+          },
+          "byProject": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LoadSegmentProjectDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoadSegmentProjectDto": {
+        "type": "object",
+        "properties": {
+          "projectNodeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectName": {
+            "type": "string",
+            "nullable": true
+          },
+          "percent": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MeDto": {
+        "type": "object",
+        "properties": {
+          "isAuthenticated": {
+            "type": "boolean"
+          },
+          "sub": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "resourceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "roleId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "roleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "isStaffingManager": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
       "MoveCommand": {
         "allOf": [
           {
@@ -8329,18 +9817,6 @@
           }
         ]
       },
-      "MoveMode": {
-        "enum": [
-          0,
-          1
-        ],
-        "type": "integer",
-        "format": "int32",
-        "x-enum-varnames": [
-          "KeepPercent",
-          "KeepHours"
-        ]
-      },
       "NodeLoadByResourceDto": {
         "type": "object",
         "properties": {
@@ -8359,11 +9835,139 @@
         },
         "additionalProperties": false
       },
+      "PlanBlockChange": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/PlanChangeKind"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "demandId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "periodStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date"
+          },
+          "allocationPercent": {
+            "type": "number",
+            "format": "double"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AllocationStatus"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlanChangeKind": {
+        "enum": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "Created",
+          "Modified",
+          "Deleted",
+          "Candidate"
+        ]
+      },
       "PlanCommand": {
         "type": "object",
         "properties": {
           "dryRun": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlanCommandResult": {
+        "type": "object",
+        "properties": {
+          "commandKind": {
+            "type": "string",
+            "nullable": true
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "committed": {
+            "type": "boolean"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanBlockChange"
+            },
+            "nullable": true
+          },
+          "demandChanges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanDemandChange"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlanDemandChange": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/PlanChangeKind"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requiredHours": {
+            "type": "string",
+            "format": "date-span",
+            "nullable": true
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/DemandProvenance"
+          },
+          "ownerResourceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -8656,16 +10260,9 @@
                 "type": "string",
                 "format": "uuid"
               },
-              "newPeriodStart": {
+              "demandId": {
                 "type": "string",
-                "format": "date"
-              },
-              "newPeriodEnd": {
-                "type": "string",
-                "format": "date"
-              },
-              "mode": {
-                "$ref": "#/components/schemas/MoveMode"
+                "format": "uuid"
               }
             },
             "additionalProperties": false
@@ -8956,6 +10553,10 @@
             "format": "uuid",
             "nullable": true
           },
+          "client": {
+            "type": "string",
+            "nullable": true
+          },
           "confirmDemoteHardAllocations": {
             "type": "boolean"
           }
@@ -9151,10 +10752,16 @@
       "name": "CompanyClosures"
     },
     {
+      "name": "Demands"
+    },
+    {
       "name": "Load"
     },
     {
       "name": "LoadBands"
+    },
+    {
+      "name": "Me"
     },
     {
       "name": "PlanCommands"

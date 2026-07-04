@@ -12,5 +12,4 @@ export interface DailyNodeLoadDto {
   totalHours?: string;
   /** @nullable */
   byResource?: NodeLoadByResourceDto[] | null;
-  placeholderRatePercent?: number;
 }

@@ -7,7 +7,6 @@
  */
 import type { PlanCommand } from './planCommand';
 
-export type RetargetCommand = PlanCommand & {
+export type DeleteDemandCommand = PlanCommand & {
   id?: string;
-  demandId?: string;
 };

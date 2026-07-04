@@ -1,4 +1,6 @@
 using DevExtreme.AspNet.Data;
+using DevExtreme.AspNet.Data.ResponseModel;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResourcePulse.Services.Demands;
 
@@ -12,16 +14,20 @@ namespace ResourcePulse.Http.Demands;
 public sealed class DemandsController(IDemandService service) : ControllerFoundation
 {
     [HttpGet]
+    [ProducesResponseType<LoadResult>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllAsync([FromQuery] DataSourceLoadOptionsBase? loadOptions, CancellationToken ct) =>
         FromResult(await service.GetAllAsync(loadOptions, ct));
 
     [HttpGet("{id}")]
+    [ProducesResponseType<DemandReadDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetByIdAsync(Guid id, CancellationToken ct) =>
         FromResult(await service.GetByIdAsync(id, ct));
 
     // Aggregates over the node's subtree (node + descendants via Path prefix),
     // mirroring the allocation reads (ADR-0022).
     [HttpGet("by-project-node/{projectNodeId}")]
+    [ProducesResponseType<IReadOnlyList<DemandReadDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetForProjectNodeAsync(Guid projectNodeId, CancellationToken ct) =>
         FromResult(await service.GetForProjectNodeAsync(projectNodeId, ct));
 }

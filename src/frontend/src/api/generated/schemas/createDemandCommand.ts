@@ -7,9 +7,13 @@
  */
 import type { PlanCommand } from './planCommand';
 
-export type ConvertToPlaceholderCommand = PlanCommand & ({
-  id?: string;
-  roleSkillId?: string;
+export type CreateDemandCommand = PlanCommand & ({
+  projectNodeId?: string;
+  roleId?: string;
+  /** @nullable */
+  requiredHours?: string | null;
   /** @nullable */
   ownerResourceId?: string | null;
+  /** @nullable */
+  notes?: string | null;
 });

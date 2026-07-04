@@ -6,10 +6,8 @@
  * OpenAPI spec version: 1.0
  */
 
-export type MoveMode = typeof MoveMode[keyof typeof MoveMode];
-
-
-export const MoveMode = {
-  KeepPercent: 0,
-  KeepHours: 1,
-} as const;
+export interface AllocationResolvedHoursDto {
+  allocationPercent?: number;
+  resolvedHours?: string;
+  capacityInWindow?: string;
+}

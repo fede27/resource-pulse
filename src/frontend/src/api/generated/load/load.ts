@@ -23,9 +23,14 @@ import type {
 import type {
   DailyLoadDto,
   DailyNodeLoadDto,
+  DemandCoverageDto,
   HttpValidationProblemDetails,
+  LoadGetDemandCoverageParams,
+  LoadGetProjectNodeDemandCoverageParams,
   LoadGetProjectNodeLoadParams,
   LoadGetResourceLoadParams,
+  LoadGetResourceLoadProfileParams,
+  LoadSegmentDto,
   ProblemDetails
 } from '../schemas';
 
@@ -131,6 +136,100 @@ export function useLoadGetResourceLoad<TData = Awaited<ReturnType<typeof loadGet
 
 
 
+export const loadGetResourceLoadProfile = (
+    id: string,
+    params?: LoadGetResourceLoadProfileParams,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<LoadSegmentDto[]>(
+      {url: `/api/resources/${id}/load-profile`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+
+
+
+
+export const getLoadGetResourceLoadProfileQueryKey = (id: string,
+    params?: LoadGetResourceLoadProfileParams,) => {
+    return [
+    `/api/resources/${id}/load-profile`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getLoadGetResourceLoadProfileQueryOptions = <TData = Awaited<ReturnType<typeof loadGetResourceLoadProfile>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(id: string,
+    params?: LoadGetResourceLoadProfileParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoadProfile>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLoadGetResourceLoadProfileQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof loadGetResourceLoadProfile>>> = ({ signal }) => loadGetResourceLoadProfile(id,params, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoadProfile>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type LoadGetResourceLoadProfileQueryResult = NonNullable<Awaited<ReturnType<typeof loadGetResourceLoadProfile>>>
+export type LoadGetResourceLoadProfileQueryError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
+
+
+export function useLoadGetResourceLoadProfile<TData = Awaited<ReturnType<typeof loadGetResourceLoadProfile>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
+ id: string,
+    params: undefined |  LoadGetResourceLoadProfileParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoadProfile>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadGetResourceLoadProfile>>,
+          TError,
+          Awaited<ReturnType<typeof loadGetResourceLoadProfile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadGetResourceLoadProfile<TData = Awaited<ReturnType<typeof loadGetResourceLoadProfile>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
+ id: string,
+    params?: LoadGetResourceLoadProfileParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoadProfile>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadGetResourceLoadProfile>>,
+          TError,
+          Awaited<ReturnType<typeof loadGetResourceLoadProfile>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadGetResourceLoadProfile<TData = Awaited<ReturnType<typeof loadGetResourceLoadProfile>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
+ id: string,
+    params?: LoadGetResourceLoadProfileParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoadProfile>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useLoadGetResourceLoadProfile<TData = Awaited<ReturnType<typeof loadGetResourceLoadProfile>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
+ id: string,
+    params?: LoadGetResourceLoadProfileParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoadProfile>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getLoadGetResourceLoadProfileQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 export const loadGetProjectNodeLoad = (
     id: string,
     params?: LoadGetProjectNodeLoadParams,
@@ -214,6 +313,194 @@ export function useLoadGetProjectNodeLoad<TData = Awaited<ReturnType<typeof load
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getLoadGetProjectNodeLoadQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+export const loadGetProjectNodeDemandCoverage = (
+    id: string,
+    params?: LoadGetProjectNodeDemandCoverageParams,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<DemandCoverageDto[]>(
+      {url: `/api/project-nodes/${id}/demand-coverage`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+
+
+
+
+export const getLoadGetProjectNodeDemandCoverageQueryKey = (id: string,
+    params?: LoadGetProjectNodeDemandCoverageParams,) => {
+    return [
+    `/api/project-nodes/${id}/demand-coverage`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getLoadGetProjectNodeDemandCoverageQueryOptions = <TData = Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(id: string,
+    params?: LoadGetProjectNodeDemandCoverageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLoadGetProjectNodeDemandCoverageQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>> = ({ signal }) => loadGetProjectNodeDemandCoverage(id,params, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type LoadGetProjectNodeDemandCoverageQueryResult = NonNullable<Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>>
+export type LoadGetProjectNodeDemandCoverageQueryError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
+
+
+export function useLoadGetProjectNodeDemandCoverage<TData = Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
+ id: string,
+    params: undefined |  LoadGetProjectNodeDemandCoverageParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>,
+          TError,
+          Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadGetProjectNodeDemandCoverage<TData = Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
+ id: string,
+    params?: LoadGetProjectNodeDemandCoverageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>,
+          TError,
+          Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadGetProjectNodeDemandCoverage<TData = Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
+ id: string,
+    params?: LoadGetProjectNodeDemandCoverageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useLoadGetProjectNodeDemandCoverage<TData = Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
+ id: string,
+    params?: LoadGetProjectNodeDemandCoverageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetProjectNodeDemandCoverage>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getLoadGetProjectNodeDemandCoverageQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+export const loadGetDemandCoverage = (
+    id: string,
+    params?: LoadGetDemandCoverageParams,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<DemandCoverageDto>(
+      {url: `/api/demands/${id}/coverage`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+
+
+
+
+export const getLoadGetDemandCoverageQueryKey = (id: string,
+    params?: LoadGetDemandCoverageParams,) => {
+    return [
+    `/api/demands/${id}/coverage`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getLoadGetDemandCoverageQueryOptions = <TData = Awaited<ReturnType<typeof loadGetDemandCoverage>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(id: string,
+    params?: LoadGetDemandCoverageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetDemandCoverage>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLoadGetDemandCoverageQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof loadGetDemandCoverage>>> = ({ signal }) => loadGetDemandCoverage(id,params, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof loadGetDemandCoverage>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type LoadGetDemandCoverageQueryResult = NonNullable<Awaited<ReturnType<typeof loadGetDemandCoverage>>>
+export type LoadGetDemandCoverageQueryError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
+
+
+export function useLoadGetDemandCoverage<TData = Awaited<ReturnType<typeof loadGetDemandCoverage>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
+ id: string,
+    params: undefined |  LoadGetDemandCoverageParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetDemandCoverage>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadGetDemandCoverage>>,
+          TError,
+          Awaited<ReturnType<typeof loadGetDemandCoverage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadGetDemandCoverage<TData = Awaited<ReturnType<typeof loadGetDemandCoverage>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
+ id: string,
+    params?: LoadGetDemandCoverageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetDemandCoverage>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadGetDemandCoverage>>,
+          TError,
+          Awaited<ReturnType<typeof loadGetDemandCoverage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadGetDemandCoverage<TData = Awaited<ReturnType<typeof loadGetDemandCoverage>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
+ id: string,
+    params?: LoadGetDemandCoverageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetDemandCoverage>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useLoadGetDemandCoverage<TData = Awaited<ReturnType<typeof loadGetDemandCoverage>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
+ id: string,
+    params?: LoadGetDemandCoverageParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetDemandCoverage>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getLoadGetDemandCoverageQueryOptions(id,params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

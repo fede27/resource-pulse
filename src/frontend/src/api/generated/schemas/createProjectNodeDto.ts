@@ -21,4 +21,6 @@ export interface CreateProjectNodeDto {
   commitmentLevel?: CommitmentLevel;
   /** @nullable */
   leadResourceId?: string | null;
+  /** @nullable */
+  client?: string | null;
 }

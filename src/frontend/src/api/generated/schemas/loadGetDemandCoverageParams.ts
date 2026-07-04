@@ -5,9 +5,8 @@
  * ResourcePulse.Hosting
  * OpenAPI spec version: 1.0
  */
-import type { PlanCommand } from './planCommand';
 
-export type RetargetCommand = PlanCommand & {
-  id?: string;
-  demandId?: string;
+export type LoadGetDemandCoverageParams = {
+from?: string;
+to?: string;
 };

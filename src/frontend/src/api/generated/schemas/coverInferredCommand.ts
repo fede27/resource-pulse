@@ -8,15 +8,16 @@
 import type { AllocationStatus } from './allocationStatus';
 import type { PlanCommand } from './planCommand';
 
-export type CreatePlaceholderCommand = PlanCommand & ({
+export type CoverInferredCommand = PlanCommand & ({
   projectNodeId?: string;
+  roleId?: string;
+  resourceId?: string;
   periodStart?: string;
   periodEnd?: string;
   percent?: number;
-  roleSkillId?: string;
-  /** @nullable */
-  ownerResourceId?: string | null;
   status?: AllocationStatus;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  ownerResourceId?: string | null;
 });
