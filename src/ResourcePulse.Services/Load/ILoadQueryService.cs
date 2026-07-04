@@ -1,4 +1,5 @@
 using ResourcePulse.Common.Results;
+using ResourcePulse.Services.Demands;
 
 namespace ResourcePulse.Services.Load;
 
@@ -25,6 +26,22 @@ public interface ILoadQueryService
     // project. Capacity-independent — no per-resource capacity series is loaded.
     Task<ServiceResult<IReadOnlyList<LoadSegmentDto>>> GetCommitmentProfileForResourceAsync(
         Guid resourceId,
+        DateOnly from,
+        DateOnly toInclusive,
+        CancellationToken ct = default);
+
+    // Demand-vs-coverage reconciliation (Phase 5.2, ADR-0025/0026). Over the
+    // node's subtree (node + descendants via Path prefix, ADR-0022): per demand,
+    // required/covered/gap hours. Best-effort demands carry a null gap (§7).
+    Task<ServiceResult<IReadOnlyList<DemandCoverageDto>>> GetDemandCoverageForProjectNodeAsync(
+        Guid projectNodeId,
+        DateOnly from,
+        DateOnly toInclusive,
+        CancellationToken ct = default);
+
+    // Coverage of a single demand over the range.
+    Task<ServiceResult<DemandCoverageDto>> GetDemandCoverageForDemandAsync(
+        Guid demandId,
         DateOnly from,
         DateOnly toInclusive,
         CancellationToken ct = default);

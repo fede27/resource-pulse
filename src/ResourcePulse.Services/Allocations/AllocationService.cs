@@ -89,12 +89,8 @@ public sealed class AllocationService(
         if (allocation is null)
             return ServiceResult<AllocationResolvedHoursDto>.NotFound($"Allocation {id} not found.");
 
-        if (allocation.ResourceId is null)
-            return ServiceResult<AllocationResolvedHoursDto>.Conflict(
-                "Allocation is a placeholder (no resource): resolved hours are not defined without a capacity reference.");
-
         var capacityResult = await CapacityInWindowAsync(
-            allocation.ResourceId.Value, allocation.PeriodStart, allocation.PeriodEnd, ct);
+            allocation.ResourceId, allocation.PeriodStart, allocation.PeriodEnd, ct);
         if (capacityResult.IsFailure)
             return ServiceResult<AllocationResolvedHoursDto>.Failure(capacityResult.Error!);
 
@@ -116,14 +112,12 @@ public sealed class AllocationService(
     private IQueryable<AllocationReadDto> BuildReadQuery() =>
         from a in db.Allocations.AsNoTracking()
         join p in db.ProjectNodes.AsNoTracking() on a.ProjectNodeId equals p.Id
+        join d in db.Demands.AsNoTracking() on a.DemandId equals d.Id
+        join drole in db.Roles.AsNoTracking() on d.RoleId equals drole.Id
         from r in db.Resources.AsNoTracking()
             .Where(r => r.Id == a.ResourceId).DefaultIfEmpty()
         from prole in db.Roles.AsNoTracking()
             .Where(prole => r != null && prole.Id == r.RoleId).DefaultIfEmpty()
-        from role in db.Roles.AsNoTracking()
-            .Where(role => role.Id == a.RoleId).DefaultIfEmpty()
-        from o in db.Resources.AsNoTracking()
-            .Where(o => o.Id == a.OwnerResourceId).DefaultIfEmpty()
         select new AllocationReadDto
         {
             Id = a.Id,
@@ -131,16 +125,15 @@ public sealed class AllocationService(
             ResourceName = r != null ? r.Name : null,
             ResourceRoleId = r != null ? r.RoleId : null,
             ResourceRoleName = prole != null ? prole.Name : null,
+            DemandId = a.DemandId,
+            DemandRoleId = d.RoleId,
+            DemandRoleName = drole.Name,
             ProjectNodeId = a.ProjectNodeId,
             ProjectNodePath = p.Path,
             PeriodStart = a.PeriodStart,
             PeriodEnd = a.PeriodEnd,
             AllocationPercent = a.AllocationPercent,
             Status = a.Status,
-            RoleId = a.RoleId,
-            RoleName = role != null ? role.Name : null,
-            OwnerResourceId = a.OwnerResourceId,
-            OwnerResourceName = o != null ? o.Name : null,
             ResolvedHours = null,
             Notes = a.Notes,
             CreatedAt = a.CreatedAt,
@@ -152,11 +145,8 @@ public sealed class AllocationService(
     private async Task<AllocationReadDto> EnrichWithResolvedHoursAsync(
         AllocationReadDto dto, CancellationToken ct)
     {
-        // Placeholders have no resource — leave ResolvedHours null (ADR-0016).
-        if (dto.ResourceId is null) return dto;
-
         var capacityResult = await CapacityInWindowAsync(
-            dto.ResourceId.Value, dto.PeriodStart, dto.PeriodEnd, ct);
+            dto.ResourceId, dto.PeriodStart, dto.PeriodEnd, ct);
         if (capacityResult.IsFailure || capacityResult.Value <= TimeSpan.Zero)
             return dto;
 
@@ -168,16 +158,15 @@ public sealed class AllocationService(
             ResourceName = dto.ResourceName,
             ResourceRoleId = dto.ResourceRoleId,
             ResourceRoleName = dto.ResourceRoleName,
+            DemandId = dto.DemandId,
+            DemandRoleId = dto.DemandRoleId,
+            DemandRoleName = dto.DemandRoleName,
             ProjectNodeId = dto.ProjectNodeId,
             ProjectNodePath = dto.ProjectNodePath,
             PeriodStart = dto.PeriodStart,
             PeriodEnd = dto.PeriodEnd,
             AllocationPercent = dto.AllocationPercent,
             Status = dto.Status,
-            RoleId = dto.RoleId,
-            RoleName = dto.RoleName,
-            OwnerResourceId = dto.OwnerResourceId,
-            OwnerResourceName = dto.OwnerResourceName,
             ResolvedHours = hours,
             Notes = dto.Notes,
             CreatedAt = dto.CreatedAt,

@@ -28,8 +28,8 @@ public class LoadCalculator_ForProjectSubtreeAndRangeTests
     {
         // R1 @ 50% on the root, R2 @ 100% on a child Phase. The subtree aggregate
         // must include BOTH. Per day with 8h capacity: R1 = 4h, R2 = 8h, total 12h.
-        var atRoot = Allocation.Create(R1, Root, Mon, Fri, 50m);
-        var atPhase = Allocation.Create(R2, Phase, Mon, Fri, 100m);
+        var atRoot = Coverage.Cov(R1, Root, Mon, Fri, 50m);
+        var atPhase = Coverage.Cov(R2, Phase, Mon, Fri, 100m);
         var capacity = Capacity(new()
         {
             [R1] = TimeSpan.FromHours(8),
@@ -55,8 +55,8 @@ public class LoadCalculator_ForProjectSubtreeAndRangeTests
         // The same person staffed on both the root and a phase of the same project
         // sums into a single per-resource entry (ADR-0014 composition is uniform,
         // and here it spans nodes within the subtree).
-        var atRoot = Allocation.Create(R1, Root, Mon, Mon, 50m);
-        var atPhase = Allocation.Create(R1, Phase, Mon, Mon, 30m);
+        var atRoot = Coverage.Cov(R1, Root, Mon, Mon, 50m);
+        var atPhase = Coverage.Cov(R1, Phase, Mon, Mon, 30m);
         var capacity = Capacity(new() { [R1] = TimeSpan.FromHours(8) });
 
         var result = LoadCalculator
@@ -70,30 +70,12 @@ public class LoadCalculator_ForProjectSubtreeAndRangeTests
     }
 
     [Fact]
-    public void PlaceholderOnPhase_ContributesToPlaceholderBucket()
-    {
-        // A placeholder (open role) on a phase still surfaces in the subtree
-        // aggregate's PlaceholderRatePercent (ADR-0016 §5), separate from hours.
-        var role = Guid.NewGuid();
-        var hole = Allocation.CreatePlaceholder(Phase, Mon, Mon, 40m, role, ownerResourceId: null);
-        var capacity = new Dictionary<(Guid, DateOnly), TimeSpan>();
-
-        var result = LoadCalculator
-            .ForProjectSubtreeAndRange([hole], capacity, Mon, Mon)
-            .ToList();
-
-        result[0].PlaceholderRatePercent.Should().Be(40m);
-        result[0].TotalHours.Should().Be(TimeSpan.Zero);
-        result[0].ByResource.Should().BeEmpty();
-    }
-
-    [Fact]
     public void ExactNodeMethod_DropsPhaseBlocks_WhereasSubtreeKeepsThem()
     {
         // Demonstrates the gap #5 fix: exact-node sees only the root block;
         // subtree sees both.
-        var atRoot = Allocation.Create(R1, Root, Mon, Mon, 50m);
-        var atPhase = Allocation.Create(R2, Phase, Mon, Mon, 50m);
+        var atRoot = Coverage.Cov(R1, Root, Mon, Mon, 50m);
+        var atPhase = Coverage.Cov(R2, Phase, Mon, Mon, 50m);
         var capacity = Capacity(new()
         {
             [R1] = TimeSpan.FromHours(8),

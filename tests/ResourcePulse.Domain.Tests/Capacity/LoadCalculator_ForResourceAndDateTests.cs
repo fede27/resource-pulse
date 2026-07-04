@@ -18,7 +18,7 @@ public class LoadCalculator_ForResourceAndDateTests
     [Fact]
     public void SingleAllocation_50Percent_Returns4h()
     {
-        var a = Allocation.Create(R1, N1, D, D.AddDays(7), 50m);
+        var a = Coverage.Cov(R1, N1, D, D.AddDays(7), 50m);
 
         var hours = LoadCalculator.ForResourceAndDate(R1, [a], TimeSpan.FromHours(8), D);
 
@@ -28,7 +28,7 @@ public class LoadCalculator_ForResourceAndDateTests
     [Fact]
     public void SingleAllocation_100Percent_ReturnsFullCapacity()
     {
-        var a = Allocation.Create(R1, N1, D, D, 100m);
+        var a = Coverage.Cov(R1, N1, D, D, 100m);
 
         var hours = LoadCalculator.ForResourceAndDate(R1, [a], TimeSpan.FromHours(8), D);
 
@@ -39,8 +39,8 @@ public class LoadCalculator_ForResourceAndDateTests
     public void TwoOverlappingAllocations_Overallocates()
     {
         // Two 60% on same day vs 8h capacity -> 9.6h
-        var a1 = Allocation.Create(R1, N1, D, D, 60m);
-        var a2 = Allocation.Create(R1, N2, D, D, 60m);
+        var a1 = Coverage.Cov(R1, N1, D, D, 60m);
+        var a2 = Coverage.Cov(R1, N2, D, D, 60m);
 
         var hours = LoadCalculator.ForResourceAndDate(R1, [a1, a2], TimeSpan.FromHours(8), D);
 
@@ -52,8 +52,8 @@ public class LoadCalculator_ForResourceAndDateTests
     {
         // ADR-0014: overlapping blocks on the same (resource, project_node)
         // sum just like the cross-project case. 60% + 30% on N1 vs 8h -> 7.2h.
-        var a1 = Allocation.Create(R1, N1, D, D, 60m);
-        var a2 = Allocation.Create(R1, N1, D, D, 30m);
+        var a1 = Coverage.Cov(R1, N1, D, D, 60m);
+        var a2 = Coverage.Cov(R1, N1, D, D, 30m);
 
         var hours = LoadCalculator.ForResourceAndDate(R1, [a1, a2], TimeSpan.FromHours(8), D);
 
@@ -63,8 +63,8 @@ public class LoadCalculator_ForResourceAndDateTests
     [Fact]
     public void OtherResource_Ignored()
     {
-        var mine = Allocation.Create(R1, N1, D, D, 50m);
-        var theirs = Allocation.Create(R2, N1, D, D, 100m);
+        var mine = Coverage.Cov(R1, N1, D, D, 50m);
+        var theirs = Coverage.Cov(R2, N1, D, D, 100m);
 
         var hours = LoadCalculator.ForResourceAndDate(R1, [mine, theirs], TimeSpan.FromHours(8), D);
 
@@ -74,7 +74,7 @@ public class LoadCalculator_ForResourceAndDateTests
     [Fact]
     public void DateOutsidePeriod_NotCounted()
     {
-        var a = Allocation.Create(R1, N1, new DateOnly(2026, 6, 10), new DateOnly(2026, 6, 20), 100m);
+        var a = Coverage.Cov(R1, N1, new DateOnly(2026, 6, 10), new DateOnly(2026, 6, 20), 100m);
 
         var hours = LoadCalculator.ForResourceAndDate(R1, [a], TimeSpan.FromHours(8), D);
 
@@ -84,7 +84,7 @@ public class LoadCalculator_ForResourceAndDateTests
     [Fact]
     public void DateOnPeriodStart_Inclusive()
     {
-        var a = Allocation.Create(R1, N1, D, D.AddDays(5), 50m);
+        var a = Coverage.Cov(R1, N1, D, D.AddDays(5), 50m);
 
         var hours = LoadCalculator.ForResourceAndDate(R1, [a], TimeSpan.FromHours(8), D);
 
@@ -95,7 +95,7 @@ public class LoadCalculator_ForResourceAndDateTests
     public void DateOnPeriodEnd_Inclusive()
     {
         var end = D.AddDays(5);
-        var a = Allocation.Create(R1, N1, D, end, 50m);
+        var a = Coverage.Cov(R1, N1, D, end, 50m);
 
         var hours = LoadCalculator.ForResourceAndDate(R1, [a], TimeSpan.FromHours(8), end);
 
@@ -105,7 +105,7 @@ public class LoadCalculator_ForResourceAndDateTests
     [Fact]
     public void ZeroCapacity_AllocationActive_ReturnsZeroHours()
     {
-        var a = Allocation.Create(R1, N1, D, D, 50m);
+        var a = Coverage.Cov(R1, N1, D, D, 50m);
 
         var hours = LoadCalculator.ForResourceAndDate(R1, [a], TimeSpan.Zero, D);
 

@@ -15,8 +15,8 @@ public sealed class CreateCommandValidator : AbstractValidator<CreateCommand>
 {
     public CreateCommandValidator()
     {
+        RuleFor(x => x.DemandId).NotEqual(Guid.Empty);
         RuleFor(x => x.ResourceId).NotEqual(Guid.Empty);
-        RuleFor(x => x.ProjectNodeId).NotEqual(Guid.Empty);
         RuleFor(x => x.PeriodStart).LessThanOrEqualTo(x => x.PeriodEnd)
             .WithMessage("PeriodStart must be on or before PeriodEnd.");
         RuleFor(x => x.Percent)
@@ -31,8 +31,8 @@ public sealed class CreateByHoursCommandValidator : AbstractValidator<CreateByHo
 {
     public CreateByHoursCommandValidator()
     {
+        RuleFor(x => x.DemandId).NotEqual(Guid.Empty);
         RuleFor(x => x.ResourceId).NotEqual(Guid.Empty);
-        RuleFor(x => x.ProjectNodeId).NotEqual(Guid.Empty);
         RuleFor(x => x.PeriodStart).LessThanOrEqualTo(x => x.PeriodEnd)
             .WithMessage("PeriodStart must be on or before PeriodEnd.");
         RuleFor(x => x.TargetHours).GreaterThan(TimeSpan.Zero)
@@ -42,17 +42,18 @@ public sealed class CreateByHoursCommandValidator : AbstractValidator<CreateByHo
     }
 }
 
-public sealed class CreatePlaceholderCommandValidator : AbstractValidator<CreatePlaceholderCommand>
+public sealed class CoverInferredCommandValidator : AbstractValidator<CoverInferredCommand>
 {
-    public CreatePlaceholderCommandValidator()
+    public CoverInferredCommandValidator()
     {
         RuleFor(x => x.ProjectNodeId).NotEqual(Guid.Empty);
+        RuleFor(x => x.RoleId).NotEqual(Guid.Empty);
+        RuleFor(x => x.ResourceId).NotEqual(Guid.Empty);
         RuleFor(x => x.PeriodStart).LessThanOrEqualTo(x => x.PeriodEnd)
             .WithMessage("PeriodStart must be on or before PeriodEnd.");
         RuleFor(x => x.Percent)
             .GreaterThan(0m).LessThanOrEqualTo(Allocation.MaxAllocationPercent)
             .WithMessage($"Percent must be in the range (0, {Allocation.MaxAllocationPercent}].");
-        RuleFor(x => x.RoleId).NotEqual(Guid.Empty);
         RuleFor(x => x.OwnerResourceId)
             .Must(o => o is null || o != Guid.Empty)
             .WithMessage("OwnerResourceId, when provided, must not be Guid.Empty.");
@@ -101,9 +102,7 @@ public sealed class RetargetCommandValidator : AbstractValidator<RetargetCommand
     public RetargetCommandValidator()
     {
         RuleFor(x => x.Id).NotEqual(Guid.Empty);
-        RuleFor(x => x.NewPeriodStart).LessThanOrEqualTo(x => x.NewPeriodEnd)
-            .WithMessage("NewPeriodStart must be on or before NewPeriodEnd.");
-        RuleFor(x => x.Mode).IsInEnum();
+        RuleFor(x => x.DemandId).NotEqual(Guid.Empty);
     }
 }
 
@@ -131,18 +130,6 @@ public sealed class ShiftFromCommandValidator : AbstractValidator<ShiftFromComma
     }
 }
 
-public sealed class ConvertToPlaceholderCommandValidator : AbstractValidator<ConvertToPlaceholderCommand>
-{
-    public ConvertToPlaceholderCommandValidator()
-    {
-        RuleFor(x => x.Id).NotEqual(Guid.Empty);
-        RuleFor(x => x.RoleId).NotEqual(Guid.Empty);
-        RuleFor(x => x.OwnerResourceId)
-            .Must(o => o is null || o != Guid.Empty)
-            .WithMessage("OwnerResourceId, when provided, must not be Guid.Empty.");
-    }
-}
-
 public sealed class ReassignCommandValidator : AbstractValidator<ReassignCommand>
 {
     public ReassignCommandValidator()
@@ -165,4 +152,49 @@ public sealed class ChangeStatusCommandValidator : AbstractValidator<ChangeStatu
 public sealed class DeleteCommandValidator : AbstractValidator<DeleteCommand>
 {
     public DeleteCommandValidator() => RuleFor(x => x.Id).NotEqual(Guid.Empty);
+}
+
+// ── Demand (Phase 5.0) ──────────────────────────────────────────────────────
+
+public sealed class CreateDemandCommandValidator : AbstractValidator<CreateDemandCommand>
+{
+    public CreateDemandCommandValidator()
+    {
+        RuleFor(x => x.ProjectNodeId).NotEqual(Guid.Empty);
+        RuleFor(x => x.RoleId).NotEqual(Guid.Empty);
+        RuleFor(x => x.RequiredHours!.Value)
+            .GreaterThan(TimeSpan.Zero)
+            .When(x => x.RequiredHours is not null)
+            .WithMessage("RequiredHours, when provided, must be greater than zero.");
+        RuleFor(x => x.OwnerResourceId)
+            .Must(o => o is null || o != Guid.Empty)
+            .WithMessage("OwnerResourceId, when provided, must not be Guid.Empty.");
+        RuleFor(x => x.Notes).MaximumLength(2000);
+    }
+}
+
+public sealed class EditDemandCommandValidator : AbstractValidator<EditDemandCommand>
+{
+    public EditDemandCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEqual(Guid.Empty);
+        RuleFor(x => x.RoleId!.Value)
+            .NotEqual(Guid.Empty)
+            .When(x => x.RoleId is not null)
+            .WithMessage("RoleId, when provided, must not be Guid.Empty.");
+        RuleFor(x => x.RequiredHours!.Value)
+            .GreaterThan(TimeSpan.Zero)
+            .When(x => x.RequiredHoursSet && x.RequiredHours is not null)
+            .WithMessage("RequiredHours, when provided, must be greater than zero.");
+        RuleFor(x => x.OwnerResourceId)
+            .Must(o => o is null || o != Guid.Empty)
+            .When(x => x.OwnerResourceIdSet)
+            .WithMessage("OwnerResourceId, when provided, must not be Guid.Empty.");
+        RuleFor(x => x.Notes).MaximumLength(2000).When(x => x.NotesSet);
+    }
+}
+
+public sealed class DeleteDemandCommandValidator : AbstractValidator<DeleteDemandCommand>
+{
+    public DeleteDemandCommandValidator() => RuleFor(x => x.Id).NotEqual(Guid.Empty);
 }

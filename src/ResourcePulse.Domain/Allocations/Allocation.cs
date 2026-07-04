@@ -3,38 +3,45 @@ using ResourcePulse.Domain.Events;
 
 namespace ResourcePulse.Domain.Allocations;
 
-// A commitment over an inclusive date window on a project node. Aggregate root
-// with its own lifecycle.
+// A COVERAGE (Phase 5.1, ADR-0025): a real resource committed to a DEMAND over an
+// inclusive date window, at a given percentage of the resource's capacity.
+// Aggregate root with its own lifecycle.
 //
-// Status di forma (ADR-0016, I7 — XOR sull'atomo; ruolo re-targettato a Role da
-// ADR-0021 / M2):
-//   - Assegnato:    ResourceId valorizzato, campi placeholder nulli.
-//   - Placeholder:  ResourceId nullo, RoleId valorizzato (ruolo scoperto, dal
-//                   catalogo Role — lo stesso di Resource.RoleId).
-// La transizione Assegnato ↔ Placeholder conserva Id, span, rate%, status.
+// Core revision (revision §8, §10): the demand is the native, first-class object;
+// the coverage is what sits on top of it. An Allocation therefore ALWAYS has a
+// real resource and points at a Demand — there is no placeholder state anymore
+// (the old ADR-0016 form XOR / I7 is retired). Uncovered work is a Demand with no
+// coverage, not a degraded Allocation.
+//
+//   DemandId       — the demand this coverage covers (the FK of record).
+//   ProjectNodeId  — DENORMALIZED, always == Demand.ProjectNodeId. Set by the
+//                    service from the demand, never accepted from the client (I8).
+//                    Kept so the per-node / subtree / Path-prefix load queries
+//                    stay cheap.
+//   ResourceId     — the covering person (required, non-null again).
+//
+// The role lives on the Demand, never here (§6): a coverage whose resource's role
+// differs from the demand's role is a visible mismatch, surfaced, not enforced.
 //
 // Status di impegno (ADR-0015):
-//   - Tentative (default): ipotesi di pianificazione, libera in tutti i casi.
-//   - Hard:                commitment che richiede fondamento. L'invariante I6
-//                          (service-level) ammette Hard solo se il Project
-//                          radice del nodo ha CommitmentLevel ∈ {Committed,
-//                          Critical}; l'invariante NON è espressa qui — è
-//                          enforced da AllocationService.
+//   - Tentative (default): planning hypothesis, always free.
+//   - Hard: commitment requiring grounding. I6 (service-level) admits Hard only
+//     if the root Project's CommitmentLevel is hard-committed (CommitmentPolicy).
+//
+// Unit (ADR-0026): stored in percent; hours are the reconciliation truth
+// (% × capacity), derived, not stored.
 //
 // Local invariants only:
 //   - period start <= period end
-//   - rate% in (0, 1000] — typo safeguard, non un cap di overcommitment (ADR-0013)
-//   - XOR di forma (ResourceId vs placeholder fields)
+//   - rate% in (0, 1000] — typo safeguard, not a cap (ADR-0013)
+//   - demand, node and resource ids non-empty
 //
-// Cross-aggregate (I1, I3, I4, I6) live nel service layer (AllocationService).
-// I3 (risorsa attiva) si applica solo allo stato Assegnato — il placeholder
-// non ha risorsa per definizione (ADR-0016).
-//
-// Overlap stesso (resource, project_node): prima classe, le rate% sommano
-// (ADR-0014).
+// Cross-aggregate (I3, I4, I6, I8) live in the service layer (PlanCommandService).
+// Overlap on the same (resource, project_node) sums (ADR-0014) — never re-checked.
 public sealed class Allocation : Entity<Guid>, IAuditable
 {
-    public Guid? ResourceId { get; private set; }
+    public Guid DemandId { get; private set; }
+    public Guid ResourceId { get; private set; }
     public Guid ProjectNodeId { get; private set; }
     public DateOnly PeriodStart { get; private set; }
     public DateOnly PeriodEnd { get; private set; }
@@ -42,33 +49,29 @@ public sealed class Allocation : Entity<Guid>, IAuditable
     public AllocationStatus Status { get; private set; }
     public string? Notes { get; private set; }
 
-    // Placeholder fields — valorizzati iff ResourceId is null. RoleId punta al
-    // catalogo Role (ADR-0021 / M2), non a Skill.
-    public Guid? RoleId { get; private set; }
-    public Guid? OwnerResourceId { get; private set; }
-
     public DateTime CreatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
     public DateTime? UpdatedAt { get; set; }
     public string? UpdatedBy { get; set; }
 
-    // Convenience predicate. Source of truth resta i campi.
-    public bool IsPlaceholder => ResourceId is null;
-
     private Allocation() { }
 
-    // Crea un blocco assegnato. Default Status = Tentative (ADR-0015 §1).
-    public static Allocation Create(
-        Guid resourceId,
+    // Creates a coverage. Default Status = Tentative (ADR-0015 §1). projectNodeId
+    // is passed by the service from the target demand (denormalization, I8).
+    public static Allocation CreateCoverage(
+        Guid demandId,
         Guid projectNodeId,
+        Guid resourceId,
         DateOnly periodStart,
         DateOnly periodEnd,
         decimal allocationPercent,
         string? notes = null,
         AllocationStatus status = AllocationStatus.Tentative)
     {
+        if (demandId == Guid.Empty)
+            throw new DomainException("Coverage must reference a demand.");
         if (resourceId == Guid.Empty)
-            throw new DomainException("Allocation must reference a resource.");
+            throw new DomainException("Coverage must reference a resource.");
         AssertCommonInputs(projectNodeId, periodStart, periodEnd, allocationPercent);
         AssertStatusKnown(status);
 
@@ -76,68 +79,24 @@ public sealed class Allocation : Entity<Guid>, IAuditable
         var allocation = new Allocation
         {
             Id = id,
+            DemandId = demandId,
             ResourceId = resourceId,
             ProjectNodeId = projectNodeId,
             PeriodStart = periodStart,
             PeriodEnd = periodEnd,
             AllocationPercent = allocationPercent,
             Status = status,
-            Notes = NormalizeNotes(notes),
-            RoleId = null,
-            OwnerResourceId = null
+            Notes = NormalizeNotes(notes)
         };
 
         allocation.RaiseEvent(new AllocationCreated(
-            id, resourceId, projectNodeId, periodStart, periodEnd, allocationPercent, DateTimeOffset.UtcNow));
-        return allocation;
-    }
-
-    // Crea direttamente un placeholder (ruolo scoperto). ADR-0016 §2 +
-    // ADR-0021 / M2: ResourceId è null, RoleId è il ruolo richiesto (catalogo
-    // Role), OwnerResourceId è chi presidia la riassegnazione (opzionale).
-    public static Allocation CreatePlaceholder(
-        Guid projectNodeId,
-        DateOnly periodStart,
-        DateOnly periodEnd,
-        decimal allocationPercent,
-        Guid roleId,
-        Guid? ownerResourceId,
-        string? notes = null,
-        AllocationStatus status = AllocationStatus.Tentative)
-    {
-        if (roleId == Guid.Empty)
-            throw new DomainException("Placeholder allocation must reference a role.");
-        if (ownerResourceId is Guid o && o == Guid.Empty)
-            throw new DomainException("OwnerResourceId, when provided, must not be Guid.Empty.");
-        AssertCommonInputs(projectNodeId, periodStart, periodEnd, allocationPercent);
-        AssertStatusKnown(status);
-
-        var id = Guid.NewGuid();
-        var allocation = new Allocation
-        {
-            Id = id,
-            ResourceId = null,
-            ProjectNodeId = projectNodeId,
-            PeriodStart = periodStart,
-            PeriodEnd = periodEnd,
-            AllocationPercent = allocationPercent,
-            Status = status,
-            Notes = NormalizeNotes(notes),
-            RoleId = roleId,
-            OwnerResourceId = ownerResourceId
-        };
-
-        // No AllocationCreated event for placeholders: it carries a ResourceId
-        // in its schema (Phase 4) and adapting it would force a breaking change
-        // before any consumer exists. The conversion/assign events carry the
-        // placeholder lifecycle for now; a future revision can introduce a
-        // PlaceholderCreated event if/when needed (ADR-0016 §"Domande aperte").
+            id, demandId, resourceId, projectNodeId, periodStart, periodEnd, allocationPercent, DateTimeOffset.UtcNow));
         return allocation;
     }
 
     // reason is optional decision-level provenance (ADR-0017), propagated to
-    // AllocationPeriodChanged. The span operations (Shift, Resize, cascade)
-    // pass it; Update / Move leave it null.
+    // AllocationPeriodChanged. The span operations (Shift, Resize, cascade) pass
+    // it; Edit leaves it null.
     public void ChangePeriod(DateOnly newStart, DateOnly newEnd, string? reason = null)
     {
         if (newStart > newEnd)
@@ -153,49 +112,25 @@ public sealed class Allocation : Entity<Guid>, IAuditable
     }
 
     // ── Span operations (ADR-0017) ───────────────────────────────────────────
-    // The friction of planning is in the update, not the insert (§12), so these
-    // are first-class. All preserve identity, form (assigned/placeholder),
-    // status and node; only the window (and, for ChangeRateFrom, the rate of the
-    // new block) changes.
 
     // SplitAt — structural, NON-destructive. Cuts the span at `date` into two
-    // adjacent, NON-overlapping blocks: this becomes [PeriodStart, date-1], and
-    // the returned new sibling covers [date, PeriodEnd]. Both carry the same
-    // rate%, status, project node and form. Because the blocks do not overlap at
-    // the boundary, the per-day rate% sum is identical to the original on every
-    // date — the split is equivalent to the original (ADR-0014, ADR-0017 §1).
-    //
-    // `date` must be strictly interior: PeriodStart < date <= PeriodEnd, so both
-    // sides are non-empty. (date == PeriodEnd is the only valid cut of a 2-day
-    // span; date == PeriodStart would leave the first side empty.)
-    //
-    // The split does NOT change the rate — that is a separate, composable gesture
-    // (ChangeRateFrom). Keeping "add" (stack a summing block) and "correct"
-    // (split then edit) distinct is the UX constraint of ADR-0014.
+    // adjacent, NON-overlapping blocks: this becomes [PeriodStart, date-1], the
+    // returned sibling covers [date, PeriodEnd]. Both carry the same rate%, status,
+    // demand, node and resource. `date` must be strictly interior.
     public Allocation SplitAt(DateOnly date, string? reason = null)
     {
         if (date <= PeriodStart || date > PeriodEnd)
             throw new DomainException(
                 "Split date must be strictly inside the allocation span (PeriodStart < date <= PeriodEnd).");
 
-        // Second block: [date, PeriodEnd], identical form/rate/status/node.
         var second = CloneForSplit(date, PeriodEnd);
-
-        // First block (this): [PeriodStart, date-1]. Set directly rather than via
-        // ChangePeriod — the AllocationSplit event carries the provenance for the
-        // whole operation, so we suppress the redundant AllocationPeriodChanged.
         PeriodEnd = date.AddDays(-1);
 
         RaiseEvent(new AllocationSplit(Id, date, second.Id, NormalizeReason(reason), DateTimeOffset.UtcNow));
         return second;
     }
 
-    // ChangeRateFrom — "change the rate from `date` onward". Composition of
-    // SplitAt + ChangePercent on the new (second) block (ADR-0017 §2): the
-    // original keeps its rate on [start, date-1]; the second block [date, end]
-    // takes newRate. Yields the piecewise-constant profile the user means by
-    // "edit the rate mid-span" (§8). Returns the new block for the caller to
-    // persist.
+    // ChangeRateFrom — SplitAt(date) + ChangePercent(newRate) on the new block.
     public Allocation ChangeRateFrom(DateOnly date, decimal newRate, string? reason = null)
     {
         var second = SplitAt(date, reason ?? "ChangeRateFrom");
@@ -203,16 +138,11 @@ public sealed class Allocation : Entity<Guid>, IAuditable
         return second;
     }
 
-    // Shift — translate the whole span by `deltaDays` (may be negative),
-    // preserving duration and rate. Reuses ChangePeriod; raises
-    // AllocationPeriodChanged with the provenance reason. delta == 0 is a
-    // suppressed no-op.
+    // Shift — translate the whole span by `deltaDays`, preserving duration & rate.
     public void Shift(int deltaDays, string? reason = null) =>
         ChangePeriod(PeriodStart.AddDays(deltaDays), PeriodEnd.AddDays(deltaDays), reason ?? "Shift");
 
     // Resize — move a single edge to an explicit date, leaving the other fixed.
-    // At least one of newStart/newEnd must be provided. Reuses ChangePeriod,
-    // which enforces start <= end.
     public void Resize(DateOnly? newStart, DateOnly? newEnd, string? reason = null)
     {
         if (newStart is null && newEnd is null)
@@ -220,23 +150,21 @@ public sealed class Allocation : Entity<Guid>, IAuditable
         ChangePeriod(newStart ?? PeriodStart, newEnd ?? PeriodEnd, reason ?? "Resize");
     }
 
-    // Copies the current block into a new aggregate over [start, end], preserving
-    // form (assigned -> same resource; placeholder -> same role/owner), rate,
-    // status and notes. New Id; no creation event (provenance lives on the
-    // AllocationSplit raised by SplitAt — same convention as CreatePlaceholder).
+    // Copies the current coverage into a new aggregate over [start, end],
+    // preserving demand, node, resource, rate, status and notes. New Id; no
+    // creation event (provenance lives on the AllocationSplit raised by SplitAt).
     private Allocation CloneForSplit(DateOnly start, DateOnly end) =>
         new()
         {
             Id = Guid.NewGuid(),
+            DemandId = DemandId,
             ResourceId = ResourceId,
             ProjectNodeId = ProjectNodeId,
             PeriodStart = start,
             PeriodEnd = end,
             AllocationPercent = AllocationPercent,
             Status = Status,
-            Notes = Notes,
-            RoleId = RoleId,
-            OwnerResourceId = OwnerResourceId
+            Notes = Notes
         };
 
     public void ChangePercent(decimal newPercent)
@@ -251,10 +179,6 @@ public sealed class Allocation : Entity<Guid>, IAuditable
 
     public void Annotate(string? notes) => Notes = NormalizeNotes(notes);
 
-    // Cambia lo status. Cross-aggregate gating (I6 — Hard richiede progetto
-    // committato) resta a carico di AllocationService. Reason è opzionale e
-    // si propaga nell'evento — usato dalla cascade demotion (ADR-0015 §4)
-    // per registrare la causale "ProjectCommitmentDowngrade".
     public void ChangeStatus(AllocationStatus newStatus, string? reason = null)
     {
         AssertStatusKnown(newStatus);
@@ -265,54 +189,42 @@ public sealed class Allocation : Entity<Guid>, IAuditable
         RaiseEvent(new AllocationStatusChanged(Id, oldStatus, newStatus, NormalizeReason(reason), DateTimeOffset.UtcNow));
     }
 
-    // Transizione Assegnato → Placeholder (ADR-0016 §4). Conserva tutto
-    // tranne il puntatore alla risorsa, che viene "convertito" in ruolo
-    // scoperto + owner.
-    public void ConvertToPlaceholder(Guid roleId, Guid? ownerResourceId)
+    // Reassign — swap the covering resource on the SAME demand (amendment C1).
+    // Preserves Id, span, rate%, status, demand. (Was placeholder→assigned.)
+    public void Reassign(Guid resourceId)
     {
-        if (IsPlaceholder)
-            throw new DomainException("Allocation is already a placeholder.");
-        if (roleId == Guid.Empty)
-            throw new DomainException("Placeholder allocation must reference a role.");
-        if (ownerResourceId is Guid o && o == Guid.Empty)
-            throw new DomainException("OwnerResourceId, when provided, must not be Guid.Empty.");
-
-        var oldResourceId = ResourceId!.Value;
-        ResourceId = null;
-        RoleId = roleId;
-        OwnerResourceId = ownerResourceId;
-
-        RaiseEvent(new AllocationConvertedToPlaceholder(
-            Id, oldResourceId, ProjectNodeId, roleId, ownerResourceId, DateTimeOffset.UtcNow));
-    }
-
-    // Transizione Placeholder → Assegnato (ADR-0016 §4). Inverso di
-    // ConvertToPlaceholder: conserva Id, span, rate%, status; valorizza la
-    // risorsa e azzera i campi placeholder.
-    public void AssignTo(Guid resourceId)
-    {
-        if (!IsPlaceholder)
-            throw new DomainException("Only a placeholder allocation can be assigned to a resource.");
         if (resourceId == Guid.Empty)
-            throw new DomainException("Allocation must reference a resource.");
+            throw new DomainException("Coverage must reference a resource.");
+        if (ResourceId == resourceId) return; // no-op suppresses event
 
+        var old = ResourceId;
         ResourceId = resourceId;
-        RoleId = null;
-        OwnerResourceId = null;
-
-        RaiseEvent(new PlaceholderAssignedToResource(Id, resourceId, ProjectNodeId, DateTimeOffset.UtcNow));
+        RaiseEvent(new AllocationResourceChanged(Id, old, resourceId, DateTimeOffset.UtcNow));
     }
 
-    // Chiamato dal service layer subito prima di repository.Remove. Si applica
-    // a entrambi gli stati di forma — l'evento AllocationDeleted è
-    // semanticamente "il blocco esce dalla collezione" (ADR-0012, ristretto da
-    // ADR-0016).
+    // Retarget — re-point the coverage to ANOTHER demand (amendment C1). The
+    // service passes the new demand's node so the denormalized ProjectNodeId stays
+    // consistent (I8). Preserves span, rate%, status and resource.
+    public void RetargetToDemand(Guid newDemandId, Guid newProjectNodeId)
+    {
+        if (newDemandId == Guid.Empty)
+            throw new DomainException("Coverage must reference a demand.");
+        if (newProjectNodeId == Guid.Empty)
+            throw new DomainException("Coverage must reference a project node.");
+        if (DemandId == newDemandId && ProjectNodeId == newProjectNodeId) return; // no-op
+
+        var oldDemand = DemandId;
+        DemandId = newDemandId;
+        ProjectNodeId = newProjectNodeId;
+        RaiseEvent(new AllocationRetargeted(Id, oldDemand, newDemandId, DateTimeOffset.UtcNow));
+    }
+
+    // Called by the service layer just before repository.Remove. This is now the
+    // canonical deallocation: the coverage leaves, the demand underneath persists
+    // and re-surfaces as uncovered (revision §8, ADR-0012 semantics preserved).
     public void MarkDeleted() =>
         RaiseEvent(new AllocationDeleted(Id, DateTimeOffset.UtcNow));
 
-    // Upper bound is 1000% — a deliberate overcommitment signal for a single
-    // allocation (see ADR-0013). The cap is a typo safeguard, not a domain
-    // ceiling on overcommitment severity.
     public const decimal MaxAllocationPercent = 1000m;
 
     // ── helpers ─────────────────────────────────────────────────────────────
@@ -321,7 +233,7 @@ public sealed class Allocation : Entity<Guid>, IAuditable
         Guid projectNodeId, DateOnly periodStart, DateOnly periodEnd, decimal allocationPercent)
     {
         if (projectNodeId == Guid.Empty)
-            throw new DomainException("Allocation must reference a project node.");
+            throw new DomainException("Coverage must reference a project node.");
         if (periodStart > periodEnd)
             throw new DomainException("PeriodStart must be on or before PeriodEnd.");
         AssertPercentInRange(allocationPercent);

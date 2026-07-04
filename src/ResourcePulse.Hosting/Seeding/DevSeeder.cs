@@ -4,6 +4,7 @@ using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Calendars;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Resources;
+using ResourcePulse.Domain.Demands;
 using ResourcePulse.Domain.Roles;
 using ResourcePulse.Domain.Skills;
 using ResourcePulse.Domain.Tags;
@@ -258,25 +259,40 @@ public static class DevSeeder
         if (await db.Allocations.AnyAsync()) return;
 
         var resources = await db.Resources.ToDictionaryAsync(r => r.Name, r => r.Id);
+        var resourceRole = await db.Resources
+            .Where(r => r.RoleId != null)
+            .ToDictionaryAsync(r => r.Name, r => r.RoleId!.Value);
         var projects = await db.ProjectNodes
             .Where(p => p.ParentId == null)
             .ToDictionaryAsync(p => p.Name, p => p.Id);
-        var skillId = await db.Skills.Where(s => s.Name == "C#").Select(s => (Guid?)s.Id).FirstOrDefaultAsync();
+        var anyRoleId = await db.Roles.Select(r => (Guid?)r.Id).FirstOrDefaultAsync();
 
+        var demands = new List<Demand>();
         var toAdd = new List<Allocation>();
 
+        // Coverage model (Phase 5.1, ADR-0025): every assignment covers a demand.
+        // A demand carries the role; here we seed it from the covered person's role
+        // (Declared, best-effort target). Deallocation would leave the demand.
         void Assign(string person, string project, DateOnly start, DateOnly end, decimal percent,
             AllocationStatus status = AllocationStatus.Tentative)
         {
-            if (resources.TryGetValue(person, out var rid) && projects.TryGetValue(project, out var pid))
-                toAdd.Add(Allocation.Create(rid, pid, start, end, percent, notes: null, status));
+            if (!resources.TryGetValue(person, out var rid) || !projects.TryGetValue(project, out var pid))
+                return;
+            var roleId = resourceRole.TryGetValue(person, out var rr) ? rr : anyRoleId;
+            if (roleId is null) return;
+
+            var demand = Demand.Create(pid, roleId.Value, requiredHours: null, DemandProvenance.Declared);
+            demands.Add(demand);
+            toAdd.Add(Allocation.CreateCoverage(demand.Id, pid, rid, start, end, percent, notes: null, status: status));
         }
 
-        void Placeholder(string project, DateOnly start, DateOnly end, decimal percent,
-            AllocationStatus status = AllocationStatus.Tentative)
+        // Uncovered demand (the old "placeholder"): a targeted Demand with NO
+        // coverage on it — the native "to be staffed" state (revision §8).
+        void OpenDemand(string project, TimeSpan requiredHours,
+            DemandProvenance provenance = DemandProvenance.Declared)
         {
-            if (skillId is Guid sid && projects.TryGetValue(project, out var pid))
-                toAdd.Add(Allocation.CreatePlaceholder(pid, start, end, percent, sid, ownerResourceId: null, notes: null, status));
+            if (anyRoleId is Guid roleId && projects.TryGetValue(project, out var pid))
+                demands.Add(Demand.Create(pid, roleId, requiredHours, provenance));
         }
 
         var jul = new DateOnly(2026, 7, 1);
@@ -301,15 +317,16 @@ public static class DevSeeder
         // Giulia is also on Apollo in Aug — cross-project overallocation (permitted, I5).
         Assign("Giulia Verdi", "Cosmos", aug, End(aug, 20), 60m);
 
-        // Delta Migration (Committed, Draft): a mix + an open role.
+        // Delta Migration (Committed, Draft): a mix + an uncovered demand.
         Assign("Chiara Arancio", "Delta Migration", sep, End(sep, 30), 40m);
-        Placeholder("Delta Migration", sep, End(sep, 45), 50m, AllocationStatus.Hard);
+        OpenDemand("Delta Migration", TimeSpan.FromHours(240));
 
-        // Echo R&D (Exploratory, Draft): only tentative + a placeholder demand.
+        // Echo R&D (Exploratory, Draft): a coverage + an uncovered demand.
         Assign("Sara Gialli", "Echo R&D", jul, End(jul, 25), 30m);
-        Placeholder("Echo R&D", aug, End(aug, 30), 100m);
+        OpenDemand("Echo R&D", TimeSpan.FromHours(160));
 
-        if (toAdd.Count == 0) return;
+        if (demands.Count == 0) return;
+        db.Demands.AddRange(demands);
         db.Allocations.AddRange(toAdd);
         await db.SaveChangesAsync();
     }

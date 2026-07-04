@@ -2,9 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Capacity;
+using ResourcePulse.Domain.Demands;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Persistence;
 using ResourcePulse.Services.Capacity;
+using ResourcePulse.Services.Demands;
 
 namespace ResourcePulse.Services.Load;
 
@@ -121,12 +123,9 @@ public sealed class LiveLoadQueryService(
                      && a.PeriodEnd >= from)
             .ToListAsync(ct);
 
-        // Placeholders carry no resource — skip them when collecting the
-        // resource set for capacity lookups (ADR-0016 §5). Their rate%
-        // contribution is computed by LoadCalculator into PlaceholderRatePercent.
+        // Every allocation is a coverage with a resource (Phase 5.1, ADR-0025).
         var resourceIds = allocations
-            .Where(a => a.ResourceId is not null)
-            .Select(a => a.ResourceId!.Value)
+            .Select(a => a.ResourceId)
             .Distinct()
             .ToList();
 
@@ -162,8 +161,7 @@ public sealed class LiveLoadQueryService(
                         Hours = kvp.Value
                     })
                     .OrderBy(x => x.ResourceName)
-                    .ToList(),
-                PlaceholderRatePercent = d.PlaceholderRatePercent
+                    .ToList()
             })
             .ToList();
 
@@ -243,6 +241,101 @@ public sealed class LiveLoadQueryService(
             .ToList();
 
         return ServiceResult<IReadOnlyList<LoadSegmentDto>>.Success(dtos);
+    }
+
+    // ── Demand coverage (Phase 5.2, ADR-0025/0026) ───────────────────────────
+
+    public async Task<ServiceResult<IReadOnlyList<DemandCoverageDto>>> GetDemandCoverageForProjectNodeAsync(
+        Guid projectNodeId, DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
+    {
+        if (from > toInclusive)
+            return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Validation(new Dictionary<string, string[]>
+            {
+                ["range"] = ["'from' must be on or before 'to'."]
+            });
+
+        var nodePath = await db.ProjectNodes.AsNoTracking()
+            .Where(p => p.Id == projectNodeId).Select(p => p.Path).FirstOrDefaultAsync(ct);
+        if (nodePath is null)
+            return ServiceResult<IReadOnlyList<DemandCoverageDto>>.NotFound($"ProjectNode {projectNodeId} not found.");
+
+        var prefix = nodePath + "/";
+        var demands = await db.Demands.AsNoTracking()
+            .Where(d => db.ProjectNodes.Any(p => p.Id == d.ProjectNodeId
+                        && (p.Id == projectNodeId || p.Path.StartsWith(prefix))))
+            .ToListAsync(ct);
+
+        var dtos = await ReconcileAsync(demands, from, toInclusive, ct);
+        return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Success(dtos);
+    }
+
+    public async Task<ServiceResult<DemandCoverageDto>> GetDemandCoverageForDemandAsync(
+        Guid demandId, DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
+    {
+        if (from > toInclusive)
+            return ServiceResult<DemandCoverageDto>.Validation(new Dictionary<string, string[]>
+            {
+                ["range"] = ["'from' must be on or before 'to'."]
+            });
+
+        var demand = await db.Demands.AsNoTracking().FirstOrDefaultAsync(d => d.Id == demandId, ct);
+        if (demand is null)
+            return ServiceResult<DemandCoverageDto>.NotFound($"Demand {demandId} not found.");
+
+        var dtos = await ReconcileAsync([demand], from, toInclusive, ct);
+        return ServiceResult<DemandCoverageDto>.Success(dtos[0]);
+    }
+
+    // Shared: load the coverage of the given demands + the capacity of the covering
+    // resources, run the pure calculator, resolve role/owner names. Capacity loads
+    // are sequential (pooled DbContext, ADR-0010).
+    private async Task<IReadOnlyList<DemandCoverageDto>> ReconcileAsync(
+        List<Demand> demands, DateOnly from, DateOnly toInclusive, CancellationToken ct)
+    {
+        if (demands.Count == 0) return [];
+
+        var demandIds = demands.Select(d => d.Id).ToList();
+        var coverage = await db.Allocations.AsNoTracking()
+            .Where(a => demandIds.Contains(a.DemandId)
+                     && a.PeriodStart <= toInclusive
+                     && a.PeriodEnd >= from)
+            .ToListAsync(ct);
+
+        var capacityByResourceAndDate = new Dictionary<(Guid, DateOnly), TimeSpan>();
+        foreach (var rid in coverage.Select(a => a.ResourceId).Distinct())
+        {
+            var cap = await capacity.GetForResourceAsync(rid, from, toInclusive, ct);
+            if (cap.IsFailure) continue; // treat as zero capacity for that resource
+            foreach (var d in cap.Value) capacityByResourceAndDate[(rid, d.Date)] = d.Hours;
+        }
+
+        var reconciled = LoadCalculator.CoverageForDemands(demands, coverage, capacityByResourceAndDate, from, toInclusive);
+
+        var roleIds = demands.Select(d => d.RoleId).Distinct().ToList();
+        var roleNames = await db.Roles.AsNoTracking()
+            .Where(r => roleIds.Contains(r.Id)).ToDictionaryAsync(r => r.Id, r => r.Name, ct);
+        var ownerIds = demands.Where(d => d.OwnerResourceId != null).Select(d => d.OwnerResourceId!.Value).Distinct().ToList();
+        var ownerNames = await db.Resources.AsNoTracking()
+            .Where(r => ownerIds.Contains(r.Id)).ToDictionaryAsync(r => r.Id, r => r.Name, ct);
+
+        var byId = demands.ToDictionary(d => d.Id);
+        return reconciled.Select(c =>
+        {
+            var d = byId[c.DemandId];
+            return new DemandCoverageDto
+            {
+                DemandId = c.DemandId,
+                ProjectNodeId = c.ProjectNodeId,
+                RoleId = c.RoleId,
+                RoleName = roleNames.GetValueOrDefault(c.RoleId, string.Empty),
+                Provenance = d.Provenance,
+                RequiredHours = c.RequiredHours,
+                CoveredHours = c.CoveredHours,
+                GapHours = c.GapHours,
+                OwnerResourceId = d.OwnerResourceId,
+                OwnerResourceName = d.OwnerResourceId is Guid o ? ownerNames.GetValueOrDefault(o) : null
+            };
+        }).ToList();
     }
 
     // Root project node id = first segment of the materialized Path "/{rootId}/...".

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ResourcePulse.Services.Demands;
 using ResourcePulse.Services.Load;
 
 namespace ResourcePulse.Http.Load;
@@ -45,4 +46,27 @@ public sealed class LoadController(ILoadQueryService service) : ControllerFounda
         [FromQuery] DateOnly to,
         CancellationToken ct) =>
         FromResult(await service.GetForProjectNodeAsync(id, from, to, ct));
+
+    // Demand-vs-coverage over the node's subtree (Phase 5.2, ADR-0025/0026):
+    // required/covered/gap hours per demand. Best-effort demands carry a null gap.
+    [HttpGet("api/project-nodes/{id}/demand-coverage")]
+    [ProducesResponseType<IReadOnlyList<DemandCoverageDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetProjectNodeDemandCoverageAsync(
+        Guid id,
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        CancellationToken ct) =>
+        FromResult(await service.GetDemandCoverageForProjectNodeAsync(id, from, to, ct));
+
+    // Coverage of a single demand over the range.
+    [HttpGet("api/demands/{id}/coverage")]
+    [ProducesResponseType<DemandCoverageDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetDemandCoverageAsync(
+        Guid id,
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        CancellationToken ct) =>
+        FromResult(await service.GetDemandCoverageForDemandAsync(id, from, to, ct));
 }

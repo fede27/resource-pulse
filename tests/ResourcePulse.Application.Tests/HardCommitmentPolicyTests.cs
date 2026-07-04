@@ -16,8 +16,8 @@ public class HardCommitmentPolicyTests
 
     private CreateCommand HardCreate(PlanCommandHarness h) => new()
     {
+        DemandId = h.DemandId,
         ResourceId = h.ResourceId,
-        ProjectNodeId = h.ProjectNodeId,
         PeriodStart = D1,
         PeriodEnd = D14,
         Percent = 40m,

@@ -30,7 +30,7 @@ public class PlanCommandSerializationTests
     [Theory]
     [InlineData("create")]
     [InlineData("createByHours")]
-    [InlineData("createPlaceholder")]
+    [InlineData("coverInferred")]
     [InlineData("edit")]
     [InlineData("splitAt")]
     [InlineData("changeRateFrom")]
@@ -38,10 +38,12 @@ public class PlanCommandSerializationTests
     [InlineData("retarget")]
     [InlineData("resize")]
     [InlineData("shiftFrom")]
-    [InlineData("convertToPlaceholder")]
     [InlineData("reassign")]
     [InlineData("changeStatus")]
     [InlineData("delete")]
+    [InlineData("createDemand")]
+    [InlineData("editDemand")]
+    [InlineData("deleteDemand")]
     public void EveryKind_DeserializesToConcreteCommand(string kind)
     {
         var json = $$"""{ "kind": "{{kind}}", "id": "{{Guid.NewGuid()}}" }""";
@@ -64,18 +66,17 @@ public class PlanCommandSerializationTests
     }
 
     [Fact]
-    public void Retarget_DeserializesModeEnum()
+    public void Retarget_DeserializesTargetDemand()
     {
-        // Enums serialize as integers in this app (KeepHours = 1).
         var json = """
             { "kind": "retarget", "id": "11111111-1111-1111-1111-111111111111",
-              "newPeriodStart": "2026-06-08", "newPeriodEnd": "2026-06-21", "mode": 1 }
+              "demandId": "22222222-2222-2222-2222-222222222222" }
             """;
 
         var cmd = JsonSerializer.Deserialize<PlanCommand>(json, Options);
 
         cmd.Should().BeOfType<RetargetCommand>();
-        ((RetargetCommand)cmd!).Mode.Should().Be(MoveMode.KeepHours);
+        ((RetargetCommand)cmd!).DemandId.Should().Be(Guid.Parse("22222222-2222-2222-2222-222222222222"));
     }
 
     [Fact]

@@ -3,6 +3,7 @@ using ResourcePulse.Common.Domain;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Capacity;
+using ResourcePulse.Domain.Demands;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Persistence;
 using ResourcePulse.Services.Capacity;
@@ -34,7 +35,7 @@ public sealed class PlanCommandService(
         {
             CreateCommand c => CreateAsync(c, ct),
             CreateByHoursCommand c => CreateByHoursAsync(c, ct),
-            CreatePlaceholderCommand c => CreatePlaceholderAsync(c, ct),
+            CoverInferredCommand c => CoverInferredAsync(c, ct),
             EditCommand c => EditAsync(c, ct),
             SplitAtCommand c => SplitAtAsync(c, ct),
             ChangeRateFromCommand c => ChangeRateFromAsync(c, ct),
@@ -42,90 +43,137 @@ public sealed class PlanCommandService(
             RetargetCommand c => RetargetAsync(c, ct),
             ResizeCommand c => ResizeAsync(c, ct),
             ShiftFromCommand c => ShiftFromAsync(c, ct),
-            ConvertToPlaceholderCommand c => ConvertToPlaceholderAsync(c, ct),
             ReassignCommand c => ReassignAsync(c, ct),
             ChangeStatusCommand c => ChangeStatusAsync(c, ct),
             DeleteCommand c => DeleteAsync(c, ct),
+            CreateDemandCommand c => CreateDemandAsync(c, ct),
+            EditDemandCommand c => EditDemandAsync(c, ct),
+            DeleteDemandCommand c => DeleteDemandAsync(c, ct),
             _ => Task.FromResult(Fail(ServiceError.Validation(new Dictionary<string, string[]>
             {
                 ["kind"] = [$"Unknown command type {command.GetType().Name}."]
             })))
         };
 
-    // ── Creation ─────────────────────────────────────────────────────────────
+    // ── Creation (coverage against a demand) ─────────────────────────────────
 
     private async Task<ServiceResult<PlanCommandResult>> CreateAsync(CreateCommand c, CancellationToken ct)
     {
-        var (nodeErr, _) = await LoadPlanningNodeAsync(c.ProjectNodeId, ct);
-        if (nodeErr is { } e1) return Fail(e1);
+        var (demandErr, node) = await LoadDemandNodeAsync(c.DemandId, ct);
+        if (demandErr is { } e0) return Fail(e0);
         if (await CheckResourceActiveAsync(c.ResourceId, ct) is { } e2) return Fail(e2);
-        if (await CheckProjectStatusByNodeAsync(c.ProjectNodeId, ct) is { } e3) return Fail(e3);
-        if (c.Status == AllocationStatus.Hard && await CheckHardCommitmentAsync(c.ProjectNodeId, ct) is { } e4)
+        if (await CheckProjectStatusByNodeAsync(node, ct) is { } e3) return Fail(e3);
+        if (c.Status == AllocationStatus.Hard && await CheckHardCommitmentAsync(node, ct) is { } e4)
             return Fail(e4);
 
-        return await CreateAssignedAsync(
-            c, c.ResourceId, c.ProjectNodeId, c.PeriodStart, c.PeriodEnd, c.Percent, c.Status, c.Notes, "create", ct);
+        return await CreateCoverageAsync(
+            c, c.DemandId, node, c.ResourceId, c.PeriodStart, c.PeriodEnd, c.Percent, c.Status, c.Notes, "create", ct);
     }
 
     private async Task<ServiceResult<PlanCommandResult>> CreateByHoursAsync(CreateByHoursCommand c, CancellationToken ct)
     {
-        var (nodeErr, _) = await LoadPlanningNodeAsync(c.ProjectNodeId, ct);
-        if (nodeErr is { } e1) return Fail(e1);
+        var (demandErr, node) = await LoadDemandNodeAsync(c.DemandId, ct);
+        if (demandErr is { } e0) return Fail(e0);
         if (await CheckResourceActiveAsync(c.ResourceId, ct) is { } e2) return Fail(e2);
-        if (await CheckProjectStatusByNodeAsync(c.ProjectNodeId, ct) is { } e3) return Fail(e3);
-        if (c.Status == AllocationStatus.Hard && await CheckHardCommitmentAsync(c.ProjectNodeId, ct) is { } e4)
+        if (await CheckProjectStatusByNodeAsync(node, ct) is { } e3) return Fail(e3);
+        if (c.Status == AllocationStatus.Hard && await CheckHardCommitmentAsync(node, ct) is { } e4)
             return Fail(e4);
 
-        var cap = await CapacityInWindowAsync(c.ResourceId, c.PeriodStart, c.PeriodEnd, ct);
-        if (cap.IsFailure) return Fail(cap.Error!);
-        if (cap.Value <= TimeSpan.Zero)
-            return Fail(ServiceError.Conflict(
-                "Cannot allocate hours: resource has zero capacity in the requested window."));
+        var pct = await ResolvePercentForHoursAsync(c.ResourceId, c.PeriodStart, c.PeriodEnd, c.TargetHours, ct);
+        if (pct.IsFailure) return Fail(pct.Error!);
 
-        decimal percent;
-        try { percent = AllocationResolver.PercentForHours(c.TargetHours, cap.Value); }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
-
-        if (percent > Allocation.MaxAllocationPercent)
-            return Fail(ServiceError.Conflict(
-                $"Resolved percent {percent} exceeds the {Allocation.MaxAllocationPercent}% cap. " +
-                "Widen the window or reduce target hours."));
-
-        return await CreateAssignedAsync(
-            c, c.ResourceId, c.ProjectNodeId, c.PeriodStart, c.PeriodEnd, percent, c.Status, c.Notes, "createByHours", ct);
+        return await CreateCoverageAsync(
+            c, c.DemandId, node, c.ResourceId, c.PeriodStart, c.PeriodEnd, pct.Value, c.Status, c.Notes, "createByHours", ct);
     }
 
-    private async Task<ServiceResult<PlanCommandResult>> CreatePlaceholderAsync(
-        CreatePlaceholderCommand c, CancellationToken ct)
+    // coverInferred (attach-first, amendment C3). See CoverInferredCommand.
+    private async Task<ServiceResult<PlanCommandResult>> CoverInferredAsync(CoverInferredCommand c, CancellationToken ct)
     {
         var (nodeErr, _) = await LoadPlanningNodeAsync(c.ProjectNodeId, ct);
         if (nodeErr is { } e1) return Fail(e1);
-        if (await CheckPlaceholderRefsAsync(c.RoleId, c.OwnerResourceId, ct) is { } e2) return Fail(e2);
-        if (await CheckProjectStatusByNodeAsync(c.ProjectNodeId, ct) is { } e3) return Fail(e3);
-        if (c.Status == AllocationStatus.Hard && await CheckHardCommitmentAsync(c.ProjectNodeId, ct) is { } e4)
-            return Fail(e4);
+        if (await CheckRoleAndOwnerAsync(c.RoleId, c.OwnerResourceId, ct) is { } e2) return Fail(e2);
+        if (await CheckResourceActiveAsync(c.ResourceId, ct) is { } e3) return Fail(e3);
+        if (await CheckProjectStatusByNodeAsync(c.ProjectNodeId, ct) is { } e4) return Fail(e4);
+        if (c.Status == AllocationStatus.Hard && await CheckHardCommitmentAsync(c.ProjectNodeId, ct) is { } e5)
+            return Fail(e5);
 
+        // Find uncovered demands on (node, role): best-effort, or covered < required.
+        var candidates = await UncoveredDemandsAsync(c.ProjectNodeId, c.RoleId, ct);
+
+        if (candidates.Count > 1)
+        {
+            // Ambiguous: return the candidate list, commit NOTHING (C3 branch 4).
+            // The user disambiguates and re-issues a plain create with a demandId.
+            db.ChangeTracker.Clear();
+            var list = candidates.Select(d => ToDemandChange(d, PlanChangeKind.Candidate)).ToList();
+            return ServiceResult<PlanCommandResult>.Success(new PlanCommandResult
+            {
+                CommandKind = "coverInferred",
+                DryRun = c.DryRun,
+                Committed = false,
+                Changes = [],
+                DemandChanges = list
+            });
+        }
+
+        if (candidates.Count == 1)
+        {
+            // Attach to the existing uncovered demand; provenance unchanged.
+            var target = candidates[0];
+            return await CreateCoverageAsync(
+                c, target.Id, target.ProjectNodeId, c.ResourceId,
+                c.PeriodStart, c.PeriodEnd, c.Percent, c.Status, c.Notes, "coverInferred", ct);
+        }
+
+        // Fallback: materialize an Inferred, best-effort demand and cover it.
+        Demand demand;
         Allocation a;
         try
         {
-            a = Allocation.CreatePlaceholder(
-                c.ProjectNodeId, c.PeriodStart, c.PeriodEnd, c.Percent, c.RoleId, c.OwnerResourceId, c.Notes, c.Status);
+            demand = Demand.Create(
+                c.ProjectNodeId, c.RoleId, requiredHours: null, DemandProvenance.Inferred, c.OwnerResourceId);
+            a = Allocation.CreateCoverage(
+                demand.Id, c.ProjectNodeId, c.ResourceId, c.PeriodStart, c.PeriodEnd, c.Percent, c.Notes, c.Status);
         }
         catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
 
-        return await FinalizeAsync(c, "createPlaceholder",
-            [ToChange(a, PlanChangeKind.Created)], toAdd: [a], toRemove: null, ct);
+        return await FinalizeAsync(c, "coverInferred",
+            [ToChange(a, PlanChangeKind.Created)], toAdd: [a], toRemove: null, ct,
+            demandChanges: [ToDemandChange(demand, PlanChangeKind.Created)], demandsToAdd: [demand]);
     }
 
-    private async Task<ServiceResult<PlanCommandResult>> CreateAssignedAsync(
-        PlanCommand cmd, Guid resourceId, Guid projectNodeId, DateOnly start, DateOnly end,
+    private async Task<ServiceResult<PlanCommandResult>> CreateCoverageAsync(
+        PlanCommand cmd, Guid demandId, Guid projectNodeId, Guid resourceId, DateOnly start, DateOnly end,
         decimal percent, AllocationStatus status, string? notes, string kind, CancellationToken ct)
     {
         Allocation a;
-        try { a = Allocation.Create(resourceId, projectNodeId, start, end, percent, notes, status); }
+        try { a = Allocation.CreateCoverage(demandId, projectNodeId, resourceId, start, end, percent, notes, status); }
         catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
 
         return await FinalizeAsync(cmd, kind, [ToChange(a, PlanChangeKind.Created)], toAdd: [a], toRemove: null, ct);
+    }
+
+    // Resolves a target-hours quantity to a percent against the resource's window
+    // capacity, gating zero-capacity and the 1000% cap (shared by createByHours).
+    private async Task<ServiceResult<decimal>> ResolvePercentForHoursAsync(
+        Guid resourceId, DateOnly start, DateOnly end, TimeSpan targetHours, CancellationToken ct)
+    {
+        var cap = await CapacityInWindowAsync(resourceId, start, end, ct);
+        if (cap.IsFailure) return ServiceResult<decimal>.Failure(cap.Error!);
+        if (cap.Value <= TimeSpan.Zero)
+            return ServiceResult<decimal>.Conflict(
+                "Cannot allocate hours: resource has zero capacity in the requested window.");
+
+        decimal percent;
+        try { percent = AllocationResolver.PercentForHours(targetHours, cap.Value); }
+        catch (DomainException ex) { return ServiceResult<decimal>.Conflict(ex.Message); }
+
+        if (percent > Allocation.MaxAllocationPercent)
+            return ServiceResult<decimal>.Conflict(
+                $"Resolved percent {percent} exceeds the {Allocation.MaxAllocationPercent}% cap. " +
+                "Widen the window or reduce target hours.");
+
+        return ServiceResult<decimal>.Success(percent);
     }
 
     // ── Edit in place ────────────────────────────────────────────────────────
@@ -190,64 +238,21 @@ public sealed class PlanCommandService(
         return await FinalizeAsync(c, "move", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
     }
 
+    // Retarget — re-point the coverage to ANOTHER demand (amendment C1). Re-check
+    // guards on the NEW target: I4 (new root not Closed/Cancelled) and, if the
+    // coverage is Hard, I6 (new root commitment admits Hard). No silent demotion.
     private async Task<ServiceResult<PlanCommandResult>> RetargetAsync(RetargetCommand c, CancellationToken ct)
     {
         var a = await LoadAsync(c.Id, ct);
         if (a is null) return NotFound(c.Id);
-        if (await CheckProjectStatusByNodeAsync(a.ProjectNodeId, ct) is { } e) return Fail(e);
 
-        decimal newPercent;
-        switch (c.Mode)
-        {
-            case MoveMode.KeepPercent:
-                newPercent = a.AllocationPercent;
-                break;
+        var (demandErr, newNode) = await LoadDemandNodeAsync(c.DemandId, ct);
+        if (demandErr is { } e0) return Fail(e0);
+        if (await CheckProjectStatusByNodeAsync(newNode, ct) is { } e1) return Fail(e1);
+        if (a.Status == AllocationStatus.Hard && await CheckHardCommitmentAsync(newNode, ct) is { } e2)
+            return Fail(e2);
 
-            case MoveMode.KeepHours:
-            {
-                if (a.ResourceId is null)
-                    return Fail(ServiceError.Conflict(
-                        "Cannot retarget with KeepHours on a placeholder allocation: no resource ⇒ no capacity reference. " +
-                        "Use KeepPercent or assign the placeholder first."));
-
-                var resourceId = a.ResourceId.Value;
-                var oldCap = await CapacityInWindowAsync(resourceId, a.PeriodStart, a.PeriodEnd, ct);
-                if (oldCap.IsFailure) return Fail(oldCap.Error!);
-                var newCap = await CapacityInWindowAsync(resourceId, c.NewPeriodStart, c.NewPeriodEnd, ct);
-                if (newCap.IsFailure) return Fail(newCap.Error!);
-
-                if (newCap.Value <= TimeSpan.Zero)
-                    return Fail(ServiceError.Conflict(
-                        "Cannot retarget with KeepHours: resource has zero capacity in the new window."));
-                if (oldCap.Value <= TimeSpan.Zero)
-                    return Fail(ServiceError.Conflict(
-                        "Cannot retarget with KeepHours: the original window now has zero capacity " +
-                        "(calendar changed since the allocation was created). Use KeepPercent or correct the calendar first."));
-
-                var oldHours = AllocationResolver.HoursForPercent(a.AllocationPercent, oldCap.Value);
-                try { newPercent = AllocationResolver.PercentForHours(oldHours, newCap.Value); }
-                catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
-
-                if (newPercent > Allocation.MaxAllocationPercent)
-                    return Fail(ServiceError.Conflict(
-                        $"KeepHours retarget would require {newPercent}% in the new window, " +
-                        $"which exceeds the {Allocation.MaxAllocationPercent}% cap. " +
-                        "Widen the new window or accept a different rate (use KeepPercent)."));
-                break;
-            }
-
-            default:
-                return Fail(ServiceError.Validation(new Dictionary<string, string[]>
-                {
-                    [nameof(RetargetCommand.Mode)] = [$"Unknown move mode {c.Mode}."]
-                }));
-        }
-
-        try
-        {
-            a.ChangePeriod(c.NewPeriodStart, c.NewPeriodEnd, "Retarget");
-            a.ChangePercent(newPercent);
-        }
+        try { a.RetargetToDemand(c.DemandId, newNode); }
         catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
 
         return await FinalizeAsync(c, "retarget", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
@@ -294,33 +299,17 @@ public sealed class PlanCommandService(
         return await FinalizeAsync(c, "shiftFrom", changes, null, null, ct);
     }
 
-    // ── Form & status transitions ────────────────────────────────────────────
+    // ── Resource & status transitions ────────────────────────────────────────
 
-    private async Task<ServiceResult<PlanCommandResult>> ConvertToPlaceholderAsync(
-        ConvertToPlaceholderCommand c, CancellationToken ct)
-    {
-        var a = await LoadAsync(c.Id, ct);
-        if (a is null) return NotFound(c.Id);
-        if (a.IsPlaceholder) return Fail(ServiceError.Conflict("Allocation is already a placeholder."));
-        if (await CheckProjectStatusByNodeAsync(a.ProjectNodeId, ct) is { } e1) return Fail(e1);
-        if (await CheckPlaceholderRefsAsync(c.RoleId, c.OwnerResourceId, ct) is { } e2) return Fail(e2);
-
-        try { a.ConvertToPlaceholder(c.RoleId, c.OwnerResourceId); }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
-
-        return await FinalizeAsync(c, "convertToPlaceholder", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
-    }
-
+    // Reassign — swap the covering resource on the same demand (amendment C1).
     private async Task<ServiceResult<PlanCommandResult>> ReassignAsync(ReassignCommand c, CancellationToken ct)
     {
         var a = await LoadAsync(c.Id, ct);
         if (a is null) return NotFound(c.Id);
-        if (!a.IsPlaceholder)
-            return Fail(ServiceError.Conflict("Only a placeholder allocation can be assigned to a resource."));
         if (await CheckResourceActiveAsync(c.ResourceId, ct) is { } e1) return Fail(e1);
         if (await CheckProjectStatusByNodeAsync(a.ProjectNodeId, ct) is { } e2) return Fail(e2);
 
-        try { a.AssignTo(c.ResourceId); }
+        try { a.Reassign(c.ResourceId); }
         catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
 
         return await FinalizeAsync(c, "reassign", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
@@ -350,23 +339,93 @@ public sealed class PlanCommandService(
         return await FinalizeAsync(c, "delete", [change], toAdd: null, toRemove: [a], ct);
     }
 
+    // ── Demand mutation (Phase 5.0) ──────────────────────────────────────────
+
+    private async Task<ServiceResult<PlanCommandResult>> CreateDemandAsync(CreateDemandCommand c, CancellationToken ct)
+    {
+        var (nodeErr, _) = await LoadPlanningNodeAsync(c.ProjectNodeId, ct);
+        if (nodeErr is { } e1) return Fail(e1);
+        if (await CheckProjectStatusByNodeAsync(c.ProjectNodeId, ct) is { } e2) return Fail(e2);
+        if (await CheckRoleAndOwnerAsync(c.RoleId, c.OwnerResourceId, ct) is { } e3) return Fail(e3);
+
+        Demand d;
+        try
+        {
+            d = Demand.Create(
+                c.ProjectNodeId, c.RoleId, c.RequiredHours, DemandProvenance.Declared, c.OwnerResourceId, c.Notes);
+        }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+
+        return await FinalizeAsync(c, "createDemand", [], null, null, ct,
+            demandChanges: [ToDemandChange(d, PlanChangeKind.Created)], demandsToAdd: [d]);
+    }
+
+    private async Task<ServiceResult<PlanCommandResult>> EditDemandAsync(EditDemandCommand c, CancellationToken ct)
+    {
+        var d = await db.Demands.FindAsync([c.Id], ct);
+        if (d is null) return DemandNotFound(c.Id);
+
+        // Validate references that are actually changing.
+        if (c.RoleId is Guid newRole && await CheckRoleAndOwnerAsync(newRole, null, ct) is { } eRole)
+            return Fail(eRole);
+        if (c.OwnerResourceIdSet && c.OwnerResourceId is Guid newOwner
+            && await CheckRoleAndOwnerAsync(d.RoleId, newOwner, ct) is { } eOwner)
+            return Fail(eOwner);
+
+        try
+        {
+            if (c.RoleId is Guid role) d.ChangeRole(role);
+            if (c.RequiredHoursSet) d.ChangeRequiredHours(c.RequiredHours);
+            if (c.OwnerResourceIdSet) d.ChangeOwner(c.OwnerResourceId);
+            if (c.NotesSet) d.Annotate(c.Notes);
+        }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+
+        return await FinalizeAsync(c, "editDemand", [], null, null, ct,
+            demandChanges: [ToDemandChange(d, PlanChangeKind.Modified)]);
+    }
+
+    private async Task<ServiceResult<PlanCommandResult>> DeleteDemandAsync(DeleteDemandCommand c, CancellationToken ct)
+    {
+        var d = await db.Demands.FindAsync([c.Id], ct);
+        if (d is null) return DemandNotFound(c.Id);
+
+        // A demand with coverage on it cannot be deleted (mirrors the FK Restrict).
+        // Deallocation (delete the coverage) is how you free it first.
+        if (await db.Allocations.AnyAsync(a => a.DemandId == c.Id, ct))
+            return Fail(ServiceError.Conflict(
+                "Demand has coverage on it and cannot be deleted. Remove the coverage first."));
+
+        d.MarkDeleted();
+        var change = ToDemandChange(d, PlanChangeKind.Deleted);
+        return await FinalizeAsync(c, "deleteDemand", [], null, null, ct,
+            demandChanges: [change], demandsToRemove: [d]);
+    }
+
     // ── Persistence boundary ─────────────────────────────────────────────────
 
     // Commits (Add/Remove + SaveChanges) only when !DryRun. On a dryRun the
     // ChangeTracker is cleared so tracked mutations are discarded and nothing is
-    // persisted (verified explicitly in the integration tests). `changes` is
-    // built by the caller from the in-memory aggregates BEFORE this point, so it
-    // reflects the would-be state in both modes.
+    // persisted (verified explicitly in the integration tests). `changes` /
+    // `demandChanges` are built by the caller from the in-memory aggregates BEFORE
+    // this point, so they reflect the would-be state in both modes.
     private async Task<ServiceResult<PlanCommandResult>> FinalizeAsync(
         PlanCommand cmd, string kind, IReadOnlyList<PlanBlockChange> changes,
-        IReadOnlyList<Allocation>? toAdd, IReadOnlyList<Allocation>? toRemove, CancellationToken ct)
+        IReadOnlyList<Allocation>? toAdd, IReadOnlyList<Allocation>? toRemove, CancellationToken ct,
+        IReadOnlyList<PlanDemandChange>? demandChanges = null,
+        IReadOnlyList<Demand>? demandsToAdd = null,
+        IReadOnlyList<Demand>? demandsToRemove = null)
     {
         if (!cmd.DryRun)
         {
+            if (demandsToAdd is not null)
+                foreach (var d in demandsToAdd) await db.Demands.AddAsync(d, ct);
             if (toAdd is not null)
                 foreach (var a in toAdd) await db.Allocations.AddAsync(a, ct);
             if (toRemove is not null)
                 db.Allocations.RemoveRange(toRemove);
+            if (demandsToRemove is not null)
+                db.Demands.RemoveRange(demandsToRemove);
             await db.SaveChangesAsync(ct);
         }
         else
@@ -379,7 +438,8 @@ public sealed class PlanCommandService(
             CommandKind = kind,
             DryRun = cmd.DryRun,
             Committed = !cmd.DryRun,
-            Changes = changes
+            Changes = changes,
+            DemandChanges = demandChanges ?? []
         });
     }
 
@@ -389,6 +449,21 @@ public sealed class PlanCommandService(
     private static ServiceResult<PlanCommandResult> NotFound(Guid id) =>
         ServiceResult<PlanCommandResult>.NotFound($"Allocation {id} not found.");
 
+    private static ServiceResult<PlanCommandResult> DemandNotFound(Guid id) =>
+        ServiceResult<PlanCommandResult>.NotFound($"Demand {id} not found.");
+
+    private static PlanDemandChange ToDemandChange(Demand d, PlanChangeKind kind) => new()
+    {
+        Kind = kind,
+        Id = d.Id,
+        ProjectNodeId = d.ProjectNodeId,
+        RoleId = d.RoleId,
+        RequiredHours = d.RequiredHours,
+        Provenance = d.Provenance,
+        OwnerResourceId = d.OwnerResourceId,
+        Notes = d.Notes
+    };
+
     private static ServiceResult<PlanCommandResult> Fail(ServiceError e) =>
         ServiceResult<PlanCommandResult>.Failure(e);
 
@@ -396,15 +471,13 @@ public sealed class PlanCommandService(
     {
         Kind = kind,
         Id = a.Id,
+        DemandId = a.DemandId,
         ResourceId = a.ResourceId,
-        IsPlaceholder = a.IsPlaceholder,
         ProjectNodeId = a.ProjectNodeId,
         PeriodStart = a.PeriodStart,
         PeriodEnd = a.PeriodEnd,
         AllocationPercent = a.AllocationPercent,
         Status = a.Status,
-        RoleId = a.RoleId,
-        OwnerResourceId = a.OwnerResourceId,
         Notes = a.Notes
     };
 
@@ -495,9 +568,68 @@ public sealed class PlanCommandService(
         return null;
     }
 
-    // Placeholder references exist (RoleId required; OwnerResourceId optional).
-    // RoleId targets the Role catalogue (ADR-0021 / M2), not Skill.
-    private async Task<ServiceError?> CheckPlaceholderRefsAsync(Guid roleId, Guid? ownerResourceId, CancellationToken ct)
+    // Loads a demand and returns its (denormalized) ProjectNodeId. Coverage reads
+    // the node from here (I8) — the client never supplies it. I1 was enforced at
+    // demand creation, so the node is guaranteed planning-level.
+    private async Task<(ServiceError? err, Guid node)> LoadDemandNodeAsync(Guid demandId, CancellationToken ct)
+    {
+        var node = await db.Demands.AsNoTracking()
+            .Where(d => d.Id == demandId)
+            .Select(d => (Guid?)d.ProjectNodeId)
+            .FirstOrDefaultAsync(ct);
+
+        if (node is null)
+            return (ServiceError.Validation(new Dictionary<string, string[]>
+            {
+                ["DemandId"] = [$"Demand {demandId} does not exist."]
+            }), Guid.Empty);
+
+        return (null, node.Value);
+    }
+
+    // Demands on (node, role) that can still take coverage (amendment C3): a
+    // best-effort demand (RequiredHours null) always qualifies; a targeted demand
+    // qualifies while its covered hours are below the target. Covered hours are the
+    // reconciliation truth (% × capacity), so this consults the capacity service.
+    private async Task<IReadOnlyList<Demand>> UncoveredDemandsAsync(Guid nodeId, Guid roleId, CancellationToken ct)
+    {
+        var demands = await db.Demands.AsNoTracking()
+            .Where(d => d.ProjectNodeId == nodeId && d.RoleId == roleId)
+            .ToListAsync(ct);
+
+        var result = new List<Demand>();
+        foreach (var d in demands)
+        {
+            if (d.RequiredHours is null) { result.Add(d); continue; }
+            var covered = await CoveredHoursForDemandAsync(d.Id, ct);
+            if (covered < d.RequiredHours.Value) result.Add(d);
+        }
+        return result;
+    }
+
+    // Sum of resolved coverage hours (% × capacity over each block's window) on a
+    // demand. Sequential capacity loads (pooled DbContext, ADR-0010).
+    private async Task<TimeSpan> CoveredHoursForDemandAsync(Guid demandId, CancellationToken ct)
+    {
+        var blocks = await db.Allocations.AsNoTracking()
+            .Where(a => a.DemandId == demandId)
+            .Select(a => new { a.ResourceId, a.PeriodStart, a.PeriodEnd, a.AllocationPercent })
+            .ToListAsync(ct);
+
+        var total = TimeSpan.Zero;
+        foreach (var b in blocks)
+        {
+            var cap = await CapacityInWindowAsync(b.ResourceId, b.PeriodStart, b.PeriodEnd, ct);
+            if (cap.IsFailure || cap.Value <= TimeSpan.Zero) continue;
+            total += AllocationResolver.HoursForPercent(b.AllocationPercent, cap.Value);
+        }
+        return total;
+    }
+
+    // Demand references exist (RoleId required; OwnerResourceId optional). Both
+    // target existing catalogue rows. Used by createDemand/editDemand (Phase 5.0);
+    // supersedes CheckPlaceholderRefsAsync once the placeholder is retired (5.1).
+    private async Task<ServiceError?> CheckRoleAndOwnerAsync(Guid roleId, Guid? ownerResourceId, CancellationToken ct)
     {
         if (!await db.Roles.AnyAsync(r => r.Id == roleId, ct))
             return ServiceError.Validation(new Dictionary<string, string[]>

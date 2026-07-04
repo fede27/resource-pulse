@@ -13,15 +13,11 @@ public sealed class DailyNodeLoadDto
 {
     public DateOnly Date { get; init; }
 
-    // Ore aggregate da SOLE allocazioni assegnate (ADR-0016 §5). Per i
-    // placeholder non c'è capacity di riferimento, quindi nessuna ora.
+    // Coverage hours on the node/subtree (Phase 5.1, ADR-0025). Uncovered demand
+    // is no longer a placeholder rate here — it is the demand-coverage read model.
     public TimeSpan TotalHours { get; init; }
     public IReadOnlyList<NodeLoadByResourceDto> ByResource { get; init; }
         = Array.Empty<NodeLoadByResourceDto>();
-
-    // Somma di rate% sui placeholder attivi nella data — la "domanda scoperta"
-    // sul nodo (ADR-0016 §5). 0 quando non ci sono placeholder.
-    public decimal PlaceholderRatePercent { get; init; }
 }
 
 public sealed class NodeLoadByResourceDto

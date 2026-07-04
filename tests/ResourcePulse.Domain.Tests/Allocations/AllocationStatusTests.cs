@@ -12,14 +12,14 @@ public class AllocationStatusTests
 
     private static Allocation FreshTentative()
     {
-        var a = Allocation.Create(Resource, Node, Start, End, 50m);
+        var a = Coverage.Cov(Resource, Node, Start, End, 50m);
         a.ClearDomainEvents();
         return a;
     }
 
     private static Allocation FreshHard()
     {
-        var a = Allocation.Create(Resource, Node, Start, End, 50m, notes: null, status: AllocationStatus.Hard);
+        var a = Coverage.Cov(Resource, Node, Start, End, 50m, notes: null, status: AllocationStatus.Hard);
         a.ClearDomainEvents();
         return a;
     }
@@ -80,17 +80,4 @@ public class AllocationStatusTests
             .Which.Reason.Should().BeNull();
     }
 
-    [Fact]
-    public void ChangeStatus_AppliesAlsoToPlaceholder()
-    {
-        // I6 is enforced at the service layer. The aggregate accepts either
-        // status on either form.
-        var a = Allocation.CreatePlaceholder(Node, Start, End, 50m, Guid.NewGuid(), null);
-        a.ClearDomainEvents();
-
-        a.ChangeStatus(AllocationStatus.Hard);
-
-        a.Status.Should().Be(AllocationStatus.Hard);
-        a.DomainEvents.Should().ContainSingle().Which.Should().BeOfType<AllocationStatusChanged>();
-    }
 }

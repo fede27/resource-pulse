@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using ResourcePulse.Domain.Allocations;
+using ResourcePulse.Domain.Demands;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Resources;
-using ResourcePulse.Domain.Roles;
 
 namespace ResourcePulse.Persistence.Configurations;
 
@@ -11,30 +11,18 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
 {
     public void Configure(EntityTypeBuilder<Allocation> builder)
     {
-        builder.ToTable("allocations", t =>
-        {
-            // I7 (ADR-0016): forma XOR — exactly one branch valued at any time.
-            // The role/owner columns sit outside the assigned-branch; the
-            // resource pointer sits outside the placeholder-branch. role_id
-            // targets the Role catalogue (ADR-0021 / M2).
-            t.HasCheckConstraint(
-                "ck_allocations_form_xor",
-                "(resource_id IS NOT NULL AND role_id IS NULL AND owner_resource_id IS NULL) " +
-                "OR (resource_id IS NULL AND role_id IS NOT NULL)");
-        });
+        builder.ToTable("allocations");
         builder.HasKey(a => a.Id);
 
-        // ResourceId is nullable — a placeholder allocation has no resource
-        // (ADR-0016). When set, the FK is to Resources; deletion is restricted.
-        builder.Property(a => a.ResourceId);
-        builder.Property(a => a.ProjectNodeId).IsRequired();
+        // Coverage model (Phase 5.1, ADR-0025): every allocation covers a demand
+        // with a real resource. No form XOR / placeholder columns anymore.
+        builder.Property(a => a.DemandId).IsRequired();
+        builder.Property(a => a.ResourceId).IsRequired();
+        builder.Property(a => a.ProjectNodeId).IsRequired(); // denormalized == Demand.ProjectNodeId (I8)
         builder.Property(a => a.PeriodStart).HasColumnType("date").IsRequired();
         builder.Property(a => a.PeriodEnd).HasColumnType("date").IsRequired();
 
-        // decimal(6,2): max 9999.99, but domain caps at 1000.00. Widened from
-        // numeric(5,2) in the WidenAllocationPercentBound migration (Phase 4.1)
-        // so the cap of 1000.00 (overcommitment-as-signal — ADR-0013) fits.
-        // The explicit ck_allocations_percent_range CHECK is the real range gate.
+        // decimal(6,2): domain caps at 1000.00 (overcommitment-as-signal, ADR-0013).
         builder.Property(a => a.AllocationPercent)
             .HasColumnType("numeric(6,2)")
             .IsRequired();
@@ -44,18 +32,19 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
             .HasMaxLength(20)
             .IsRequired();
 
-        // Placeholder fields (ADR-0016). Valorizzati IFF ResourceId is null;
-        // enforced by ck_allocations_form_xor declared on the table above.
-        // RoleId targets the Role catalogue (ADR-0021 / M2).
-        builder.Property(a => a.RoleId);
-        builder.Property(a => a.OwnerResourceId);
-
         builder.Property(a => a.Notes).HasMaxLength(2000);
 
         builder.Property(a => a.CreatedBy).HasMaxLength(256).IsRequired();
         builder.Property(a => a.UpdatedBy).HasMaxLength(256);
 
-        // Restrict: cannot delete a resource or project node while it has allocations.
+        // Restrict everywhere: cannot delete a demand, resource or project node
+        // while coverage references it. A demand is thus undeletable while covered
+        // (the service surfaces this as Conflict — "detach coverage first").
+        builder.HasOne<Demand>()
+            .WithMany()
+            .HasForeignKey(a => a.DemandId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne<Resource>()
             .WithMany()
             .HasForeignKey(a => a.ResourceId)
@@ -66,28 +55,16 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
             .HasForeignKey(a => a.ProjectNodeId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Placeholder FKs — both Restrict: can't delete a Role that is the
-        // open role of a placeholder; can't delete the OwnerResource of one
-        // either. Forces explicit reassignment first. RoleId targets the Role
-        // catalogue — the same catalogue as Resource.RoleId (ADR-0021 / M2).
-        builder.HasOne<Role>()
-            .WithMany()
-            .HasForeignKey(a => a.RoleId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne<Resource>()
-            .WithMany()
-            .HasForeignKey(a => a.OwnerResourceId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        // Reads for resource load and project-node load both filter by entity + date range.
+        // Reads for resource load and project-node load filter by entity + date range.
         builder.HasIndex(a => new { a.ResourceId, a.PeriodStart, a.PeriodEnd })
             .HasDatabaseName("ix_allocations_resource_id_period");
         builder.HasIndex(a => new { a.ProjectNodeId, a.PeriodStart, a.PeriodEnd })
             .HasDatabaseName("ix_allocations_project_node_id_period");
+        // The demand-coverage read joins coverage to its demand.
+        builder.HasIndex(a => a.DemandId)
+            .HasDatabaseName("ix_allocations_demand_id");
 
         // No DB-level overlap constraint: overlapping allocations on the same
-        // (ResourceId, ProjectNodeId) are first-class and their rate% sums —
-        // see ADR-0014.
+        // (ResourceId, ProjectNodeId) are first-class and their rate% sums (ADR-0014).
     }
 }

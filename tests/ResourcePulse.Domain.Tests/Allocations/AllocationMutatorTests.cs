@@ -12,7 +12,7 @@ public class AllocationMutatorTests
 
     private static Allocation Fresh(decimal percent = 50m)
     {
-        var a = Allocation.Create(Resource, Node, Start, End, percent);
+        var a = Coverage.Cov(Resource, Node, Start, End, percent);
         a.ClearDomainEvents();
         return a;
     }

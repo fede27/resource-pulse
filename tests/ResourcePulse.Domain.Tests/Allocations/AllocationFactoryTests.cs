@@ -3,18 +3,22 @@ using ResourcePulse.Domain.Events;
 
 namespace ResourcePulse.Domain.Tests.Allocations;
 
+// Coverage factory (Phase 5.1, ADR-0025): Allocation.CreateCoverage(demand, node,
+// resource, ...). Always a real resource on a demand — no placeholder form.
 public class AllocationFactoryTests
 {
+    private static readonly Guid Demand   = Guid.NewGuid();
     private static readonly Guid Resource = Guid.NewGuid();
     private static readonly Guid Node     = Guid.NewGuid();
     private static readonly DateOnly Start = new(2026, 6, 1);
     private static readonly DateOnly End   = new(2026, 6, 14);
 
     [Fact]
-    public void Create_HappyPath_SetsAllFields()
+    public void CreateCoverage_HappyPath_SetsAllFields()
     {
-        var a = Allocation.Create(Resource, Node, Start, End, 50m, "  notes  ");
+        var a = Allocation.CreateCoverage(Demand, Node, Resource, Start, End, 50m, "  notes  ");
 
+        a.DemandId.Should().Be(Demand);
         a.ResourceId.Should().Be(Resource);
         a.ProjectNodeId.Should().Be(Node);
         a.PeriodStart.Should().Be(Start);
@@ -25,14 +29,15 @@ public class AllocationFactoryTests
     }
 
     [Fact]
-    public void Create_RaisesAllocationCreatedEvent()
+    public void CreateCoverage_RaisesAllocationCreatedEvent_WithDemand()
     {
-        var a = Allocation.Create(Resource, Node, Start, End, 25m);
+        var a = Allocation.CreateCoverage(Demand, Node, Resource, Start, End, 25m);
 
         a.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<AllocationCreated>()
             .Which.Should().Match<AllocationCreated>(e =>
                 e.AllocationId == a.Id &&
+                e.DemandId == Demand &&
                 e.ResourceId == Resource &&
                 e.ProjectNodeId == Node &&
                 e.PeriodStart == Start &&
@@ -41,34 +46,37 @@ public class AllocationFactoryTests
     }
 
     [Fact]
-    public void Create_EmptyResourceId_Throws()
+    public void CreateCoverage_EmptyDemandId_Throws()
     {
-        var act = () => Allocation.Create(Guid.Empty, Node, Start, End, 50m);
+        var act = () => Allocation.CreateCoverage(Guid.Empty, Node, Resource, Start, End, 50m);
+        act.Should().Throw<DomainException>().WithMessage("*demand*");
+    }
 
+    [Fact]
+    public void CreateCoverage_EmptyResourceId_Throws()
+    {
+        var act = () => Allocation.CreateCoverage(Demand, Node, Guid.Empty, Start, End, 50m);
         act.Should().Throw<DomainException>().WithMessage("*resource*");
     }
 
     [Fact]
-    public void Create_EmptyProjectNodeId_Throws()
+    public void CreateCoverage_EmptyProjectNodeId_Throws()
     {
-        var act = () => Allocation.Create(Resource, Guid.Empty, Start, End, 50m);
-
+        var act = () => Allocation.CreateCoverage(Demand, Guid.Empty, Resource, Start, End, 50m);
         act.Should().Throw<DomainException>().WithMessage("*project node*");
     }
 
     [Fact]
-    public void Create_StartAfterEnd_Throws()
+    public void CreateCoverage_StartAfterEnd_Throws()
     {
-        var act = () => Allocation.Create(Resource, Node, End, Start, 50m);
-
+        var act = () => Allocation.CreateCoverage(Demand, Node, Resource, End, Start, 50m);
         act.Should().Throw<DomainException>().WithMessage("*PeriodStart must be on or before PeriodEnd*");
     }
 
     [Fact]
-    public void Create_StartEqualsEnd_OK_SingleDay()
+    public void CreateCoverage_StartEqualsEnd_OK_SingleDay()
     {
-        var a = Allocation.Create(Resource, Node, Start, Start, 50m);
-
+        var a = Allocation.CreateCoverage(Demand, Node, Resource, Start, Start, 50m);
         a.PeriodStart.Should().Be(Start);
         a.PeriodEnd.Should().Be(Start);
     }
@@ -80,10 +88,9 @@ public class AllocationFactoryTests
     [InlineData(1000.01)]
     [InlineData(1001)]
     [InlineData(5000)]
-    public void Create_PercentOutOfRange_Throws(double percent)
+    public void CreateCoverage_PercentOutOfRange_Throws(double percent)
     {
-        var act = () => Allocation.Create(Resource, Node, Start, End, (decimal)percent);
-
+        var act = () => Allocation.CreateCoverage(Demand, Node, Resource, Start, End, (decimal)percent);
         act.Should().Throw<DomainException>().WithMessage("*range (0, 1000]*");
     }
 
@@ -94,97 +101,73 @@ public class AllocationFactoryTests
     [InlineData(150)]    // overcommitment is legal (see ADR-0013)
     [InlineData(500)]
     [InlineData(1000)]   // boundary
-    public void Create_PercentInRange_OK(double percent)
+    public void CreateCoverage_PercentInRange_OK(double percent)
     {
-        var a = Allocation.Create(Resource, Node, Start, End, (decimal)percent);
-
+        var a = Allocation.CreateCoverage(Demand, Node, Resource, Start, End, (decimal)percent);
         a.AllocationPercent.Should().Be((decimal)percent);
     }
 
     [Fact]
-    public void Create_NotesNull_StaysNull()
+    public void CreateCoverage_NotesNull_StaysNull()
     {
-        var a = Allocation.Create(Resource, Node, Start, End, 50m, null);
+        var a = Allocation.CreateCoverage(Demand, Node, Resource, Start, End, 50m, null);
         a.Notes.Should().BeNull();
     }
 
     [Fact]
-    public void Create_NotesBlank_StoresNull()
+    public void CreateCoverage_NotesBlank_StoresNull()
     {
-        var a = Allocation.Create(Resource, Node, Start, End, 50m, "   ");
+        var a = Allocation.CreateCoverage(Demand, Node, Resource, Start, End, 50m, "   ");
         a.Notes.Should().BeNull();
     }
 
     // ── Status (ADR-0015) ───────────────────────────────────────────────────
 
     [Fact]
-    public void Create_DefaultStatus_IsTentative()
+    public void CreateCoverage_DefaultStatus_IsTentative()
     {
-        var a = Allocation.Create(Resource, Node, Start, End, 50m);
+        var a = Allocation.CreateCoverage(Demand, Node, Resource, Start, End, 50m);
         a.Status.Should().Be(AllocationStatus.Tentative);
     }
 
     [Theory]
     [InlineData(AllocationStatus.Tentative)]
     [InlineData(AllocationStatus.Hard)]
-    public void Create_WithExplicitStatus_StoresIt(AllocationStatus status)
+    public void CreateCoverage_WithExplicitStatus_StoresIt(AllocationStatus status)
     {
-        var a = Allocation.Create(Resource, Node, Start, End, 50m, notes: null, status: status);
+        var a = Allocation.CreateCoverage(Demand, Node, Resource, Start, End, 50m, notes: null, status: status);
         a.Status.Should().Be(status);
     }
 
-    // ── CreatePlaceholder (ADR-0016) ────────────────────────────────────────
-
-    // RoleId targets the Role catalogue (ADR-0021 / M2).
-    private static readonly Guid Role = Guid.NewGuid();
-    private static readonly Guid Owner = Guid.NewGuid();
+    // ── Reassign & RetargetToDemand (amendment C1) ──────────────────────────
 
     [Fact]
-    public void CreatePlaceholder_HappyPath_SetsPlaceholderFields()
+    public void Reassign_SwapsResource_SameDemand()
     {
-        var a = Allocation.CreatePlaceholder(Node, Start, End, 25m, Role, Owner);
+        var a = Allocation.CreateCoverage(Demand, Node, Resource, Start, End, 50m);
+        a.ClearDomainEvents();
+        var other = Guid.NewGuid();
 
-        a.ResourceId.Should().BeNull();
-        a.IsPlaceholder.Should().BeTrue();
-        a.RoleId.Should().Be(Role);
-        a.OwnerResourceId.Should().Be(Owner);
-        a.ProjectNodeId.Should().Be(Node);
-        a.AllocationPercent.Should().Be(25m);
-        a.Status.Should().Be(AllocationStatus.Tentative);
+        a.Reassign(other);
+
+        a.ResourceId.Should().Be(other);
+        a.DemandId.Should().Be(Demand);
+        a.DomainEvents.Should().ContainSingle().Which.Should().BeOfType<AllocationResourceChanged>();
     }
 
     [Fact]
-    public void CreatePlaceholder_OwnerOptional()
+    public void RetargetToDemand_RepointsDemandAndNode_SameResource()
     {
-        var a = Allocation.CreatePlaceholder(Node, Start, End, 25m, Role, ownerResourceId: null);
+        var a = Allocation.CreateCoverage(Demand, Node, Resource, Start, End, 50m);
+        a.ClearDomainEvents();
+        var newDemand = Guid.NewGuid();
+        var newNode = Guid.NewGuid();
 
-        a.OwnerResourceId.Should().BeNull();
-        a.RoleId.Should().Be(Role);
-    }
+        a.RetargetToDemand(newDemand, newNode);
 
-    [Fact]
-    public void CreatePlaceholder_EmptyRole_Throws()
-    {
-        var act = () => Allocation.CreatePlaceholder(Node, Start, End, 25m, Guid.Empty, null);
-
-        act.Should().Throw<DomainException>().WithMessage("*role*");
-    }
-
-    [Fact]
-    public void CreatePlaceholder_EmptyOwnerWhenProvided_Throws()
-    {
-        var act = () => Allocation.CreatePlaceholder(Node, Start, End, 25m, Role, Guid.Empty);
-
-        act.Should().Throw<DomainException>().WithMessage("*OwnerResourceId*");
-    }
-
-    [Fact]
-    public void CreatePlaceholder_DoesNotRaiseAllocationCreatedEvent()
-    {
-        // Comment in CreatePlaceholder explains: no AllocationCreated event for
-        // placeholders. The conversion/assign events carry the lifecycle.
-        var a = Allocation.CreatePlaceholder(Node, Start, End, 25m, Role, Owner);
-
-        a.DomainEvents.Should().BeEmpty();
+        a.DemandId.Should().Be(newDemand);
+        a.ProjectNodeId.Should().Be(newNode);
+        a.ResourceId.Should().Be(Resource);
+        a.DomainEvents.Should().ContainSingle().Which.Should().BeOfType<AllocationRetargeted>();
     }
 }

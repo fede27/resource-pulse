@@ -32,7 +32,7 @@ public class LoadCalculator_ResourceCommitmentProfileTests
     [Fact]
     public void SingleAllocation_FullHorizon_OneSegment()
     {
-        var a = Allocation.Create(R, RootA, Mon, Fri, 50m);
+        var a = Coverage.Cov(R, RootA, Mon, Fri, 50m);
 
         var segments = Profile(a);
 
@@ -48,8 +48,8 @@ public class LoadCalculator_ResourceCommitmentProfileTests
     [Fact]
     public void OverlappingProjects_SplitsAtBoundaries_AndSumsInOverlap()
     {
-        var onA = Allocation.Create(R, RootA, Mon, Fri, 50m);   // whole week
-        var onB = Allocation.Create(R, PhaseB, Wed, Thu, 30m);  // phase of B, mid-week
+        var onA = Coverage.Cov(R, RootA, Mon, Fri, 50m);   // whole week
+        var onB = Coverage.Cov(R, PhaseB, Wed, Thu, 30m);  // phase of B, mid-week
 
         var segments = Profile(onA, onB);
 
@@ -74,8 +74,8 @@ public class LoadCalculator_ResourceCommitmentProfileTests
     [Fact]
     public void Overcommitment_AboveHundred_IsFirstClass()
     {
-        var a1 = Allocation.Create(R, RootA, Mon, Fri, 70m);
-        var a2 = Allocation.Create(R, RootB, Mon, Fri, 60m);
+        var a1 = Coverage.Cov(R, RootA, Mon, Fri, 70m);
+        var a2 = Coverage.Cov(R, RootB, Mon, Fri, 60m);
 
         var segments = Profile(a1, a2);
 
@@ -88,8 +88,8 @@ public class LoadCalculator_ResourceCommitmentProfileTests
     [Fact]
     public void SharesSumToSegmentPercent()
     {
-        var a1 = Allocation.Create(R, RootA, Mon, Fri, 25m);
-        var a2 = Allocation.Create(R, PhaseB, Mon, Fri, 40m);
+        var a1 = Coverage.Cov(R, RootA, Mon, Fri, 25m);
+        var a2 = Coverage.Cov(R, PhaseB, Mon, Fri, 40m);
 
         var s = Profile(a1, a2).Should().ContainSingle().Subject;
 
@@ -100,8 +100,8 @@ public class LoadCalculator_ResourceCommitmentProfileTests
     public void SameResource_TwoBlocksSameProject_SumIntoOneShare()
     {
         // Two blocks on the same root project sum into a single share (ADR-0014).
-        var baseBlock = Allocation.Create(R, RootA, Mon, Fri, 50m);
-        var bump = Allocation.Create(R, RootA, Mon, Fri, 20m);
+        var baseBlock = Coverage.Cov(R, RootA, Mon, Fri, 50m);
+        var bump = Coverage.Cov(R, RootA, Mon, Fri, 20m);
 
         var s = Profile(baseBlock, bump).Should().ContainSingle().Subject;
 
@@ -113,25 +113,12 @@ public class LoadCalculator_ResourceCommitmentProfileTests
     [Fact]
     public void OtherResource_NotCounted()
     {
-        var mine = Allocation.Create(R, RootA, Mon, Fri, 50m);
-        var theirs = Allocation.Create(Other, RootA, Mon, Fri, 90m);
+        var mine = Coverage.Cov(R, RootA, Mon, Fri, 50m);
+        var theirs = Coverage.Cov(Other, RootA, Mon, Fri, 90m);
 
         var s = Profile(mine, theirs).Should().ContainSingle().Subject;
 
         s.Percent.Should().Be(50m); // theirs excluded
-    }
-
-    [Fact]
-    public void Placeholder_Excluded()
-    {
-        // A placeholder has no ResourceId, so it is not part of any person's profile.
-        var mine = Allocation.Create(R, RootA, Mon, Fri, 50m);
-        var hole = Allocation.CreatePlaceholder(RootB, Mon, Fri, 40m, Guid.NewGuid(), null);
-
-        var s = Profile(mine, hole).Should().ContainSingle().Subject;
-
-        s.Percent.Should().Be(50m);
-        s.ByProject.Should().HaveCount(1);
     }
 
     [Fact]
@@ -150,7 +137,7 @@ public class LoadCalculator_ResourceCommitmentProfileTests
     public void LeadingAndTrailingZero_AreTheirOwnSegments()
     {
         // Allocation only Wed-Thu: Mon-Tue zero, Wed-Thu 100, Fri zero.
-        var a = Allocation.Create(R, RootA, Wed, Thu, 100m);
+        var a = Coverage.Cov(R, RootA, Wed, Thu, 100m);
 
         var segments = Profile(a);
 
@@ -166,7 +153,7 @@ public class LoadCalculator_ResourceCommitmentProfileTests
     [Fact]
     public void FromAfterTo_YieldsNothing()
     {
-        var a = Allocation.Create(R, RootA, Mon, Fri, 50m);
+        var a = Coverage.Cov(R, RootA, Mon, Fri, 50m);
 
         var segments = LoadCalculator.ResourceCommitmentProfile(R, [a], RootMap, Fri, Mon);
 
@@ -177,7 +164,7 @@ public class LoadCalculator_ResourceCommitmentProfileTests
     public void NodeMissingFromMap_FallsBackToOwnId()
     {
         var unknownNode = Guid.NewGuid(); // not in RootMap
-        var a = Allocation.Create(R, unknownNode, Mon, Fri, 50m);
+        var a = Coverage.Cov(R, unknownNode, Mon, Fri, 50m);
 
         var s = Profile(a).Should().ContainSingle().Subject;
 

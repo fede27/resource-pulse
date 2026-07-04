@@ -21,7 +21,7 @@ public class AllocationSpanOpsTests
         DateOnly? start = null, DateOnly? end = null,
         AllocationStatus status = AllocationStatus.Tentative)
     {
-        var a = Allocation.Create(Resource, Node, start ?? Start, end ?? End, percent, "ctx", status);
+        var a = Coverage.Cov(Resource, Node, start ?? Start, end ?? End, percent, "ctx", status);
         a.ClearDomainEvents();
         return a;
     }
@@ -72,9 +72,11 @@ public class AllocationSpanOpsTests
     }
 
     [Fact]
-    public void SplitAt_PreservesRateStatusNodeAndForm()
+    public void SplitAt_PreservesRateStatusNodeDemandAndResource()
     {
-        var original = Fresh(percent: 70m, status: AllocationStatus.Hard);
+        var demand = Guid.NewGuid();
+        var original = Coverage.CovOn(demand, Resource, Node, Start, End, 70m, AllocationStatus.Hard);
+        original.ClearDomainEvents();
 
         var second = original.SplitAt(new DateOnly(2026, 6, 8));
 
@@ -83,22 +85,7 @@ public class AllocationSpanOpsTests
         second.Status.Should().Be(AllocationStatus.Hard);
         second.ProjectNodeId.Should().Be(Node);
         second.ResourceId.Should().Be(Resource);
-        second.IsPlaceholder.Should().BeFalse();
-        second.Notes.Should().Be("ctx");
-    }
-
-    [Fact]
-    public void SplitAt_OnPlaceholder_PreservesPlaceholderForm()
-    {
-        var ph = Allocation.CreatePlaceholder(Node, Start, End, 40m, Role, Owner);
-
-        var second = ph.SplitAt(new DateOnly(2026, 6, 8));
-
-        second.IsPlaceholder.Should().BeTrue();
-        second.ResourceId.Should().BeNull();
-        second.RoleId.Should().Be(Role);
-        second.OwnerResourceId.Should().Be(Owner);
-        second.AllocationPercent.Should().Be(40m);
+        second.DemandId.Should().Be(demand);
     }
 
     [Fact]
@@ -188,28 +175,32 @@ public class AllocationSpanOpsTests
         act.Should().Throw<DomainException>().WithMessage("*range (0, 1000]*");
     }
 
-    // ── "Tolgo la persona a metà" = SplitAt + ConvertToPlaceholder ────────────
+    // ── "Tolgo la persona a metà" = SplitAt + delete the second block ─────────
+    // (revision §8 / amendment C1): deallocation is now deletion of the coverage;
+    // the demand underneath re-surfaces as uncovered. There is no convert-to-
+    // placeholder anymore. Here we assert the structural half — the split — and
+    // that the second block is the one the caller would delete (MarkDeleted).
 
     [Fact]
-    public void RemovePersonMidSpan_ComposesSplitAndConvert()
+    public void RemovePersonMidSpan_ComposesSplitThenDeleteSecond()
     {
         var original = Fresh(percent: 50m);
         var date = new DateOnly(2026, 6, 8);
 
         var second = original.SplitAt(date);
-        second.ConvertToPlaceholder(Role, Owner);
+        second.MarkDeleted(); // the service would repository.Remove(second)
 
-        // First half: still assigned to the resource.
-        original.IsPlaceholder.Should().BeFalse();
+        // First half: unchanged coverage on [start, date-1].
         original.ResourceId.Should().Be(Resource);
         original.PeriodEnd.Should().Be(date.AddDays(-1));
 
-        // Second half: now an open role, same span/rate.
-        second.IsPlaceholder.Should().BeTrue();
-        second.RoleId.Should().Be(Role);
+        // Second half: a coverage on [date, End] that the caller removes.
+        second.ResourceId.Should().Be(Resource);
         second.PeriodStart.Should().Be(date);
         second.PeriodEnd.Should().Be(End);
         second.AllocationPercent.Should().Be(50m);
+        second.DomainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<AllocationDeleted>();
     }
 
     // ── Shift: translate the body ─────────────────────────────────────────────

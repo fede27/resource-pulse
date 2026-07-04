@@ -45,7 +45,7 @@ public class LoadCalculator_ForResourceAndRangeTests
     public void SingleAllocation_PartialRange_LoadOnlyOnCoveredDates()
     {
         // Allocation covers Wed-Thu at 50%; Mon, Tue, Fri have 0 load.
-        var a = Allocation.Create(R1, N1, Mon.AddDays(2), Mon.AddDays(3), 50m);
+        var a = Coverage.Cov(R1, N1, Mon.AddDays(2), Mon.AddDays(3), 50m);
         var capacity = Workweek8h();
 
         var result = LoadCalculator.ForResourceAndRange(
@@ -62,7 +62,7 @@ public class LoadCalculator_ForResourceAndRangeTests
     public void AllocationExtendingBeyondRange_OnlyConsidersRequestedDates()
     {
         // Allocation: May 1 - Dec 31, 100%. Query Mon-Fri only.
-        var a = Allocation.Create(R1, N1, new DateOnly(2026, 5, 1), new DateOnly(2026, 12, 31), 100m);
+        var a = Coverage.Cov(R1, N1, new DateOnly(2026, 5, 1), new DateOnly(2026, 12, 31), 100m);
         var capacity = Workweek8h();
 
         var result = LoadCalculator.ForResourceAndRange(R1, [a], capacity, Mon, Fri).ToList();
@@ -74,7 +74,7 @@ public class LoadCalculator_ForResourceAndRangeTests
     [Fact]
     public void LoadPercent_100Percent()
     {
-        var a = Allocation.Create(R1, N1, Mon, Fri, 100m);
+        var a = Coverage.Cov(R1, N1, Mon, Fri, 100m);
         var capacity = Workweek8h();
 
         var result = LoadCalculator.ForResourceAndRange(R1, [a], capacity, Mon, Fri).ToList();
@@ -85,7 +85,7 @@ public class LoadCalculator_ForResourceAndRangeTests
     [Fact]
     public void LoadPercent_50Percent()
     {
-        var a = Allocation.Create(R1, N1, Mon, Fri, 50m);
+        var a = Coverage.Cov(R1, N1, Mon, Fri, 50m);
         var capacity = Workweek8h();
 
         var result = LoadCalculator.ForResourceAndRange(R1, [a], capacity, Mon, Fri).ToList();
@@ -98,8 +98,8 @@ public class LoadCalculator_ForResourceAndRangeTests
     {
         // Two 75% allocations on different nodes = 150% load.
         var n2 = Guid.NewGuid();
-        var a1 = Allocation.Create(R1, N1, Mon, Fri, 75m);
-        var a2 = Allocation.Create(R1, n2, Mon, Fri, 75m);
+        var a1 = Coverage.Cov(R1, N1, Mon, Fri, 75m);
+        var a2 = Coverage.Cov(R1, n2, Mon, Fri, 75m);
         var capacity = Workweek8h();
 
         var result = LoadCalculator.ForResourceAndRange(R1, [a1, a2], capacity, Mon, Fri).ToList();
@@ -112,7 +112,7 @@ public class LoadCalculator_ForResourceAndRangeTests
     {
         // Weekend day with 0 capacity, but allocation is active.
         var capacity = new Dictionary<DateOnly, TimeSpan> { [Mon] = TimeSpan.Zero };
-        var a = Allocation.Create(R1, N1, Mon, Mon, 50m);
+        var a = Coverage.Cov(R1, N1, Mon, Mon, 50m);
 
         var result = LoadCalculator.ForResourceAndRange(R1, [a], capacity, Mon, Mon).ToList();
 
@@ -125,7 +125,7 @@ public class LoadCalculator_ForResourceAndRangeTests
     public void MissingCapacityDate_TreatedAsZero()
     {
         var capacity = new Dictionary<DateOnly, TimeSpan>(); // empty
-        var a = Allocation.Create(R1, N1, Mon, Mon, 50m);
+        var a = Coverage.Cov(R1, N1, Mon, Mon, 50m);
 
         var result = LoadCalculator.ForResourceAndRange(R1, [a], capacity, Mon, Mon).ToList();
 
@@ -136,8 +136,8 @@ public class LoadCalculator_ForResourceAndRangeTests
     [Fact]
     public void Determinism_SameInputsProduceSameOutput()
     {
-        var a1 = Allocation.Create(R1, N1, Mon, Fri, 30m);
-        var a2 = Allocation.Create(R1, Guid.NewGuid(), Mon, Fri, 40m);
+        var a1 = Coverage.Cov(R1, N1, Mon, Fri, 30m);
+        var a2 = Coverage.Cov(R1, Guid.NewGuid(), Mon, Fri, 40m);
         var capacity = Workweek8h();
 
         var first  = LoadCalculator.ForResourceAndRange(R1, [a1, a2], capacity, Mon, Fri).ToList();

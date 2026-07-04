@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain.Allocations;
+using ResourcePulse.Domain.Demands;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Resources;
+using ResourcePulse.Domain.Roles;
 using ResourcePulse.Persistence;
 using ResourcePulse.Services.Load;
 
@@ -38,17 +40,23 @@ public class ResourceCommitmentProfileTests
         var calendar = Guid.NewGuid();
         var r = Resource.Create("Tizio", calendar);
         var other = Resource.Create("Caio", calendar);
+        var role = Role.Create("Backend");
 
         var alpha = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Internal, CommitmentLevel.Committed, null);
         var beta = ProjectNode.CreateRoot("Beta", "B", ProjectType.Internal, CommitmentLevel.Committed, null);
         var betaPhase = ProjectNode.CreateChild(beta, ProjectNodeType.Phase, "Beta Phase 1", null);
 
-        var onAlpha = Allocation.Create(r.Id, alpha.Id, Mon, Fri, 50m);
-        var onBetaPhase = Allocation.Create(r.Id, betaPhase.Id, Wed, Thu, 30m);
-        var otherOnAlpha = Allocation.Create(other.Id, alpha.Id, Mon, Fri, 90m);
+        var dAlpha = Demand.Create(alpha.Id, role.Id, null, DemandProvenance.Declared);
+        var dBetaPhase = Demand.Create(betaPhase.Id, role.Id, null, DemandProvenance.Declared);
+
+        var onAlpha = Allocation.CreateCoverage(dAlpha.Id, alpha.Id, r.Id, Mon, Fri, 50m);
+        var onBetaPhase = Allocation.CreateCoverage(dBetaPhase.Id, betaPhase.Id, r.Id, Wed, Thu, 30m);
+        var otherOnAlpha = Allocation.CreateCoverage(dAlpha.Id, alpha.Id, other.Id, Mon, Fri, 90m);
 
         db.Resources.AddRange(r, other);
+        db.Roles.Add(role);
         db.ProjectNodes.AddRange(alpha, beta, betaPhase);
+        db.Demands.AddRange(dAlpha, dBetaPhase);
         db.Allocations.AddRange(onAlpha, onBetaPhase, otherOnAlpha);
         db.SaveChanges();
         db.ChangeTracker.Clear();

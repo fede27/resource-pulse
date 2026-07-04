@@ -38,7 +38,7 @@ public class LoadCalculator_ForProjectNodeAndRangeTests
     [Fact]
     public void OtherNode_NotCounted()
     {
-        var theirs = Allocation.Create(R1, OtherNode, Mon, Fri, 100m);
+        var theirs = Coverage.Cov(R1, OtherNode, Mon, Fri, 100m);
         var capacity = Capacity(new() { [R1] = TimeSpan.FromHours(8) });
 
         var result = LoadCalculator.ForProjectNodeAndRange(Node, [theirs], capacity, Mon, Fri).ToList();
@@ -51,9 +51,9 @@ public class LoadCalculator_ForProjectNodeAndRangeTests
     {
         // R1 @ 50%, R2 @ 100%, R3 @ 25% on the same node, all with 8h capacity.
         // Per day: R1 = 4h, R2 = 8h, R3 = 2h; total = 14h.
-        var a1 = Allocation.Create(R1, Node, Mon, Fri, 50m);
-        var a2 = Allocation.Create(R2, Node, Mon, Fri, 100m);
-        var a3 = Allocation.Create(R3, Node, Mon, Fri, 25m);
+        var a1 = Coverage.Cov(R1, Node, Mon, Fri, 50m);
+        var a2 = Coverage.Cov(R2, Node, Mon, Fri, 100m);
+        var a3 = Coverage.Cov(R3, Node, Mon, Fri, 25m);
         var capacity = Capacity(new()
         {
             [R1] = TimeSpan.FromHours(8),
@@ -78,8 +78,8 @@ public class LoadCalculator_ForProjectNodeAndRangeTests
     public void DifferentCapacities_PerResource_Honored()
     {
         // R1: 8h base, R2: 4h base (part-time). Both at 50% on Node.
-        var a1 = Allocation.Create(R1, Node, Mon, Mon, 50m);
-        var a2 = Allocation.Create(R2, Node, Mon, Mon, 50m);
+        var a1 = Coverage.Cov(R1, Node, Mon, Mon, 50m);
+        var a2 = Coverage.Cov(R2, Node, Mon, Mon, 50m);
         var capacity = new Dictionary<(Guid, DateOnly), TimeSpan>
         {
             [(R1, Mon)] = TimeSpan.FromHours(8),
@@ -97,7 +97,7 @@ public class LoadCalculator_ForProjectNodeAndRangeTests
     public void PartialPeriod_OnlyCoveredDatesContribute()
     {
         // R1 allocated to Node only Wed-Thu at 100%.
-        var a = Allocation.Create(R1, Node, Mon.AddDays(2), Mon.AddDays(3), 100m);
+        var a = Coverage.Cov(R1, Node, Mon.AddDays(2), Mon.AddDays(3), 100m);
         var capacity = Capacity(new() { [R1] = TimeSpan.FromHours(8) });
 
         var result = LoadCalculator.ForProjectNodeAndRange(Node, [a], capacity, Mon, Fri).ToList();
@@ -125,8 +125,8 @@ public class LoadCalculator_ForProjectNodeAndRangeTests
         // ADR-0014: overlapping blocks on the same (resource, project_node)
         // sum. R1 has two blocks on Node: 50% Mon-Fri + 30% Wed-Thu, 8h capacity.
         // Mon/Tue/Fri -> 4h (50% only). Wed/Thu -> 4 + 2.4 = 6.4h.
-        var baseBlock = Allocation.Create(R1, Node, Mon, Fri, 50m);
-        var bump = Allocation.Create(R1, Node, Mon.AddDays(2), Mon.AddDays(3), 30m);
+        var baseBlock = Coverage.Cov(R1, Node, Mon, Fri, 50m);
+        var bump = Coverage.Cov(R1, Node, Mon.AddDays(2), Mon.AddDays(3), 30m);
         var capacity = Capacity(new() { [R1] = TimeSpan.FromHours(8) });
 
         var result = LoadCalculator.ForProjectNodeAndRange(Node, [baseBlock, bump], capacity, Mon, Fri).ToList();
@@ -146,7 +146,7 @@ public class LoadCalculator_ForProjectNodeAndRangeTests
     [Fact]
     public void ZeroCapacityForResource_ContributesNothing()
     {
-        var a = Allocation.Create(R1, Node, Mon, Mon, 100m);
+        var a = Coverage.Cov(R1, Node, Mon, Mon, 100m);
         var capacity = new Dictionary<(Guid, DateOnly), TimeSpan>
         {
             [(R1, Mon)] = TimeSpan.Zero

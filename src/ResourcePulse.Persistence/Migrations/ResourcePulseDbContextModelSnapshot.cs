@@ -44,14 +44,14 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("created_by");
 
+                    b.Property<Guid>("DemandId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("demand_id");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("notes");
-
-                    b.Property<Guid?>("OwnerResourceId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("owner_resource_id");
 
                     b.Property<DateOnly>("PeriodEnd")
                         .HasColumnType("date")
@@ -65,13 +65,9 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("project_node_id");
 
-                    b.Property<Guid?>("ResourceId")
+                    b.Property<Guid>("ResourceId")
                         .HasColumnType("uuid")
                         .HasColumnName("resource_id");
-
-                    b.Property<Guid?>("RoleId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("role_id");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -91,11 +87,8 @@ namespace ResourcePulse.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_allocations");
 
-                    b.HasIndex("OwnerResourceId")
-                        .HasDatabaseName("ix_allocations_owner_resource_id");
-
-                    b.HasIndex("RoleId")
-                        .HasDatabaseName("ix_allocations_role_id");
+                    b.HasIndex("DemandId")
+                        .HasDatabaseName("ix_allocations_demand_id");
 
                     b.HasIndex("ProjectNodeId", "PeriodStart", "PeriodEnd")
                         .HasDatabaseName("ix_allocations_project_node_id_period");
@@ -103,10 +96,7 @@ namespace ResourcePulse.Persistence.Migrations
                     b.HasIndex("ResourceId", "PeriodStart", "PeriodEnd")
                         .HasDatabaseName("ix_allocations_resource_id_period");
 
-                    b.ToTable("allocations", null, t =>
-                        {
-                            t.HasCheckConstraint("ck_allocations_form_xor", "(resource_id IS NOT NULL AND role_id IS NULL AND owner_resource_id IS NULL) OR (resource_id IS NULL AND role_id IS NOT NULL)");
-                        });
+                    b.ToTable("allocations", (string)null);
                 });
 
             modelBuilder.Entity("ResourcePulse.Domain.Calendars.BusinessCalendar", b =>
@@ -349,6 +339,77 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasName("pk_time_fence_configurations");
 
                     b.ToTable("time_fence_configurations", (string)null);
+                });
+
+            modelBuilder.Entity("ResourcePulse.Domain.Demands.Demand", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid?>("OwnerResourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_resource_id");
+
+                    b.Property<Guid>("ProjectNodeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_node_id");
+
+                    b.Property<string>("Provenance")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("provenance");
+
+                    b.Property<TimeSpan?>("RequiredHours")
+                        .HasColumnType("interval")
+                        .HasColumnName("required_hours");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("role_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_demands");
+
+                    b.HasIndex("OwnerResourceId")
+                        .HasDatabaseName("ix_demands_owner_resource_id");
+
+                    b.HasIndex("ProjectNodeId")
+                        .HasDatabaseName("ix_demands_project_node_id");
+
+                    b.HasIndex("RoleId")
+                        .HasDatabaseName("ix_demands_role_id");
+
+                    b.ToTable("demands", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_demands_required_hours_positive", "required_hours IS NULL OR required_hours > INTERVAL '0'");
+                        });
                 });
 
             modelBuilder.Entity("ResourcePulse.Domain.Projects.ProjectNode", b =>
@@ -757,11 +818,12 @@ namespace ResourcePulse.Persistence.Migrations
 
             modelBuilder.Entity("ResourcePulse.Domain.Allocations.Allocation", b =>
                 {
-                    b.HasOne("ResourcePulse.Domain.Resources.Resource", null)
+                    b.HasOne("ResourcePulse.Domain.Demands.Demand", null)
                         .WithMany()
-                        .HasForeignKey("OwnerResourceId")
+                        .HasForeignKey("DemandId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_allocations_resources_owner_resource_id");
+                        .IsRequired()
+                        .HasConstraintName("fk_allocations_demands_demand_id");
 
                     b.HasOne("ResourcePulse.Domain.Projects.ProjectNode", null)
                         .WithMany()
@@ -774,13 +836,8 @@ namespace ResourcePulse.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("ResourceId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
                         .HasConstraintName("fk_allocations_resources_resource_id");
-
-                    b.HasOne("ResourcePulse.Domain.Roles.Role", null)
-                        .WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_allocations_roles_role_id");
                 });
 
             modelBuilder.Entity("ResourcePulse.Domain.Calendars.BusinessCalendar", b =>
@@ -919,6 +976,29 @@ namespace ResourcePulse.Persistence.Migrations
 
                     b.Navigation("SlushyHorizon")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("ResourcePulse.Domain.Demands.Demand", b =>
+                {
+                    b.HasOne("ResourcePulse.Domain.Resources.Resource", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerResourceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_demands_resources_owner_resource_id");
+
+                    b.HasOne("ResourcePulse.Domain.Projects.ProjectNode", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectNodeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_demands_project_nodes_project_node_id");
+
+                    b.HasOne("ResourcePulse.Domain.Roles.Role", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_demands_roles_role_id");
                 });
 
             modelBuilder.Entity("ResourcePulse.Domain.Projects.ProjectNode", b =>

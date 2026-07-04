@@ -1,4 +1,5 @@
 using ResourcePulse.Domain.Allocations;
+using ResourcePulse.Domain.Demands;
 
 namespace ResourcePulse.Domain.Capacity;
 
@@ -20,15 +21,11 @@ namespace ResourcePulse.Domain.Capacity;
 // every active allocation contributes; there is no special case for same-node
 // overlap. The same rule applies cross-project (ADR-0011, I5).
 //
-// Placeholder split (ADR-0016 §5):
-//   - ForResourceAndDate / ForResourceAndRange ESCLUDONO i placeholder
-//     (ResourceId is null). Per-resource = offerta assegnata.
-//   - ForProjectNodeAndRange INCLUDE i placeholder: il loro contributo confluisce
-//     in DailyNodeLoad.PlaceholderRatePercent (rate% sommato), separato da
-//     TotalHours/ByResource che restano l'aggregato per le sole allocazioni
-//     assegnate. La motivazione: un placeholder non ha capacity di riferimento
-//     (niente risorsa ⇒ niente capacity), quindi le ore restano non computabili
-//     senza un'ulteriore convenzione.
+// Coverage model (Phase 5.1, ADR-0025): every Allocation is a coverage with a
+// real resource. The old placeholder split is gone — uncovered work is now a
+// Demand with no coverage, computed by the demand-coverage read model (Phase 5.2),
+// not by a placeholder branch here. Per-node load is therefore coverage hours
+// only.
 //
 // Determinism: allocations iterated in OrderBy(Id). Current logic is a sum so
 // order doesn't change the result, but the contract is documented for callers
@@ -46,7 +43,7 @@ public static class LoadCalculator
         var hours = TimeSpan.Zero;
         foreach (var a in allocations.OrderBy(a => a.Id))
         {
-            if (a.ResourceId != resourceId) continue; // skip placeholders (ResourceId is null) and other resources
+            if (a.ResourceId != resourceId) continue; // other resources
             if (date < a.PeriodStart || date > a.PeriodEnd) continue;
             hours += HoursFor(capacityForDate, a.AllocationPercent);
         }
@@ -66,8 +63,7 @@ public static class LoadCalculator
         if (from > toInclusive)
             yield break;
 
-        // Pre-filter once; per-date loop only walks this resource's allocations.
-        // Placeholders (ResourceId is null) are naturally excluded here.
+        // Pre-filter once; per-date loop only walks this resource's coverage.
         var ordered = allocations
             .Where(a => a.ResourceId == resourceId)
             .OrderBy(a => a.Id)
@@ -150,21 +146,12 @@ public static class LoadCalculator
         {
             var byResource = new Dictionary<Guid, TimeSpan>();
             var total = TimeSpan.Zero;
-            var placeholderPercent = 0m;
 
             foreach (var a in nodeAllocations)
             {
                 if (date < a.PeriodStart || date > a.PeriodEnd) continue;
 
-                if (a.ResourceId is null)
-                {
-                    // Placeholder: contribute rate% to the placeholder bucket,
-                    // skip the hours conversion (no resource ⇒ no capacity).
-                    placeholderPercent += a.AllocationPercent;
-                    continue;
-                }
-
-                var resourceId = a.ResourceId.Value;
+                var resourceId = a.ResourceId;
                 var capacity = capacityByResourceAndDate.TryGetValue((resourceId, date), out var c)
                     ? c
                     : TimeSpan.Zero;
@@ -177,7 +164,7 @@ public static class LoadCalculator
                 total += hours;
             }
 
-            yield return new DailyNodeLoad(date, total, byResource, placeholderPercent);
+            yield return new DailyNodeLoad(date, total, byResource);
         }
     }
 
@@ -228,6 +215,60 @@ public static class LoadCalculator
 
         segments.Add(new LoadSegment(runStart, toInclusive, runPercent, runByProject));
         return segments;
+    }
+
+    // Demand-coverage reconciliation (Phase 5.2, ADR-0025/0026): for each demand,
+    // sum the resolved hours (% × capacity) of the coverage on it within
+    // [from, toInclusive], and compare to the demand's target. Pure — capacity is
+    // passed in (per-resource-per-date), never loaded here.
+    //
+    //   CoveredHours = Σ over coverage a where a.DemandId == demand.Id, over dates
+    //                  d in [max(from, a.Start), min(to, a.End)], of
+    //                  capacity(a.Resource, d) × a.Percent/100.
+    //   GapHours     = RequiredHours − CoveredHours, or null when RequiredHours is
+    //                  null (best-effort). Negative gap = surplus, surfaced.
+    //
+    // A demand with no coverage yields CoveredHours = 0 (gap = full target, or null
+    // if best-effort). Scalar (Decision 4): no per-bucket distribution.
+    public static IReadOnlyList<DemandCoverage> CoverageForDemands(
+        IReadOnlyCollection<Demand> demands,
+        IReadOnlyCollection<Allocation> coverage,
+        IReadOnlyDictionary<(Guid ResourceId, DateOnly Date), TimeSpan> capacityByResourceAndDate,
+        DateOnly from,
+        DateOnly toInclusive)
+    {
+        ArgumentNullException.ThrowIfNull(demands);
+        ArgumentNullException.ThrowIfNull(coverage);
+        ArgumentNullException.ThrowIfNull(capacityByResourceAndDate);
+
+        // Group coverage by demand once.
+        var byDemand = coverage
+            .GroupBy(a => a.DemandId)
+            .ToDictionary(g => g.Key, g => g.OrderBy(a => a.Id).ToList());
+
+        var result = new List<DemandCoverage>(demands.Count);
+        foreach (var d in demands.OrderBy(x => x.Id))
+        {
+            var covered = TimeSpan.Zero;
+            if (byDemand.TryGetValue(d.Id, out var blocks) && from <= toInclusive)
+            {
+                foreach (var a in blocks)
+                {
+                    var start = a.PeriodStart > from ? a.PeriodStart : from;
+                    var end = a.PeriodEnd < toInclusive ? a.PeriodEnd : toInclusive;
+                    for (var date = start; date <= end; date = date.AddDays(1))
+                    {
+                        var cap = capacityByResourceAndDate.TryGetValue((a.ResourceId, date), out var c)
+                            ? c : TimeSpan.Zero;
+                        covered += HoursFor(cap, a.AllocationPercent);
+                    }
+                }
+            }
+
+            TimeSpan? gap = d.RequiredHours is TimeSpan req ? req - covered : null;
+            result.Add(new DemandCoverage(d.Id, d.ProjectNodeId, d.RoleId, d.RequiredHours, covered, gap));
+        }
+        return result;
     }
 
     // Committed rate% on a single date, total and decomposed by root project.

@@ -1,5 +1,6 @@
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain.Allocations;
+using ResourcePulse.Domain.Demands;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Services.Plan;
 
@@ -43,8 +44,8 @@ public class PlanCommandServiceTests
 
         var result = await h.Service.ExecuteAsync(new CreateCommand
         {
+            DemandId = h.DemandId,
             ResourceId = h.ResourceId,
-            ProjectNodeId = h.ProjectNodeId,
             PeriodStart = D1,
             PeriodEnd = D14,
             Percent = 40m
@@ -103,14 +104,14 @@ public class PlanCommandServiceTests
     }
 
     [Fact]
-    public async Task Unknown_NodeOnCreate_ReturnsValidation()
+    public async Task Unknown_DemandOnCreate_ReturnsValidation()
     {
         var h = PlanCommandHarness.Create();
 
         var result = await h.Service.ExecuteAsync(new CreateCommand
         {
+            DemandId = Guid.NewGuid(), // does not exist
             ResourceId = h.ResourceId,
-            ProjectNodeId = Guid.NewGuid(), // does not exist
             PeriodStart = D1, PeriodEnd = D14, Percent = 10m
         });
 
@@ -166,7 +167,7 @@ public class PlanCommandServiceTests
 
         var result = await h.Service.ExecuteAsync(new CreateCommand
         {
-            ResourceId = h.ResourceId, ProjectNodeId = h.ProjectNodeId,
+            DemandId = h.DemandId, ResourceId = h.ResourceId,
             PeriodStart = D1, PeriodEnd = D14, Percent = 30m, DryRun = true
         });
 
@@ -264,10 +265,10 @@ public class PlanCommandServiceTests
         h.Reload(first).PeriodEnd.Should().Be(new DateOnly(2026, 6, 8));
     }
 
-    // ── "Remove person mid-span" = splitAt + convertToPlaceholder (composition) ─
+    // ── "Remove person mid-span" = splitAt + delete second (revision §8) ───────
 
     [Fact]
-    public async Task RemovePersonMidSpan_TwoCommands_SecondBlockBecomesPlaceholder()
+    public async Task RemovePersonMidSpan_SplitThenDeleteSecond_DemandPersists()
     {
         var h = PlanCommandHarness.Create();
         var id = h.SeedAllocation(D1, D14, 50m);
@@ -276,18 +277,14 @@ public class PlanCommandServiceTests
         var splitResult = await h.Service.ExecuteAsync(new SplitAtCommand { Id = id, Date = split });
         var secondId = splitResult.Value.Changes.Single(c => c.Kind == PlanChangeKind.Created).Id;
 
-        var convert = await h.Service.ExecuteAsync(new ConvertToPlaceholderCommand
-        {
-            Id = secondId, RoleId = h.RoleId
-        });
+        var del = await h.Service.ExecuteAsync(new DeleteCommand { Id = secondId });
 
-        convert.IsSuccess.Should().BeTrue();
-        // First half still assigned, second half is now an open role.
-        h.Reload(id).IsPlaceholder.Should().BeFalse();
-        var second = h.Reload(secondId);
-        second.IsPlaceholder.Should().BeTrue();
-        second.RoleId.Should().Be(h.RoleId);
-        second.PeriodStart.Should().Be(split);
+        del.IsSuccess.Should().BeTrue();
+        // First half still covers; second half is gone; the demand remains uncovered
+        // for that span (revision §8 — deallocation re-surfaces the demand).
+        h.Reload(id).PeriodEnd.Should().Be(split.AddDays(-1));
+        h.AllocationCount().Should().Be(1);
+        h.DemandCount().Should().Be(1);
     }
 
     // ── createByHours / retarget use capacity (8h/day fixture) ─────────────────
@@ -300,7 +297,7 @@ public class PlanCommandServiceTests
 
         var result = await h.Service.ExecuteAsync(new CreateByHoursCommand
         {
-            ResourceId = h.ResourceId, ProjectNodeId = h.ProjectNodeId,
+            DemandId = h.DemandId, ResourceId = h.ResourceId,
             PeriodStart = D1, PeriodEnd = D14, TargetHours = TimeSpan.FromHours(56)
         });
 
@@ -308,23 +305,114 @@ public class PlanCommandServiceTests
         result.Value.Changes.Single().AllocationPercent.Should().Be(50m);
     }
 
+    // ── retarget = re-point to another demand (amendment C1) ───────────────────
+
     [Fact]
-    public async Task Retarget_KeepHours_OnPlaceholder_Conflicts()
+    public async Task Retarget_RepointsToAnotherDemand_UpdatesDemandAndNode()
     {
         var h = PlanCommandHarness.Create();
-        var create = await h.Service.ExecuteAsync(new CreatePlaceholderCommand
-        {
-            ProjectNodeId = h.ProjectNodeId, PeriodStart = D1, PeriodEnd = D14,
-            Percent = 50m, RoleId = h.RoleId
-        });
-        var id = create.Value.Changes.Single().Id;
+        var id = h.SeedAllocation(D1, D14, 50m);
+        // A second demand on a second Project root.
+        var node2 = ProjectNode.CreateRoot("Proj2", "P2", ProjectType.Internal, CommitmentLevel.Committed, null);
+        h.Db.ProjectNodes.Add(node2);
+        h.Db.SaveChanges();
+        h.Db.ChangeTracker.Clear();
+        var demand2 = h.SeedDemandOn(node2.Id);
 
-        var result = await h.Service.ExecuteAsync(new RetargetCommand
+        var result = await h.Service.ExecuteAsync(new RetargetCommand { Id = id, DemandId = demand2 });
+
+        result.IsSuccess.Should().BeTrue();
+        var moved = h.Reload(id);
+        moved.DemandId.Should().Be(demand2);
+        moved.ProjectNodeId.Should().Be(node2.Id); // node re-read from the target demand (I8)
+        moved.PeriodStart.Should().Be(D1); // span unchanged
+    }
+
+    // ── coverInferred: attach-first (amendment C3) ─────────────────────────────
+
+    [Fact]
+    public async Task CoverInferred_NoDemand_MaterializesInferredBestEffort_AndCovers()
+    {
+        var h = PlanCommandHarness.Create();
+        // Remove the harness's default demand so (node, role) starts empty.
+        var d = h.Db.Demands.Single();
+        h.Db.Demands.Remove(d);
+        h.Db.SaveChanges();
+        h.Db.ChangeTracker.Clear();
+
+        var result = await h.Service.ExecuteAsync(new CoverInferredCommand
         {
-            Id = id, NewPeriodStart = D1.AddDays(7), NewPeriodEnd = D14.AddDays(7), Mode = MoveMode.KeepHours
+            ProjectNodeId = h.ProjectNodeId, RoleId = h.RoleId, ResourceId = h.ResourceId,
+            PeriodStart = D1, PeriodEnd = D14, Percent = 50m
         });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Changes.Should().ContainSingle().Which.Kind.Should().Be(PlanChangeKind.Created);
+        var newDemand = result.Value.DemandChanges.Should().ContainSingle().Subject;
+        newDemand.Provenance.Should().Be(DemandProvenance.Inferred);
+        newDemand.RequiredHours.Should().BeNull(); // best-effort
+        h.DemandCount().Should().Be(1);
+        h.AllocationCount().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CoverInferred_OneUncoveredDeclaredDemand_Attaches_NoNewDemand()
+    {
+        var h = PlanCommandHarness.Create(); // default demand exists on (node, role), uncovered
+
+        var result = await h.Service.ExecuteAsync(new CoverInferredCommand
+        {
+            ProjectNodeId = h.ProjectNodeId, RoleId = h.RoleId, ResourceId = h.ResourceId,
+            PeriodStart = D1, PeriodEnd = D14, Percent = 50m
+        });
+
+        result.IsSuccess.Should().BeTrue();
+        h.DemandCount().Should().Be(1); // attached, not duplicated
+        h.AllocationCount().Should().Be(1);
+        // Provenance unchanged: the inference found the demand, it didn't create it.
+        h.ReloadDemand(h.DemandId).Provenance.Should().Be(DemandProvenance.Declared);
+        result.Value.Changes.Single().DemandId.Should().Be(h.DemandId);
+    }
+
+    [Fact]
+    public async Task CoverInferred_TwoUncoveredCandidates_ReturnsCandidateList_CommitsNothing()
+    {
+        var h = PlanCommandHarness.Create(); // one demand already
+        h.SeedDemandOn(h.ProjectNodeId); // a second demand on the same (node, role)
+
+        var result = await h.Service.ExecuteAsync(new CoverInferredCommand
+        {
+            ProjectNodeId = h.ProjectNodeId, RoleId = h.RoleId, ResourceId = h.ResourceId,
+            PeriodStart = D1, PeriodEnd = D14, Percent = 50m
+        });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Committed.Should().BeFalse();
+        result.Value.Changes.Should().BeEmpty();
+        result.Value.DemandChanges.Should().HaveCount(2)
+            .And.OnlyContain(c => c.Kind == PlanChangeKind.Candidate);
+        h.DemandCount().Should().Be(2); // nothing created
+        h.AllocationCount().Should().Be(0); // nothing covered
+    }
+
+    [Fact]
+    public async Task Retarget_HardCoverage_ToNonHardCommittedDemand_ConflictsViaI6()
+    {
+        var h = PlanCommandHarness.Create(); // root is Committed
+        var id = h.SeedAllocation(D1, D14, 50m);
+        await h.Service.ExecuteAsync(new ChangeStatusCommand { Id = id, Status = AllocationStatus.Hard });
+
+        // A demand on an Exploratory project — cannot host a Hard coverage (I6).
+        var expl = ProjectNode.CreateRoot("Expl", "PX", ProjectType.Internal, CommitmentLevel.Exploratory, null);
+        h.Db.ProjectNodes.Add(expl);
+        h.Db.SaveChanges();
+        h.Db.ChangeTracker.Clear();
+        var demandX = h.SeedDemandOn(expl.Id);
+
+        var result = await h.Service.ExecuteAsync(new RetargetCommand { Id = id, DemandId = demandX });
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Kind.Should().Be(ServiceErrorKind.Conflict);
+        h.Reload(id).DemandId.Should().Be(h.DemandId); // no silent demotion, unchanged
     }
 }

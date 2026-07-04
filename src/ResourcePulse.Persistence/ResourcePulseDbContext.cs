@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Calendars;
 using ResourcePulse.Domain.Configuration;
+using ResourcePulse.Domain.Demands;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Resources;
 using ResourcePulse.Domain.Roles;
@@ -21,6 +22,7 @@ public class ResourcePulseDbContext(DbContextOptions<ResourcePulseDbContext> opt
     public DbSet<Skill> Skills => Set<Skill>();
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<ProjectNode> ProjectNodes => Set<ProjectNode>();
+    public DbSet<Demand> Demands => Set<Demand>();
     public DbSet<Allocation> Allocations => Set<Allocation>();
 
     // Org-level configuration singletons (ADR-0020).

@@ -3,6 +3,7 @@ using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Configuration;
+using ResourcePulse.Domain.Demands;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Resources;
 using ResourcePulse.Domain.Roles;
@@ -29,18 +30,20 @@ public class FkNameResolutionTests
     // ── AllocationReadDto: assigned person's role ───────────────────────────────
 
     [Fact]
-    public async Task Allocation_AssignedResource_ResolvesResourceRole()
+    public async Task Coverage_ResolvesResourceRole_AndDemandRole()
     {
         var db = NewDb();
         var devRole = Role.Create("Dev senior");
         var r = Resource.Create("Tizio", Guid.NewGuid());
         r.AssignToRole(devRole.Id);
         var node = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Internal, CommitmentLevel.Committed, null);
-        var alloc = Allocation.Create(r.Id, node.Id, D1, D5, 50m);
+        var demand = Demand.Create(node.Id, devRole.Id, null, DemandProvenance.Declared);
+        var alloc = Allocation.CreateCoverage(demand.Id, node.Id, r.Id, D1, D5, 50m);
 
         db.Roles.Add(devRole);
         db.Resources.Add(r);
         db.ProjectNodes.Add(node);
+        db.Demands.Add(demand);
         db.Allocations.Add(alloc);
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
@@ -51,18 +54,24 @@ public class FkNameResolutionTests
         var dto = result.Value.Should().ContainSingle().Subject;
         dto.ResourceRoleId.Should().Be(devRole.Id);
         dto.ResourceRoleName.Should().Be("Dev senior");
+        dto.DemandRoleId.Should().Be(devRole.Id);
+        dto.DemandRoleName.Should().Be("Dev senior");
     }
 
     [Fact]
-    public async Task Allocation_ResourceWithoutRole_HasNullResourceRole()
+    public async Task Coverage_ResourceWithoutRole_HasNullResourceRole()
     {
         var db = NewDb();
+        var role = Role.Create("Backend");
         var r = Resource.Create("Tizio", Guid.NewGuid()); // no role
         var node = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Internal, CommitmentLevel.Committed, null);
-        var alloc = Allocation.Create(r.Id, node.Id, D1, D5, 50m);
+        var demand = Demand.Create(node.Id, role.Id, null, DemandProvenance.Declared);
+        var alloc = Allocation.CreateCoverage(demand.Id, node.Id, r.Id, D1, D5, 50m);
 
+        db.Roles.Add(role);
         db.Resources.Add(r);
         db.ProjectNodes.Add(node);
+        db.Demands.Add(demand);
         db.Allocations.Add(alloc);
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
@@ -75,27 +84,33 @@ public class FkNameResolutionTests
     }
 
     [Fact]
-    public async Task Allocation_Placeholder_HasOpenRole_ButNoResourceRole()
+    public async Task Coverage_RoleMismatch_IsVisible_NotRewritten()
     {
+        // The demand asks a Designer; a Dev covers it. Both roles are exposed side
+        // by side — the "storto" match is surfaced, not enforced (revision §6).
         var db = NewDb();
-        var openRole = Role.Create("Backend");
+        var demandRole = Role.Create("Designer");
+        var personRole = Role.Create("Dev senior");
+        var r = Resource.Create("Tizio", Guid.NewGuid());
+        r.AssignToRole(personRole.Id);
         var node = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Internal, CommitmentLevel.Committed, null);
-        var hole = Allocation.CreatePlaceholder(node.Id, D1, D5, 40m, openRole.Id, ownerResourceId: null);
+        var demand = Demand.Create(node.Id, demandRole.Id, null, DemandProvenance.Declared);
+        var alloc = Allocation.CreateCoverage(demand.Id, node.Id, r.Id, D1, D5, 50m);
 
-        db.Roles.Add(openRole);
+        db.Roles.AddRange(demandRole, personRole);
+        db.Resources.Add(r);
         db.ProjectNodes.Add(node);
-        db.Allocations.Add(hole);
+        db.Demands.Add(demand);
+        db.Allocations.Add(alloc);
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
 
         var svc = new AllocationService(db, new FixedCapacity(TimeSpan.FromHours(8)));
         var dto = (await svc.GetForProjectNodeAsync(node.Id, D1, D5)).Value.Single();
 
-        dto.IsPlaceholder.Should().BeTrue();
-        dto.RoleId.Should().Be(openRole.Id);      // open role (M2)
-        dto.RoleName.Should().Be("Backend");
-        dto.ResourceRoleId.Should().BeNull();      // no person ⇒ no person role
-        dto.ResourceRoleName.Should().BeNull();
+        dto.DemandRoleName.Should().Be("Designer");     // what was asked
+        dto.ResourceRoleName.Should().Be("Dev senior"); // who actually covers it
+        dto.DemandRoleName.Should().NotBe(dto.ResourceRoleName); // mismatch visible
     }
 
     // ── ProjectNodeReadDto: owner (PM) name ─────────────────────────────────────
