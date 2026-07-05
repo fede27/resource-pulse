@@ -42,8 +42,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
       {
         key: 'projects',
         icon: <FolderOutlined />,
-        label: t('nav.projects'),
-        disabled: true,
+        label: <Link to="/projects">{t('nav.projects')}</Link>,
       },
       {
         key: 'allocations',
@@ -105,6 +104,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
 
 function resolveSelectedKey(pathname: string): string {
   if (pathname.startsWith('/people')) return 'people';
+  if (pathname.startsWith('/projects')) return 'projects';
   if (pathname.startsWith('/teams')) return 'teams';
   if (pathname.startsWith('/time-config')) return 'time-config';
   if (pathname.startsWith('/settings')) return 'settings';

@@ -2385,6 +2385,13 @@
               "type": "string",
               "format": "date"
             }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/AllocationStatus"
+            }
           }
         ],
         "responses": {
@@ -3206,7 +3213,24 @@
         "operationId": "ProjectNodes_GetAll",
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadResult"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadResult"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadResult"
+                }
+              }
+            }
           }
         }
       },
@@ -3260,7 +3284,65 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectNodeReadDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectNodeReadDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectNodeReadDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
           }
         }
       },
@@ -3347,7 +3429,74 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectNodeReadDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectNodeReadDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectNodeReadDto"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -4137,7 +4286,33 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectNodeReadDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectNodeReadDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectNodeReadDto"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -9479,6 +9654,20 @@
         },
         "additionalProperties": false
       },
+      "DerivedExecutionStatus": {
+        "enum": [
+          0,
+          1,
+          2
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "NotStarted",
+          "InProgress",
+          "Completed"
+        ]
+      },
       "DurationDto": {
         "type": "object",
         "properties": {
@@ -10013,6 +10202,155 @@
         },
         "additionalProperties": { }
       },
+      "ProjectNodeReadDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parentId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "nodeType": {
+            "$ref": "#/components/schemas/ProjectNodeType"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "path": {
+            "type": "string",
+            "nullable": true
+          },
+          "depth": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ProjectType"
+          },
+          "commitmentLevel": {
+            "$ref": "#/components/schemas/CommitmentLevel"
+          },
+          "leadResourceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "leadResourceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProjectStatus"
+          },
+          "client": {
+            "type": "string",
+            "nullable": true
+          },
+          "baselineStart": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "baselineEnd": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "baselinedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "plannedStart": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "plannedEnd": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "actualStart": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "actualEnd": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "planningMode": {
+            "$ref": "#/components/schemas/PlanningMode"
+          },
+          "estimatedWork": {
+            "type": "string",
+            "format": "date-span",
+            "nullable": true
+          },
+          "scheduleVarianceStart": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "scheduleVarianceEnd": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "forecastVarianceEnd": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "isLate": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "derivedStatus": {
+            "$ref": "#/components/schemas/DerivedExecutionStatus"
+          },
+          "isProposed": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "skillRequirements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectSkillRequirementDto"
+            },
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectNodeTagDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectNodeTagDto": {
+        "type": "object",
+        "properties": {
+          "tagId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProjectNodeType": {
         "enum": [
           1,
@@ -10025,6 +10363,37 @@
           "Project",
           "Phase",
           "WorkPackage"
+        ]
+      },
+      "ProjectSkillRequirementDto": {
+        "type": "object",
+        "properties": {
+          "skillId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minLevel": {
+            "$ref": "#/components/schemas/SkillLevel"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProjectStatus": {
+        "enum": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "Draft",
+          "Active",
+          "OnHold",
+          "Closed",
+          "Cancelled"
         ]
       },
       "ProjectType": {

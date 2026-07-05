@@ -172,6 +172,7 @@ public sealed class LiveLoadQueryService(
         Guid resourceId,
         DateOnly from,
         DateOnly toInclusive,
+        AllocationStatus? status = null,
         CancellationToken ct = default)
     {
         if (from > toInclusive)
@@ -193,9 +194,12 @@ public sealed class LiveLoadQueryService(
 
         // Assigned allocations of this resource overlapping the horizon. Placeholders
         // have no ResourceId, so they are excluded by construction (ADR-0016 §5).
+        // The optional status filter narrows to one commitment status before the
+        // pure calculator runs (calculator stays status-agnostic, ADR-0010).
         var allocations = await db.Allocations
             .AsNoTracking()
             .Where(a => a.ResourceId == resourceId
+                     && (status == null || a.Status == status)
                      && a.PeriodStart <= toInclusive
                      && a.PeriodEnd >= from)
             .ToListAsync(ct);

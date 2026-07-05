@@ -1,4 +1,5 @@
 using ResourcePulse.Common.Results;
+using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Services.Demands;
 
 namespace ResourcePulse.Services.Load;
@@ -24,10 +25,13 @@ public interface ILoadQueryService
     // Resource commitment profile (gap #4+#10 / ADR-0023): run-length segments of
     // the resource's committed rate% over [from, toInclusive], decomposed by root
     // project. Capacity-independent — no per-resource capacity series is loaded.
+    // `status` optionally narrows the profile to blocks with that commitment
+    // status (e.g. Hard-only for the sustainability verdict); null = all blocks.
     Task<ServiceResult<IReadOnlyList<LoadSegmentDto>>> GetCommitmentProfileForResourceAsync(
         Guid resourceId,
         DateOnly from,
         DateOnly toInclusive,
+        AllocationStatus? status = null,
         CancellationToken ct = default);
 
     // Demand-vs-coverage reconciliation (Phase 5.2, ADR-0025/0026). Over the

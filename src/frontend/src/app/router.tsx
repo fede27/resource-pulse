@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 import { AppLayout } from '@/components/layout/AppLayout';
 import { HomePage } from '@/app/routes/index';
 import { PeopleRoutePage } from '@/app/routes/people/index';
+import { ProjectsRoutePage } from '@/app/routes/projects/index';
 import { SettingsRoutePage } from '@/app/routes/settings/index';
 import { TeamListPage } from '@/app/routes/teams/index';
 import { TimeConfigRoutePage } from '@/app/routes/time-config/index';
@@ -32,6 +33,12 @@ const peopleRoute = createRoute({
   component: PeopleRoutePage,
 });
 
+const projectsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects',
+  component: ProjectsRoutePage,
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
@@ -43,6 +50,7 @@ const routeTree = rootRoute.addChildren([
   teamListRoute,
   timeConfigRoute,
   peopleRoute,
+  projectsRoute,
   settingsRoute,
 ]);
 

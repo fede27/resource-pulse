@@ -26,6 +26,7 @@ import type {
 
 import type {
   AddOrUpdateProjectSkillRequirementDto,
+  ProjectNodeReadDto,
   ProjectsGetActiveInRangeParams,
   ReasonDto,
   UpdateProjectDto
@@ -557,7 +558,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<ProjectNodeReadDto[]>(
       {url: `/api/projects`, method: 'GET',
         params, signal
     },

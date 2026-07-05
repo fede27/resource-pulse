@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Services.Demands;
 using ResourcePulse.Services.Load;
 
@@ -24,6 +25,8 @@ public sealed class LoadController(ILoadQueryService service) : ControllerFounda
     // over the horizon, decomposed by root project (ADR-0023 / gap #4+#10). Peak =
     // max(Percent) across segments; the peak's composition is the peak segment's
     // ByProject. Distinct from /load (capacity-normalised daily series).
+    // `status` optionally narrows to one commitment status (e.g. Hard for the
+    // sustainability verdict); omitted = all blocks.
     [HttpGet("api/resources/{id}/load-profile")]
     [ProducesResponseType<IReadOnlyList<LoadSegmentDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -31,8 +34,9 @@ public sealed class LoadController(ILoadQueryService service) : ControllerFounda
         Guid id,
         [FromQuery] DateOnly from,
         [FromQuery] DateOnly to,
-        CancellationToken ct) =>
-        FromResult(await service.GetCommitmentProfileForResourceAsync(id, from, to, ct));
+        [FromQuery] AllocationStatus? status = null,
+        CancellationToken ct = default) =>
+        FromResult(await service.GetCommitmentProfileForResourceAsync(id, from, to, status, ct));
 
     // Aggregates over the node's subtree (node + descendants via Path prefix),
     // not the exact node — a project that staffs its Phases includes them here

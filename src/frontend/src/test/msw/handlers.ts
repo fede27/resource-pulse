@@ -14,6 +14,7 @@ import { getCompanyClosuresMock } from '@/api/generated/company-closures/company
 import { getDemandsMock } from '@/api/generated/demands/demands.msw';
 import { getLoadMock } from '@/api/generated/load/load.msw';
 import { getLoadBandsMock } from '@/api/generated/load-bands/load-bands.msw';
+import { getMeMock } from '@/api/generated/me/me.msw';
 import { getPlanCommandsMock } from '@/api/generated/plan-commands/plan-commands.msw';
 import { getProjectNodesMock } from '@/api/generated/project-nodes/project-nodes.msw';
 import { getProjectsMock } from '@/api/generated/projects/projects.msw';
@@ -33,6 +34,7 @@ export const handlers: RequestHandler[] = [
   ...getDemandsMock(),
   ...getLoadMock(),
   ...getLoadBandsMock(),
+  ...getMeMock(),
   ...getPlanCommandsMock(),
   ...getProjectNodesMock(),
   ...getProjectsMock(),

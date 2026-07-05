@@ -29,6 +29,10 @@ import type {
   BackfillActualsDto,
   BaselineDto,
   CreateProjectNodeDto,
+  HttpValidationProblemDetails,
+  LoadResult,
+  ProblemDetails,
+  ProjectNodeReadDto,
   RebaselineDto,
   ReparentDto,
   ReplanDto,
@@ -51,7 +55,7 @@ export const projectNodesGetAll = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<LoadResult>(
       {url: `/api/project-nodes`, method: 'GET', signal
     },
       options);
@@ -194,7 +198,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<ProjectNodeReadDto>(
       {url: `/api/project-nodes/${id}`, method: 'GET', signal
     },
       options);
@@ -210,7 +214,7 @@ export const getProjectNodesGetByIdQueryKey = (id: string,) => {
     }
 
 
-export const getProjectNodesGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof projectNodesGetById>>, TError = ErrorType<unknown>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof projectNodesGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+export const getProjectNodesGetByIdQueryOptions = <TData = Awaited<ReturnType<typeof projectNodesGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof projectNodesGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -229,10 +233,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ProjectNodesGetByIdQueryResult = NonNullable<Awaited<ReturnType<typeof projectNodesGetById>>>
-export type ProjectNodesGetByIdQueryError = ErrorType<unknown>
+export type ProjectNodesGetByIdQueryError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
 
 
-export function useProjectNodesGetById<TData = Awaited<ReturnType<typeof projectNodesGetById>>, TError = ErrorType<unknown>>(
+export function useProjectNodesGetById<TData = Awaited<ReturnType<typeof projectNodesGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof projectNodesGetById>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof projectNodesGetById>>,
@@ -242,7 +246,7 @@ export function useProjectNodesGetById<TData = Awaited<ReturnType<typeof project
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useProjectNodesGetById<TData = Awaited<ReturnType<typeof projectNodesGetById>>, TError = ErrorType<unknown>>(
+export function useProjectNodesGetById<TData = Awaited<ReturnType<typeof projectNodesGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof projectNodesGetById>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof projectNodesGetById>>,
@@ -252,12 +256,12 @@ export function useProjectNodesGetById<TData = Awaited<ReturnType<typeof project
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useProjectNodesGetById<TData = Awaited<ReturnType<typeof projectNodesGetById>>, TError = ErrorType<unknown>>(
+export function useProjectNodesGetById<TData = Awaited<ReturnType<typeof projectNodesGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof projectNodesGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useProjectNodesGetById<TData = Awaited<ReturnType<typeof projectNodesGetById>>, TError = ErrorType<unknown>>(
+export function useProjectNodesGetById<TData = Awaited<ReturnType<typeof projectNodesGetById>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof projectNodesGetById>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
@@ -393,7 +397,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<ProjectNodeReadDto[]>(
       {url: `/api/project-nodes/${id}/subtree`, method: 'GET', signal
     },
       options);
@@ -409,7 +413,7 @@ export const getProjectNodesGetSubtreeQueryKey = (id: string,) => {
     }
 
 
-export const getProjectNodesGetSubtreeQueryOptions = <TData = Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError = ErrorType<unknown>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+export const getProjectNodesGetSubtreeQueryOptions = <TData = Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -428,10 +432,10 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 }
 
 export type ProjectNodesGetSubtreeQueryResult = NonNullable<Awaited<ReturnType<typeof projectNodesGetSubtree>>>
-export type ProjectNodesGetSubtreeQueryError = ErrorType<unknown>
+export type ProjectNodesGetSubtreeQueryError = ErrorType<ProblemDetails | HttpValidationProblemDetails>
 
 
-export function useProjectNodesGetSubtree<TData = Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError = ErrorType<unknown>>(
+export function useProjectNodesGetSubtree<TData = Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof projectNodesGetSubtree>>,
@@ -441,7 +445,7 @@ export function useProjectNodesGetSubtree<TData = Awaited<ReturnType<typeof proj
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useProjectNodesGetSubtree<TData = Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError = ErrorType<unknown>>(
+export function useProjectNodesGetSubtree<TData = Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof projectNodesGetSubtree>>,
@@ -451,12 +455,12 @@ export function useProjectNodesGetSubtree<TData = Awaited<ReturnType<typeof proj
       >, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useProjectNodesGetSubtree<TData = Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError = ErrorType<unknown>>(
+export function useProjectNodesGetSubtree<TData = Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useProjectNodesGetSubtree<TData = Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError = ErrorType<unknown>>(
+export function useProjectNodesGetSubtree<TData = Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError = ErrorType<ProblemDetails | HttpValidationProblemDetails>>(
  id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof projectNodesGetSubtree>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {

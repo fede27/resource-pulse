@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResourcePulse.Services.Projects;
 
@@ -50,6 +51,7 @@ public sealed class ProjectsController(IProjectNodeService service) : Controller
 
     // "Active projects in range" — DateSource selects which date set (Planned / Baseline / Effective).
     [HttpGet]
+    [ProducesResponseType<IReadOnlyList<ProjectNodeReadDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetActiveInRangeAsync(
         [FromQuery] DateOnly from,
         [FromQuery] DateOnly to,

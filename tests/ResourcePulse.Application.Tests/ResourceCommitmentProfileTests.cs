@@ -116,6 +116,39 @@ public class ResourceCommitmentProfileTests
     }
 
     [Fact]
+    public async Task Profile_StatusFilter_NarrowsToRequestedStatus()
+    {
+        var options = new DbContextOptionsBuilder<ResourcePulseDbContext>()
+            .UseInMemoryDatabase($"profile-{Guid.NewGuid()}")
+            .Options;
+        var db = new ResourcePulseDbContext(options);
+
+        var r = Resource.Create("Tizio", Guid.NewGuid());
+        var role = Role.Create("Backend");
+        var alpha = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var d = Demand.Create(alpha.Id, role.Id, null, DemandProvenance.Declared);
+        var hard = Allocation.CreateCoverage(d.Id, alpha.Id, r.Id, Mon, Fri, 50m, status: AllocationStatus.Hard);
+        var tentative = Allocation.CreateCoverage(d.Id, alpha.Id, r.Id, Mon, Fri, 30m);
+
+        db.Resources.Add(r);
+        db.Roles.Add(role);
+        db.ProjectNodes.Add(alpha);
+        db.Demands.Add(d);
+        db.Allocations.AddRange(hard, tentative);
+        db.SaveChanges();
+        db.ChangeTracker.Clear();
+
+        var svc = new LiveLoadQueryService(db, new FixedCapacity(TimeSpan.FromHours(8)));
+
+        var hardOnly = await svc.GetCommitmentProfileForResourceAsync(r.Id, Mon, Fri, AllocationStatus.Hard);
+        hardOnly.IsSuccess.Should().BeTrue();
+        hardOnly.Value.Max(s => s.Percent).Should().Be(50m); // tentative 30% excluded
+
+        var all = await svc.GetCommitmentProfileForResourceAsync(r.Id, Mon, Fri);
+        all.Value.Max(s => s.Percent).Should().Be(80m); // default = every block
+    }
+
+    [Fact]
     public async Task Profile_NonexistentResource_NotFound()
     {
         var f = Seed();

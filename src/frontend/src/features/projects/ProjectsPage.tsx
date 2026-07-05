@@ -1,0 +1,245 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Button, Empty, Skeleton, Spin } from 'antd';
+import { InfoCircleOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
+import type { Grain } from '@/components/timeline';
+import { PageHeader } from '@/components/domain/PageHeader';
+import {
+  defaultFilters,
+  filterProjects,
+  lifecycleOf,
+  portfolioHealth,
+  projectsExtent,
+  projectVerdict,
+  sortProjects,
+  allRoles,
+  type BoardFilters,
+  type BoardProject,
+  type InspectTarget,
+  type Verdict,
+} from './boardModel';
+import { buildGeo } from './timelineGeo';
+import { useProjectsBoard, type BoardDomain } from './useProjectsBoard';
+import { BoardInspector } from './BoardInspector';
+import { BoardLegend } from './BoardLegend';
+import { BoardTimeline } from './BoardTimeline';
+import { BoardToolbar, type Metric } from './BoardToolbar';
+import { HealthCards } from './HealthCards';
+import { ProjectRow } from './ProjectRow';
+import { useStyles } from './ProjectsPage.styles';
+
+const ISO = 'YYYY-MM-DD';
+const MAX_DOMAIN_DAYS = 366; // keep the visual domain within the API range cap
+
+function clampDomain(d: BoardDomain): BoardDomain {
+  const min = dayjs(d.minISO);
+  const max = dayjs(d.maxISO);
+  if (max.isBefore(min)) return { minISO: d.minISO, maxISO: d.minISO };
+  if (max.diff(min, 'day') + 1 <= MAX_DOMAIN_DAYS) return d;
+  return { minISO: d.minISO, maxISO: min.add(MAX_DOMAIN_DAYS - 1, 'day').format(ISO) };
+}
+
+function withMargin(ext: { minISO: string; maxISO: string }, days = 10): BoardDomain {
+  return {
+    minISO: dayjs(ext.minISO).subtract(days, 'day').format(ISO),
+    maxISO: dayjs(ext.maxISO).add(days, 'day').format(ISO),
+  };
+}
+
+export function ProjectsPage() {
+  const { t } = useTranslation();
+  const { styles } = useStyles();
+
+  const todayISO = dayjs().format(ISO);
+  // Initial horizon: a little context behind today, ~5 months ahead (the
+  // prototype's default); "Adatta" re-fits to the loaded projects.
+  const initialDomain = useMemo<BoardDomain>(
+    () => ({
+      minISO: dayjs(todayISO).subtract(3, 'week').format(ISO),
+      maxISO: dayjs(todayISO).add(5, 'month').format(ISO),
+    }),
+    [todayISO],
+  );
+
+  const [pickedDomain, setPickedDomain] = useState<BoardDomain | null>(null);
+  const domain = pickedDomain ?? initialDomain;
+  const setDomain = (d: BoardDomain) => setPickedDomain(clampDomain(d));
+
+  const board = useProjectsBoard(domain);
+
+  const [pickedBucket, setPickedBucket] = useState<Grain | null>(null);
+  const bucket = pickedBucket ?? board.primaryGrain;
+
+  const [metric, setMetric] = useState<Metric>('pct');
+  const [filters, setFilters] = useState<BoardFilters>(defaultFilters);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [inspect, setInspect] = useState<InspectTarget | null>(null);
+
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [scrollNonce, setScrollNonce] = useState(0);
+
+  const geo = useMemo(
+    () => buildGeo(domain.minISO, domain.maxISO, bucket, board.fence),
+    [domain.minISO, domain.maxISO, bucket, board.fence],
+  );
+
+  // Scroll to today on mount and when the bucket/domain jump changes.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (geo.todayIn) el.scrollLeft = Math.max(0, geo.todayX - 160);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run on explicit nonce bumps only
+  }, [scrollNonce, geo.bucket]);
+
+  const verdicts = useMemo(() => {
+    const map = new Map<string, { verdict: Verdict; reason: ReturnType<typeof projectVerdict>['reason'] }>();
+    for (const p of board.projects) {
+      map.set(p.id, projectVerdict(p, board.peakByPerson, board.overloadThreshold));
+    }
+    return map;
+  }, [board.projects, board.peakByPerson, board.overloadThreshold]);
+
+  const verdictOf = (p: BoardProject): Verdict => verdicts.get(p.id)?.verdict ?? 'sostenibile';
+
+  const visible = useMemo(
+    () =>
+      sortProjects(
+        filterProjects(board.projects, filters, {
+          verdictOf,
+          me: board.me,
+          todayISO: board.todayISO,
+          domain,
+        }),
+        filters.sort,
+        verdictOf,
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- verdictOf is derived from `verdicts`
+    [board.projects, filters, verdicts, board.me, board.todayISO, domain],
+  );
+
+  const health = useMemo(
+    () => portfolioHealth(board.projects, verdictOf, board.peakByPerson, board.overloadThreshold),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- verdictOf is derived from `verdicts`
+    [board.projects, verdicts, board.peakByPerson, board.overloadThreshold],
+  );
+
+  const roles = useMemo(() => allRoles(board.projects), [board.projects]);
+
+  const onToday = () => {
+    if (!(todayISO >= domain.minISO && todayISO <= domain.maxISO)) {
+      const y = dayjs(todayISO).year();
+      setDomain({ minISO: `${y}-01-01`, maxISO: `${y}-12-31` });
+    }
+    setScrollNonce((n) => n + 1);
+  };
+
+  const onFit = () => {
+    const src = visible.length ? visible : board.projects;
+    const nonClosed = src.filter((p) => lifecycleOf(p, todayISO) !== 'chiuso');
+    setDomain(withMargin(projectsExtent(nonClosed.length ? nonClosed : src, domain), 7));
+    if (scrollRef.current) scrollRef.current.scrollLeft = 0;
+  };
+
+  const toggleExpand = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  if (board.isLoading) return <Skeleton active paragraph={{ rows: 8 }} />;
+
+  if (board.isError) {
+    return <Alert type="error" showIcon message={t('projects.loadError')} />;
+  }
+
+  return (
+    <div>
+      <PageHeader
+        title={t('projects.sectionTitle')}
+        subtitle={t('projects.sectionSubtitle', { sustainable: health.sustainable, total: health.total })}
+      />
+
+      <HealthCards health={health} overloadThreshold={board.overloadThreshold} />
+
+      <BoardToolbar
+        metric={metric}
+        onMetricChange={setMetric}
+        bucket={bucket}
+        onBucketChange={(b) => {
+          setPickedBucket(b);
+          setScrollNonce((n) => n + 1);
+        }}
+        domain={domain}
+        onDomainChange={setDomain}
+        onToday={onToday}
+        onFit={onFit}
+        filters={filters}
+        onFiltersChange={setFilters}
+        personPool={board.personPool}
+        roles={roles}
+        resultCount={visible.length}
+        totalCount={board.projects.length}
+      />
+
+      <BoardLegend overloadThreshold={board.overloadThreshold} />
+
+      <BoardTimeline
+        geo={geo}
+        scrollRef={scrollRef}
+        isEmpty={visible.length === 0}
+        emptyContent={
+          <Empty
+            description={
+              <>
+                <div>{t('projects.empty.title')}</div>
+                <div>{t('projects.empty.description')}</div>
+              </>
+            }
+          >
+            <Button onClick={() => setFilters(defaultFilters())}>{t('projects.empty.action')}</Button>
+          </Empty>
+        }
+      >
+        {visible.map((p, i) => (
+          <ProjectRow
+            key={p.id}
+            project={p}
+            geo={geo}
+            metric={metric}
+            verdict={verdicts.get(p.id) ?? { verdict: 'sostenibile', reason: null }}
+            expanded={expanded.has(p.id)}
+            alt={i % 2 === 1}
+            onToggle={() => toggleExpand(p.id)}
+            onInspect={setInspect}
+            peakByPerson={board.peakByPerson}
+            overloadThreshold={board.overloadThreshold}
+          />
+        ))}
+      </BoardTimeline>
+
+      <div className={styles.footnote}>
+        <InfoCircleOutlined />
+        {t('projects.footnote')}
+        {board.isFetching && (
+          <span className={styles.fetchingHint}>
+            <Spin size="small" />
+          </span>
+        )}
+      </div>
+
+      <BoardInspector
+        target={inspect}
+        onClose={() => setInspect(null)}
+        projects={board.projects}
+        bands={board.bands}
+        overloadThreshold={board.overloadThreshold}
+        todayISO={board.todayISO}
+        profileByPerson={board.profileByPerson}
+        peakByPerson={board.peakByPerson}
+      />
+    </div>
+  );
+}

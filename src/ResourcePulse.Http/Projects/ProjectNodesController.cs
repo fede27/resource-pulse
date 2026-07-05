@@ -1,4 +1,6 @@
 using DevExtreme.AspNet.Data;
+using DevExtreme.AspNet.Data.ResponseModel;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResourcePulse.Services.Projects;
 
@@ -12,14 +14,19 @@ public sealed class ProjectNodesController(IProjectNodeService service)
     : CrudController<CreateProjectNodeDto, UpdateProjectNodeDto, ProjectNodeReadDto, Guid>
 {
     [HttpGet]
+    [ProducesResponseType<LoadResult>(StatusCodes.Status200OK)]
     public override async Task<IActionResult> GetAllAsync(DataSourceLoadOptionsBase? loadOptions, CancellationToken ct) =>
         FromResult(await service.GetAllAsync(loadOptions, ct));
 
     [HttpGet("{id}")]
+    [ProducesResponseType<ProjectNodeReadDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public override async Task<IActionResult> GetByIdAsync(Guid id, CancellationToken ct) =>
         FromResult(await service.GetByIdAsync(id, ct));
 
     [HttpGet("{id}/subtree")]
+    [ProducesResponseType<IReadOnlyList<ProjectNodeReadDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetSubtreeAsync(Guid id, CancellationToken ct) =>
         FromResult(await service.GetSubtreeAsync(id, ct));
 
