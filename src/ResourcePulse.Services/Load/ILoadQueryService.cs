@@ -49,4 +49,15 @@ public interface ILoadQueryService
         DateOnly from,
         DateOnly toInclusive,
         CancellationToken ct = default);
+
+    // Open demands across the whole plan (ADR-0027): demands whose reconciliation
+    // over [from, toInclusive] leaves GapHours > 0, plus best-effort demands (no
+    // target ⇒ they can always absorb coverage). Excludes demands whose root
+    // project is Closed/Cancelled (I4 forbids covering them anyway). `roleId`
+    // optionally narrows to demands asking for that role.
+    Task<ServiceResult<IReadOnlyList<OpenDemandDto>>> GetOpenDemandsAsync(
+        Guid? roleId,
+        DateOnly from,
+        DateOnly toInclusive,
+        CancellationToken ct = default);
 }

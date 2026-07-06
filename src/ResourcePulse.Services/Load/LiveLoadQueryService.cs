@@ -290,6 +290,96 @@ public sealed class LiveLoadQueryService(
         return ServiceResult<DemandCoverageDto>.Success(dtos[0]);
     }
 
+    public async Task<ServiceResult<IReadOnlyList<OpenDemandDto>>> GetOpenDemandsAsync(
+        Guid? roleId, DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
+    {
+        if (from > toInclusive)
+            return ServiceResult<IReadOnlyList<OpenDemandDto>>.Validation(new Dictionary<string, string[]>
+            {
+                ["range"] = ["'from' must be on or before 'to'."]
+            });
+
+        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
+        if (rangeDays > MaxRangeDays)
+            return ServiceResult<IReadOnlyList<OpenDemandDto>>.Validation(new Dictionary<string, string[]>
+            {
+                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
+            });
+
+        if (roleId is Guid rid)
+        {
+            var roleExists = await db.Roles.AnyAsync(r => r.Id == rid, ct);
+            if (!roleExists)
+                return ServiceResult<IReadOnlyList<OpenDemandDto>>.NotFound($"Role {rid} not found.");
+        }
+
+        // Candidate demands (optionally narrowed to the requested role) with their
+        // node's materialized Path, so the root project is derivable in memory.
+        var candidates = await db.Demands.AsNoTracking()
+            .Where(d => roleId == null || d.RoleId == roleId)
+            .Join(
+                db.ProjectNodes.AsNoTracking(),
+                d => d.ProjectNodeId,
+                p => p.Id,
+                (d, p) => new { Demand = d, p.Path })
+            .ToListAsync(ct);
+
+        if (candidates.Count == 0)
+            return ServiceResult<IReadOnlyList<OpenDemandDto>>.Success([]);
+
+        var rootByDemand = candidates.ToDictionary(x => x.Demand.Id, x => RootIdFromPath(x.Path));
+
+        // Drop demands whose root project is Closed/Cancelled — I4 forbids creating
+        // coverage there, so offering them as targets would be a dead end.
+        var rootIds = rootByDemand.Values.Distinct().ToList();
+        var roots = await db.ProjectNodes.AsNoTracking()
+            .Where(p => rootIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.Name, p.Status })
+            .ToListAsync(ct);
+        var rootById = roots.ToDictionary(r => r.Id);
+
+        var demands = candidates
+            .Select(x => x.Demand)
+            .Where(d => rootById.TryGetValue(rootByDemand[d.Id], out var root)
+                     && root.Status is not (ProjectStatus.Closed or ProjectStatus.Cancelled))
+            .ToList();
+
+        var reconciled = await ReconcileAsync(demands, from, toInclusive, ct);
+
+        // Open = a concrete residual remains, or best-effort (no target ⇒ the demand
+        // can always absorb coverage; §7 — null gap is "no defined gap", not zero).
+        var demandById = demands.ToDictionary(d => d.Id);
+        var dtos = reconciled
+            .Where(c => c.IsBestEffort || c.GapHours > TimeSpan.Zero)
+            .Select(c =>
+            {
+                var rootId = rootByDemand[c.DemandId];
+                return new OpenDemandDto
+                {
+                    DemandId = c.DemandId,
+                    ProjectNodeId = c.ProjectNodeId,
+                    RootProjectId = rootId,
+                    RootProjectName = rootById[rootId].Name,
+                    RoleId = c.RoleId,
+                    RoleName = c.RoleName,
+                    Provenance = c.Provenance,
+                    RequiredHours = c.RequiredHours,
+                    CoveredHours = c.CoveredHours,
+                    GapHours = c.GapHours,
+                    OwnerResourceId = c.OwnerResourceId,
+                    OwnerResourceName = c.OwnerResourceName,
+                    Notes = demandById[c.DemandId].Notes
+                };
+            })
+            // Concrete residuals first (largest gap on top); best-effort tail.
+            .OrderByDescending(x => x.GapHours ?? TimeSpan.MinValue)
+            .ThenBy(x => x.RootProjectName)
+            .ThenBy(x => x.RoleName)
+            .ToList();
+
+        return ServiceResult<IReadOnlyList<OpenDemandDto>>.Success(dtos);
+    }
+
     // Shared: load the coverage of the given demands + the capacity of the covering
     // resources, run the pure calculator, resolve role/owner names. Capacity loads
     // are sequential (pooled DbContext, ADR-0010).

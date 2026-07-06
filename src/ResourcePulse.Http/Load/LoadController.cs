@@ -63,6 +63,22 @@ public sealed class LoadController(ILoadQueryService service) : ControllerFounda
         CancellationToken ct) =>
         FromResult(await service.GetDemandCoverageForProjectNodeAsync(id, from, to, ct));
 
+    // Open demands across the whole plan (ADR-0027): reconciliation leaves a
+    // residual (GapHours > 0) or the demand is best-effort; roots Closed/Cancelled
+    // excluded (I4). `roleId` narrows to demands asking for that role — the
+    // "cover free capacity" picker filters on the person's role. The literal
+    // segment wins over GET api/demands/{id} by route precedence.
+    [HttpGet("api/demands/open")]
+    [ProducesResponseType<IReadOnlyList<OpenDemandDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetOpenDemandsAsync(
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        [FromQuery] Guid? roleId = null,
+        CancellationToken ct = default) =>
+        FromResult(await service.GetOpenDemandsAsync(roleId, from, to, ct));
+
     // Coverage of a single demand over the range.
     [HttpGet("api/demands/{id}/coverage")]
     [ProducesResponseType<DemandCoverageDto>(StatusCodes.Status200OK)]

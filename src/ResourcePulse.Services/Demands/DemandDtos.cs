@@ -35,6 +35,35 @@ public sealed class DemandReadDto
     public string? UpdatedBy { get; init; }
 }
 
+// An open (not fully covered) demand across the whole plan (ADR-0027). Same
+// reconciliation as DemandCoverageDto, restricted to GapHours > 0 or best-effort,
+// enriched with the ROOT project so a cross-project picker needs no extra
+// round-trip (ADR-0024 pattern). Residual stays scalar over the queried range
+// (Decision 4) — never a reconstructed span.
+public sealed class OpenDemandDto
+{
+    public Guid DemandId { get; init; }
+
+    public Guid ProjectNodeId { get; init; }
+    public Guid RootProjectId { get; init; }
+    public string RootProjectName { get; init; } = string.Empty;
+
+    public Guid RoleId { get; init; }
+    public string RoleName { get; init; } = string.Empty;
+    public DemandProvenance Provenance { get; init; }
+
+    public TimeSpan? RequiredHours { get; init; }
+    public TimeSpan CoveredHours { get; init; }
+    // Null ⇒ best-effort: the demand can absorb coverage but has no defined gap.
+    public TimeSpan? GapHours { get; init; }
+    public bool IsBestEffort => RequiredHours is null;
+
+    public Guid? OwnerResourceId { get; init; }
+    public string? OwnerResourceName { get; init; }
+
+    public string? Notes { get; init; }
+}
+
 // Demand-vs-coverage reconciliation over a range (Phase 5.2, ADR-0025/0026). The
 // gap read model: RequiredHours (target, nullable), CoveredHours (resolved hours),
 // GapHours (required − covered, null for best-effort; negative = surplus). Scalar
