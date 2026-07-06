@@ -26,6 +26,7 @@ public sealed class LiveLoadQueryService(
         Guid resourceId,
         DateOnly from,
         DateOnly toInclusive,
+        AllocationStatus? status = null,
         CancellationToken ct = default)
     {
         if (from > toInclusive)
@@ -56,10 +57,14 @@ public sealed class LiveLoadQueryService(
 
         var capacityByDate = capacityResult.Value.ToDictionary(d => d.Date, d => d.Hours);
 
-        // Allocations overlapping [from, toInclusive] for this resource.
+        // Allocations overlapping [from, toInclusive] for this resource. The
+        // optional status filter narrows to one commitment status before the pure
+        // calculator runs (calculator stays status-agnostic, ADR-0010) — same
+        // pattern as the commitment-profile read below.
         var allocations = await db.Allocations
             .AsNoTracking()
             .Where(a => a.ResourceId == resourceId
+                     && (status == null || a.Status == status)
                      && a.PeriodStart <= toInclusive
                      && a.PeriodEnd >= from)
             .ToListAsync(ct);

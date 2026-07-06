@@ -11,6 +11,9 @@ namespace ResourcePulse.Http.Load;
 [ApiController]
 public sealed class LoadController(ILoadQueryService service) : ControllerFoundation
 {
+    // `status` optionally narrows to one commitment status (e.g. Hard for the
+    // Allocazioni heatmap cells, which count committed blocks by default);
+    // omitted = all blocks. Twin of the load-profile filter below.
     [HttpGet("api/resources/{id}/load")]
     [ProducesResponseType<IReadOnlyList<DailyLoadDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -18,8 +21,9 @@ public sealed class LoadController(ILoadQueryService service) : ControllerFounda
         Guid id,
         [FromQuery] DateOnly from,
         [FromQuery] DateOnly to,
-        CancellationToken ct) =>
-        FromResult(await service.GetForResourceAsync(id, from, to, ct));
+        [FromQuery] AllocationStatus? status = null,
+        CancellationToken ct = default) =>
+        FromResult(await service.GetForResourceAsync(id, from, to, status, ct));
 
     // Commitment profile: run-length segments of the resource's committed rate%
     // over the horizon, decomposed by root project (ADR-0023 / gap #4+#10). Peak =

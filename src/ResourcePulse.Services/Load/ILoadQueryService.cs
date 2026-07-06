@@ -10,10 +10,15 @@ namespace ResourcePulse.Services.Load;
 // of capacity. See ADR-0010.
 public interface ILoadQueryService
 {
+    // Capacity-based daily load series. `status` optionally narrows to blocks
+    // with that commitment status (e.g. Hard-only for band colouring — the
+    // Allocazioni heatmap counts committed blocks by default and adds tentative
+    // on request); null = all blocks. Twin of the load-profile filter.
     Task<ServiceResult<IReadOnlyList<DailyLoadDto>>> GetForResourceAsync(
         Guid resourceId,
         DateOnly from,
         DateOnly toInclusive,
+        AllocationStatus? status = null,
         CancellationToken ct = default);
 
     Task<ServiceResult<IReadOnlyList<DailyNodeLoadDto>>> GetForProjectNodeAsync(
