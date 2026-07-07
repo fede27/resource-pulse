@@ -38,7 +38,7 @@ import {
 import type { Grain } from '@/components/timeline';
 import { normalizeBands, overloadFloor, type LoadBand } from '@/lib/loadBands';
 import { buildBoardProject, peakOf, type BoardProject, type CurrentUser } from './boardModel';
-import { fenceEnd, type FenceBoundaries } from './timelineGeo';
+import { fenceEnd, type FenceBoundaries } from '@/components/board';
 
 const ISO = 'YYYY-MM-DD';
 // The load/coverage endpoints cap the range at 366 inclusive days (400 beyond);

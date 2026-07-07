@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 import { AppLayout } from '@/components/layout/AppLayout';
 import { HomePage } from '@/app/routes/index';
 import { PeopleRoutePage } from '@/app/routes/people/index';
+import { PeopleRegistryRoutePage } from '@/app/routes/people/registry';
 import { ProjectsRoutePage } from '@/app/routes/projects/index';
 import { SettingsRoutePage } from '@/app/routes/settings/index';
 import { TeamListPage } from '@/app/routes/teams/index';
@@ -27,10 +28,18 @@ const timeConfigRoute = createRoute({
   component: TimeConfigRoutePage,
 });
 
+// "/people" is the Persone planning board; the registry (anagrafica) moved to
+// "/people/registry" when the board took over the primary route.
 const peopleRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/people',
   component: PeopleRoutePage,
+});
+
+const peopleRegistryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/people/registry',
+  component: PeopleRegistryRoutePage,
 });
 
 const projectsRoute = createRoute({
@@ -50,6 +59,7 @@ const routeTree = rootRoute.addChildren([
   teamListRoute,
   timeConfigRoute,
   peopleRoute,
+  peopleRegistryRoute,
   projectsRoute,
   settingsRoute,
 ]);

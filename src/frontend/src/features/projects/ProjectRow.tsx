@@ -27,7 +27,7 @@ import {
   OVER_ALLOC_TEXT,
   VERDICT_COLORS,
 } from './boardColors';
-import type { BoardGeo } from './timelineGeo';
+import type { BoardGeo } from '@/components/board';
 import type { Metric } from './BoardToolbar';
 import { PROPOSED_HATCH, TENTATIVE_HATCH, useStyles } from './ProjectRow.styles';
 

@@ -26,12 +26,15 @@ import type {
   DemandCoverageDto,
   HttpValidationProblemDetails,
   LoadGetDemandCoverageParams,
+  LoadGetOpenDemandsParams,
   LoadGetProjectNodeDemandCoverageParams,
   LoadGetProjectNodeLoadParams,
   LoadGetResourceLoadParams,
   LoadGetResourceLoadProfileParams,
   LoadSegmentDto,
-  ProblemDetails
+  OpenDemandDto,
+  ProblemDetails,
+  ValidationProblemDetails
 } from '../schemas';
 
 import { apiClient } from '../../client';
@@ -407,6 +410,93 @@ export function useLoadGetProjectNodeDemandCoverage<TData = Awaited<ReturnType<t
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getLoadGetProjectNodeDemandCoverageQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+export const loadGetOpenDemands = (
+    params?: LoadGetOpenDemandsParams,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<OpenDemandDto[]>(
+      {url: `/api/demands/open`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+
+
+
+
+export const getLoadGetOpenDemandsQueryKey = (params?: LoadGetOpenDemandsParams,) => {
+    return [
+    `/api/demands/open`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getLoadGetOpenDemandsQueryOptions = <TData = Awaited<ReturnType<typeof loadGetOpenDemands>>, TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>>(params?: LoadGetOpenDemandsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetOpenDemands>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLoadGetOpenDemandsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof loadGetOpenDemands>>> = ({ signal }) => loadGetOpenDemands(params, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof loadGetOpenDemands>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type LoadGetOpenDemandsQueryResult = NonNullable<Awaited<ReturnType<typeof loadGetOpenDemands>>>
+export type LoadGetOpenDemandsQueryError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>
+
+
+export function useLoadGetOpenDemands<TData = Awaited<ReturnType<typeof loadGetOpenDemands>>, TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>>(
+ params: undefined |  LoadGetOpenDemandsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetOpenDemands>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadGetOpenDemands>>,
+          TError,
+          Awaited<ReturnType<typeof loadGetOpenDemands>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadGetOpenDemands<TData = Awaited<ReturnType<typeof loadGetOpenDemands>>, TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>>(
+ params?: LoadGetOpenDemandsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetOpenDemands>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadGetOpenDemands>>,
+          TError,
+          Awaited<ReturnType<typeof loadGetOpenDemands>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadGetOpenDemands<TData = Awaited<ReturnType<typeof loadGetOpenDemands>>, TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>>(
+ params?: LoadGetOpenDemandsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetOpenDemands>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useLoadGetOpenDemands<TData = Awaited<ReturnType<typeof loadGetOpenDemands>>, TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>>(
+ params?: LoadGetOpenDemandsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetOpenDemands>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getLoadGetOpenDemandsQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

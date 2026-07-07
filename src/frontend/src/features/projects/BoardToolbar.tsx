@@ -1,16 +1,9 @@
 import { useMemo, type ReactNode } from 'react';
-import { Button, Checkbox, DatePicker, Popover, Segmented, Select, Tag } from 'antd';
-import {
-  AimOutlined,
-  CalendarOutlined,
-  FilterOutlined,
-  LeftOutlined,
-  RightOutlined,
-  SortAscendingOutlined,
-} from '@ant-design/icons';
-import dayjs from 'dayjs';
+import { Button, Checkbox, Popover, Segmented, Select, Tag } from 'antd';
+import { FilterOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { BoardDateControls } from '@/components/board';
 import type { Grain } from '@/components/timeline';
 import {
   activeFilterCount,
@@ -26,7 +19,6 @@ import type { PersonPoolEntry } from './useProjectsBoard';
 import type { BoardDomain } from './useProjectsBoard';
 import { useStyles } from './BoardToolbar.styles';
 
-const ISO = 'YYYY-MM-DD';
 const LIFECYCLES: Lifecycle[] = ['futuro', 'attivo', 'chiuso'];
 const PROVENANCES: Provenance[] = ['committed', 'proposed'];
 const VERDICTS: Verdict[] = ['sostenibile', 'arischio', 'scoperto'];
@@ -71,9 +63,6 @@ export function BoardToolbar(props: BoardToolbarProps) {
 
   const count = activeFilterCount(filters);
   const dirty = count > 0 || filters.sort !== 'sustain';
-  const year = dayjs(props.domain.minISO).year();
-  const setYear = (y: number) =>
-    props.onDomainChange({ minISO: `${y}-01-01`, maxISO: `${y}-12-31` });
 
   const chips = useMemo(() => buildChips(filters, set, t, props.personPool), [filters, props.personPool, t]);
 
@@ -192,40 +181,11 @@ export function BoardToolbar(props: BoardToolbarProps) {
           ]}
         />
         <span className={styles.divider} />
-        <span className={styles.yearStepper}>
-          <Button
-            type="text"
-            size="small"
-            icon={<LeftOutlined />}
-            aria-label={t('projects.toolbar.prevYear')}
-            onClick={() => setYear(year - 1)}
-          />
-          <span className={styles.yearLabel}>{year}</span>
-          <Button
-            type="text"
-            size="small"
-            icon={<RightOutlined />}
-            aria-label={t('projects.toolbar.nextYear')}
-            onClick={() => setYear(year + 1)}
-          />
-        </span>
-        <Button size="small" icon={<CalendarOutlined />} onClick={props.onToday}>
-          {t('projects.toolbar.today')}
-        </Button>
-        <Button size="small" icon={<AimOutlined />} onClick={props.onFit}>
-          {t('projects.toolbar.fit')}
-        </Button>
-        <DatePicker.RangePicker
-          size="small"
-          allowClear={false}
-          value={[dayjs(props.domain.minISO), dayjs(props.domain.maxISO)]}
-          onChange={(range) => {
-            if (!range?.[0] || !range[1]) return;
-            props.onDomainChange({
-              minISO: range[0].format(ISO),
-              maxISO: range[1].format(ISO),
-            });
-          }}
+        <BoardDateControls
+          domain={props.domain}
+          onDomainChange={props.onDomainChange}
+          onToday={props.onToday}
+          onFit={props.onFit}
         />
         <div className={styles.spacer}>
           <SortAscendingOutlined className={styles.dimLabel} />

@@ -1,5 +1,5 @@
 import { createStyles } from 'antd-style';
-import { ENVELOPE_H, LANE_H, LEFT_W } from './BoardTimeline.styles';
+import { ENVELOPE_H, LANE_H, LEFT_W } from '@/components/board/BoardTimeline.styles';
 
 // Decorative-only patterns (not part of the token language).
 export const TENTATIVE_HATCH =

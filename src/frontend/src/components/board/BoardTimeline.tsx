@@ -1,7 +1,7 @@
 import type { ReactNode, RefObject } from 'react';
 import { LockOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import type { BoardGeo } from './timelineGeo';
+import type { BoardGeo } from './boardGeo';
 import {
   FENCE_EDGE_SOFT,
   FENCE_EDGE_STRONG,
@@ -19,15 +19,18 @@ import { LEFT_W, PAST_HATCH, PAST_HATCH_STRONG, useStyles } from './BoardTimelin
 export type BoardTimelineProps = {
   geo: BoardGeo;
   scrollRef: RefObject<HTMLDivElement | null>;
+  /** Title of the sticky left column header (each board names its own rows). */
+  headerTitle: string;
   isEmpty: boolean;
   emptyContent: ReactNode;
   children: ReactNode;
 };
 
-// The scrollable timeline shell: 3-row header (major bands / time-fence /
-// unit ticks) + a backdrop (past hatch, fence tints, gridlines, today line)
-// behind the project rows. Left labels stay pinned via sticky positioning.
-export function BoardTimeline({ geo, scrollRef, isEmpty, emptyContent, children }: BoardTimelineProps) {
+// The scrollable timeline shell shared by the boards: 3-row header (major
+// bands / time-fence / unit ticks) + a backdrop (past hatch, fence tints,
+// gridlines, today line) behind the rows. Left labels stay pinned via sticky
+// positioning.
+export function BoardTimeline({ geo, scrollRef, headerTitle, isEmpty, emptyContent, children }: BoardTimelineProps) {
   const { t } = useTranslation();
   const { styles, cx } = useStyles();
 
@@ -79,9 +82,9 @@ export function BoardTimeline({ geo, scrollRef, isEmpty, emptyContent, children 
         <div style={{ width: LEFT_W + geo.contentW, minWidth: LEFT_W + geo.contentW }}>
           <div className={styles.header}>
             <div className={styles.headerLeft}>
-              <div className={styles.headerLeftTitle}>{t('projects.timeline.header')}</div>
+              <div className={styles.headerLeftTitle}>{headerTitle}</div>
               <div className={styles.headerLeftFence} />
-              <div className={styles.headerLeftUnit}>{t(`projects.timeline.unit.${geo.bucket}`)}</div>
+              <div className={styles.headerLeftUnit}>{t(`board.timeline.unit.${geo.bucket}`)}</div>
             </div>
 
             {/* dynamic: axis width computed from the domain. */}
@@ -125,7 +128,7 @@ export function BoardTimeline({ geo, scrollRef, isEmpty, emptyContent, children 
                       {w > 46 && (
                         <span style={{ color: s.fg }}>
                           {s.icon && w > 90 && <LockOutlined />}
-                          {t(`projects.legend.${s.key}`)}
+                          {t(`board.legend.${s.key}`)}
                         </span>
                       )}
                     </div>
@@ -153,7 +156,7 @@ export function BoardTimeline({ geo, scrollRef, isEmpty, emptyContent, children 
                     {/* dynamic: today marker at computed x. */}
                     <div className={styles.todayLine} style={{ left: geo.todayX }} />
                     <div className={styles.todayPill} style={{ left: geo.todayX }}>
-                      <span>{t('projects.timeline.today')}</span>
+                      <span>{t('board.timeline.today')}</span>
                     </div>
                   </>
                 )}

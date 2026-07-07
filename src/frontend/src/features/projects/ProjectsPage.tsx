@@ -19,11 +19,10 @@ import {
   type InspectTarget,
   type Verdict,
 } from './boardModel';
-import { buildGeo } from './timelineGeo';
+import { BoardTimeline, buildGeo } from '@/components/board';
 import { useProjectsBoard, type BoardDomain } from './useProjectsBoard';
 import { BoardInspector } from './BoardInspector';
 import { BoardLegend } from './BoardLegend';
-import { BoardTimeline } from './BoardTimeline';
 import { BoardToolbar, type Metric } from './BoardToolbar';
 import { HealthCards } from './HealthCards';
 import { ProjectRow } from './ProjectRow';
@@ -189,6 +188,7 @@ export function ProjectsPage() {
       <BoardTimeline
         geo={geo}
         scrollRef={scrollRef}
+        headerTitle={t('projects.timeline.header')}
         isEmpty={visible.length === 0}
         emptyContent={
           <Empty

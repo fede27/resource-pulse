@@ -5,10 +5,9 @@
  * ResourcePulse.Hosting
  * OpenAPI spec version: 1.0
  */
-import type { AllocationStatus } from './allocationStatus';
 
-export type LoadGetResourceLoadParams = {
+export type LoadGetOpenDemandsParams = {
 from?: string;
 to?: string;
-status?: AllocationStatus;
+roleId?: string;
 };

@@ -24,22 +24,6 @@ export const useStyles = createStyles(({ token, css }) => ({
     font-size: ${token.fontSizeSM}px;
     color: ${token.colorTextTertiary};
   `,
-  yearStepper: css`
-    display: inline-flex;
-    align-items: center;
-    height: 32px;
-    border: 1px solid ${token.colorBorder};
-    border-radius: ${token.borderRadius}px;
-    overflow: hidden;
-    background: ${token.colorBgContainer};
-  `,
-  yearLabel: css`
-    padding: 0 ${token.paddingXS}px;
-    font-size: ${token.fontSize}px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    color: ${token.colorTextSecondary};
-  `,
   spacer: css`
     margin-inline-start: auto;
     display: inline-flex;

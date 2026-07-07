@@ -1,6 +1,7 @@
-// Projects board — scrollable pixel geometry. Pure: no React, no network.
+// Board timeline — scrollable pixel geometry shared by the Progetti and
+// Persone boards. Pure: no React, no network.
 //
-// The board is a bounded-domain continuous gantt (absolute bars over a shared
+// A board is a bounded-domain continuous gantt (absolute bars over a shared
 // axis), configurable as domain [minISO, maxISO] × bucket (day/week/month).
 // This is a different rendering model from the virtualized bucket-cell grid in
 // `@/components/timeline` (heatmap cells), hence its own geometry.
@@ -22,6 +23,8 @@ export type MajorBand = { x: number; w: number; label: string };
 export type UnitTick = {
   x: number;
   w: number;
+  /** Start date of the tick's span (unclamped — the first week tick may begin before the domain). */
+  iso: string;
   label: string;
   isWeekend: boolean;
   isMonday: boolean;
@@ -141,6 +144,7 @@ export function buildGeo(
         out.push({
           x,
           w,
+          iso: d.format(ISO),
           label: String(isoWeek(d)),
           isWeekend: false,
           isMonday: true,
@@ -162,6 +166,7 @@ export function buildGeo(
       out.push({
         x,
         w: xPx(next.format(ISO)) - x,
+        iso: d.format(ISO),
         label: String(d.date()),
         isWeekend: wd >= 5,
         isMonday: wd === 0,
@@ -172,15 +177,28 @@ export function buildGeo(
     return out;
   };
 
-  const monthTicks = (): UnitTick[] =>
-    monthBands().map((m, i) => ({
-      x: m.x,
-      w: m.w,
-      label: m.label,
-      isWeekend: false,
-      isMonday: false,
-      isMonthStart: i === 0,
-    }));
+  const monthTicks = (): UnitTick[] => {
+    const out: UnitTick[] = [];
+    let d = A.startOf('month');
+    while (!d.isAfter(B)) {
+      const next = d.add(1, 'month');
+      const segStart = d.isBefore(A) ? A : d;
+      const segEnd = next.isAfter(B) ? B : next;
+      const x = xPx(segStart.format(ISO));
+      const showYear = d.month() === 0 || out.length === 0;
+      out.push({
+        x,
+        w: xPx(segEnd.format(ISO)) - x,
+        iso: d.format(ISO),
+        label: showYear ? d.format('MMM YYYY') : d.format('MMM'),
+        isWeekend: false,
+        isMonday: false,
+        isMonthStart: out.length === 0,
+      });
+      d = next;
+    }
+    return out;
+  };
 
   const unitTicks = bucket === 'day' ? dayTicks() : bucket === 'month' ? monthTicks() : weekTicks();
   const majorBands = bucket === 'month' ? yearBands() : monthBands();

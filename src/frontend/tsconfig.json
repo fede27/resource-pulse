@@ -2,6 +2,12 @@
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+    { "path": "./tsconfig.node.json" },
+    // Referenced so the IDE assigns *.test.* files (excluded from the app
+    // project) to the vitest project — otherwise the editor checks them in an
+    // inferred project without the jest-dom matcher augmentation and reports
+    // `Property 'toBeInTheDocument' does not exist`. The production build
+    // stays scoped to the app project (`tsc -b tsconfig.app.json`).
+    { "path": "./tsconfig.vitest.json" }
   ]
 }

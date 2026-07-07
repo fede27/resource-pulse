@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { describe, expect, it } from 'vitest';
-import { BUCKET_DAYPX, buildGeo, fenceEnd, isoWeek, mondayOf } from './timelineGeo';
+import { BUCKET_DAYPX, buildGeo, fenceEnd, isoWeek, mondayOf } from './boardGeo';
 
 const FENCE = {
   todayISO: '2026-07-05',

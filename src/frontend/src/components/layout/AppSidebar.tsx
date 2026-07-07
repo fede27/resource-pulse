@@ -36,7 +36,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
       },
       {
         key: 'people',
-        icon: <TeamOutlined />,
+        icon: <CalendarOutlined />,
         label: <Link to="/people">{t('nav.people')}</Link>,
       },
       {
@@ -44,13 +44,12 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
         icon: <FolderOutlined />,
         label: <Link to="/projects">{t('nav.projects')}</Link>,
       },
-      {
-        key: 'allocations',
-        icon: <CalendarOutlined />,
-        label: t('nav.allocations'),
-        disabled: true,
-      },
       { type: 'group' as const, label: t('nav.groupConfiguration'), key: 'g-config' },
+      {
+        key: 'people-registry',
+        icon: <TeamOutlined />,
+        label: <Link to="/people/registry">{t('nav.peopleRegistry')}</Link>,
+      },
       {
         key: 'time-config',
         icon: <ClockCircleOutlined />,
@@ -103,6 +102,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
 }
 
 function resolveSelectedKey(pathname: string): string {
+  if (pathname.startsWith('/people/registry')) return 'people-registry';
   if (pathname.startsWith('/people')) return 'people';
   if (pathname.startsWith('/projects')) return 'projects';
   if (pathname.startsWith('/teams')) return 'teams';
