@@ -3,9 +3,9 @@ import { Layout, Menu } from 'antd';
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router';
 import {
   AppstoreOutlined,
-  CalendarOutlined,
   ClockCircleOutlined,
   FolderOutlined,
+  IdcardOutlined,
   PieChartOutlined,
   SettingOutlined,
   TeamOutlined,
@@ -36,7 +36,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
       },
       {
         key: 'people',
-        icon: <CalendarOutlined />,
+        icon: <TeamOutlined />,
         label: <Link to="/people">{t('nav.people')}</Link>,
       },
       {
@@ -47,7 +47,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
       { type: 'group' as const, label: t('nav.groupConfiguration'), key: 'g-config' },
       {
         key: 'people-registry',
-        icon: <TeamOutlined />,
+        icon: <IdcardOutlined />,
         label: <Link to="/people/registry">{t('nav.peopleRegistry')}</Link>,
       },
       {

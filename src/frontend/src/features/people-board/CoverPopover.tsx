@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { App, Select, Spin } from 'antd';
+import { App, Popover, Select, Spin } from 'antd';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
@@ -174,12 +174,12 @@ export function CoverPopover({ person, pending, rootProjects, onClose }: CoverPo
     );
   };
 
-  return (
-    <>
-      <div className={styles.backdrop} onMouseDown={onClose} />
-      <div className={styles.cardWrap} onMouseDown={(e) => e.stopPropagation()}>
-        <div className={styles.card}>
-          <div className={styles.header}>
+  // AntD Popover does the placement work: portaled to body (no clipping from
+  // the board's scroll container) and auto-flipped by `autoAdjustOverflow`
+  // when the space below the release point isn't enough.
+  const card = (
+    <div className={styles.card}>
+      <div className={styles.header}>
             <div className={styles.headerTitle}>
               {t('peopleBoard.picker.title', { name: person.person.name })}
               {person.person.roleName ? ` · ${person.person.roleName}` : ''}
@@ -199,7 +199,7 @@ export function CoverPopover({ person, pending, rootProjects, onClose }: CoverPo
                 <span>{t('peopleBoard.picker.roleLabel')}</span>
                 <Select
                   size="small"
-                  style={{ flex: 1 }}
+                  className={styles.roleSelect}
                   placeholder={t('peopleBoard.picker.rolePlaceholder')}
                   value={pickedRoleId}
                   onChange={(v) => setPickedRoleId(v)}
@@ -295,11 +295,26 @@ export function CoverPopover({ person, pending, rootProjects, onClose }: CoverPo
                     );
                   })}
                 </div>
-              </>
-            )}
-          </div>
-        </div>
+          </>
+        )}
       </div>
-    </>
+    </div>
+  );
+
+  return (
+    <Popover
+      open
+      trigger="click"
+      placement="bottomLeft"
+      autoAdjustOverflow
+      arrow={false}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      classNames={{ container: styles.popContainer }}
+      content={card}
+    >
+      <span className={styles.anchor} />
+    </Popover>
   );
 }

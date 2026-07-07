@@ -1,12 +1,21 @@
 import { createStyles } from 'antd-style';
 
 export const useStyles = createStyles(({ token, css }) => ({
+  // The popup chrome (background, radius, shadow) comes from the AntD Popover;
+  // its container slot is zeroed so the card sections run edge to edge.
+  popContainer: css`
+    && {
+      padding: 0;
+    }
+  `,
+  anchor: css`
+    display: inline-block;
+    width: 0;
+    height: 0;
+  `,
   card: css`
     width: 320px;
-    background: ${token.colorBgElevated};
-    border: 1px solid ${token.colorBorderSecondary};
     border-radius: ${token.borderRadiusLG}px;
-    box-shadow: ${token.boxShadowSecondary};
     overflow: hidden;
     cursor: default;
   `,
@@ -110,6 +119,9 @@ export const useStyles = createStyles(({ token, css }) => ({
     height: 7px;
     border-radius: 2px;
   `,
+  roleSelect: css`
+    flex: 1;
+  `,
   roleSelectRow: css`
     display: flex;
     align-items: center;
@@ -117,14 +129,5 @@ export const useStyles = createStyles(({ token, css }) => ({
     padding: 4px ${token.paddingSM}px;
     font-size: ${token.fontSizeSM}px;
     color: ${token.colorTextSecondary};
-  `,
-  backdrop: css`
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-  `,
-  cardWrap: css`
-    position: absolute;
-    z-index: 1001;
   `,
 }));

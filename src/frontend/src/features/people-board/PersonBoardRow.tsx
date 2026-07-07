@@ -317,17 +317,16 @@ function FreeLane({
         </div>
       )}
       {pending && (
-        <>
-          {/* dynamic: popover anchor at the drag release point. */}
-          <div className={styles.popoverAnchor} style={{ left: Math.min(pending.anchorX, geo.contentW - 8) }}>
-            <CoverPopover
-              person={data}
-              pending={pending}
-              rootProjects={rootProjects}
-              onClose={() => setPending(null)}
-            />
-          </div>
-        </>
+        // dynamic: popover anchor at the drag release point; the popup itself
+        // is portaled + auto-flipped by AntD.
+        <div className={styles.popoverAnchor} style={{ left: Math.min(pending.anchorX, geo.contentW - 8) }}>
+          <CoverPopover
+            person={data}
+            pending={pending}
+            rootProjects={rootProjects}
+            onClose={() => setPending(null)}
+          />
+        </div>
       )}
     </div>
   );
