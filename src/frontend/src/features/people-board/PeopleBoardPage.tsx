@@ -301,6 +301,8 @@ export function PeopleBoardPage() {
         onClose={() => setInspect(null)}
         peopleById={peopleById}
         geo={geo}
+        buckets={buckets}
+        todayISO={todayISO}
         bands={board.bands}
         countTentative={countTent}
       />

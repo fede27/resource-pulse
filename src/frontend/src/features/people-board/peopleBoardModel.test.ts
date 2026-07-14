@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import dayjs from 'dayjs';
 import { buildGeo } from '@/components/board';
 import type { LoadBand } from '@/lib/loadBands';
 import {
+  breakdownGrain,
   bucketComposition,
   bucketStat,
   bucketsFromGeo,
+  bucketsInPeriod,
   capacityInWindow,
   groupPeople,
   matchesBands,
@@ -13,11 +16,13 @@ import {
   personLanes,
   personStats,
   proposalPercent,
+  resolvePeriod,
   rootIdFromPath,
   snapISO,
   sortPeople,
-  subBuckets,
+  subPeriods,
   toOpenDemand,
+  todayBucketIdx,
   toPersonBlock,
   weeklyCapacity,
   type PersonBlock,
@@ -228,15 +233,68 @@ describe('drag helpers', () => {
   });
 });
 
-describe('subBuckets', () => {
-  it('decomposes a week into days and a month into weeks', () => {
-    const days = subBuckets('2026-06-01', '2026-06-08', 'week');
+describe('subPeriods / breakdownGrain', () => {
+  it('decomposes a short period into days and a long one into weeks', () => {
+    const days = subPeriods('2026-06-01', '2026-06-08', 'day');
     expect(days).toHaveLength(7);
     expect(days[0]).toMatchObject({ from: '2026-06-01', toExcl: '2026-06-02' });
 
-    const weeks = subBuckets('2026-06-01', '2026-07-01', 'month');
+    const weeks = subPeriods('2026-06-01', '2026-07-01', 'week');
     expect(weeks.length).toBeGreaterThanOrEqual(4);
     expect(weeks[0]?.label).toMatch(/^S\d+/);
+  });
+
+  it('picks the breakdown grain from the span (adaptive, revised design)', () => {
+    expect(breakdownGrain('2026-06-01', '2026-06-02')).toBeNull(); // single day
+    expect(breakdownGrain('2026-06-01', '2026-06-08')).toBe('day'); // one week
+    expect(breakdownGrain('2026-06-01', '2026-07-01')).toBe('week'); // a month
+  });
+});
+
+describe('resolvePeriod', () => {
+  // Week buckets over June 2026 (Mon 2026-06-01 + 4 weeks); today mid-week 2.
+  const buckets = [0, 1, 2, 3, 4].map((i) => ({
+    from: dayjs('2026-06-01').add(i * 7, 'day').format('YYYY-MM-DD'),
+    toExcl: dayjs('2026-06-01').add((i + 1) * 7, 'day').format('YYYY-MM-DD'),
+    x: 0,
+    w: 0,
+    label: `S${23 + i}`,
+  }));
+  const today = '2026-06-10'; // inside bucket 1
+
+  it('finds the bucket containing today (or the first after)', () => {
+    expect(todayBucketIdx(buckets, today)).toBe(1);
+    expect(todayBucketIdx(buckets, '2026-05-01')).toBe(0); // before horizon → first upcoming
+    expect(todayBucketIdx(buckets, '2027-01-01')).toBe(0); // fully past horizon → fallback
+  });
+
+  it("'current' = today's bucket, 'next' = current + 3, 'all' = the horizon", () => {
+    expect(resolvePeriod('current', buckets, today, null, null)).toEqual({
+      from: '2026-06-08',
+      toExcl: '2026-06-15',
+    });
+    expect(resolvePeriod('next', buckets, today, null, null)).toEqual({
+      from: '2026-06-08',
+      toExcl: '2026-07-06', // buckets 1..4 (clamped at the last)
+    });
+    expect(resolvePeriod('all', buckets, today, null, null)).toEqual({
+      from: '2026-06-01',
+      toExcl: '2026-07-06',
+    });
+  });
+
+  it("'cell' uses the clicked bucket and 'custom' the picked range", () => {
+    expect(resolvePeriod('cell', buckets, today, null, buckets[3]!)).toEqual({
+      from: '2026-06-22',
+      toExcl: '2026-06-29',
+    });
+    const custom = { from: '2026-06-03', toExcl: '2026-06-20' };
+    expect(resolvePeriod('custom', buckets, today, custom, null)).toEqual(custom);
+  });
+
+  it('counts the board buckets a period spans (the "media N" note)', () => {
+    expect(bucketsInPeriod(buckets, { from: '2026-06-08', toExcl: '2026-07-06' })).toBe(4);
+    expect(bucketsInPeriod(buckets, { from: '2026-06-10', toExcl: '2026-06-11' })).toBe(1);
   });
 });
 

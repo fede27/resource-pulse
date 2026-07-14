@@ -61,7 +61,11 @@ describe('<PeopleBoardPage>', () => {
     await user.click(await screen.findByText('Luca Ferri'));
 
     expect(await screen.findByText('Ispettore persona')).toBeInTheDocument();
-    expect(await screen.findByText('Periodo visibile')).toBeInTheDocument();
+    // Revised inspector: the period selector answers "quando?" explicitly and
+    // defaults to the current week ("Ora"), broken down by day.
+    expect(await screen.findByText('Ora')).toBeInTheDocument();
+    expect(screen.getByText('Tutto')).toBeInTheDocument();
+    expect(await screen.findByText('Distribuzione per giorno')).toBeInTheDocument();
     // Composition row: ACME share of the average (hard-only by default), the
     // tentative BETA block is listed as a not-counted note.
     expect(await screen.findByText('Portale ACME')).toBeInTheDocument();

@@ -1,14 +1,19 @@
 import { useMemo, useState } from 'react';
-import { Drawer, Tabs } from 'antd';
+import { DatePicker, Drawer, Segmented, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
-import type { BoardGeo } from '@/components/board';
+import { isoWeek, type BoardGeo } from '@/components/board';
 import { bandLabelFor, loadColor, type LoadBand } from '@/lib/loadBands';
 import {
+  breakdownGrain,
   bucketComposition,
-  subBuckets,
+  bucketsInPeriod,
+  resolvePeriod,
+  subPeriods,
   type BoardBucket,
+  type FocusPeriod,
+  type PeriodMode,
   type PersonData,
 } from './peopleBoardModel';
 import { projectHue } from './projectHue';
@@ -20,14 +25,24 @@ export type PersonInspectorProps = {
   onClose: () => void;
   peopleById: ReadonlyMap<string, PersonData>;
   geo: BoardGeo;
+  buckets: BoardBucket[];
+  todayISO: string;
   bands: LoadBand[];
   countTentative: boolean;
 };
 
 type Face = 'utilization' | 'coverage';
 
+const ISO = 'YYYY-MM-DD';
 const round = (n: number) => Math.round(n);
 const fmtPct = (n: number) => (Number.isFinite(n) ? `${round(n)}%` : '∞');
+
+// "1 lug → 31 lug" (inclusive end); single-day periods collapse to one date.
+function humanRange(p: FocusPeriod): string {
+  const a = dayjs(p.from).format('D MMM');
+  const b = dayjs(p.toExcl).subtract(1, 'day').format('D MMM');
+  return a === b ? a : `${a} → ${b}`;
+}
 
 // Two faces of the same person: Utilizzo (bucket-average %, band state,
 // per-project composition) and Copertura (hours toward demands — the other
@@ -95,26 +110,54 @@ function PersonHeader({ data }: { data: PersonData }) {
   );
 }
 
-// ── Face 1 — UTILIZZO (%): bucket average + composition + sub-grain ──────
+// ── Face 1 — UTILIZZO (%): explicit period + average + composition ────────
+// The revised design: the inspector always answers "quando?" explicitly with a
+// period selector (Ora / Prossimi / Tutto / Scegli…; a clicked cell seeds its
+// own bucket), spells the resolved period out in the hero, and breaks the
+// average down at an adaptive sub-grain (> ~10 days → weeks, else days).
 
 function UtilizationFace({
   target,
   data,
   geo,
+  buckets,
+  todayISO,
   bands,
   countTentative,
 }: PersonInspectorProps & { target: InspectTarget; data: PersonData }) {
   const { t } = useTranslation();
   const { styles } = useStyles();
 
-  const focus: BoardBucket = useMemo(() => {
-    if (target.kind === 'cell') return target.bucket;
-    return { from: geo.minISO, toExcl: geo.maxISO, x: 0, w: geo.contentW, label: t('peopleBoard.inspector.rangeTitle') };
-  }, [target, geo, t]);
+  const cell = target.kind === 'cell' ? target.bucket : null;
+  const initialMode: PeriodMode = cell ? 'cell' : 'current';
+
+  // Derived selection keyed by target (repo convention — no setState-in-effect):
+  // a new target re-seeds the period; edits stick while the target is stable.
+  const targetKey = `${target.kind}:${target.personId}:${cell?.from ?? ''}`;
+  const [picked, setPicked] = useState<{ key: string; mode: PeriodMode; custom: FocusPeriod | null } | null>(
+    null,
+  );
+  const active = picked && picked.key === targetKey ? picked : null;
+  const mode = active?.mode ?? initialMode;
+  const custom = active?.custom ?? null;
+
+  const focus = useMemo(
+    () => resolvePeriod(mode, buckets, todayISO, custom, cell),
+    [mode, buckets, todayISO, custom, cell],
+  );
+  // Switching to "Scegli…" seeds the pickers with the period currently shown.
+  const setMode = (m: PeriodMode) =>
+    setPicked({ key: targetKey, mode: m, custom: custom ?? (m === 'custom' ? focus : null) });
+  const setCustom = (p: FocusPeriod) => setPicked({ key: targetKey, mode: 'custom', custom: p });
+
+  const focusBucket: BoardBucket = useMemo(
+    () => ({ from: focus.from, toExcl: focus.toExcl, x: 0, w: 0, label: '' }),
+    [focus],
+  );
 
   const { total, byProject } = useMemo(
-    () => bucketComposition(data, focus, countTentative),
-    [data, focus, countTentative],
+    () => bucketComposition(data, focusBucket, countTentative),
+    [data, focusBucket, countTentative],
   );
 
   // Tentative blocks are always listed — greyed out when they don't count.
@@ -131,7 +174,27 @@ function UtilizationFace({
     ? bandLabelFor(total.pct, bands)
     : (bands[bands.length - 1]?.label ?? '—');
 
-  const sub = target.kind === 'cell' ? subBuckets(focus.from, focus.toExcl, geo.bucket) : [];
+  const spanDays = dayjs(focus.toExcl).diff(dayjs(focus.from), 'day');
+  const brkGrain = breakdownGrain(focus.from, focus.toExcl);
+  const brk = brkGrain ? subPeriods(focus.from, focus.toExcl, brkGrain) : [];
+
+  const grainNoun = t(`peopleBoard.inspector.grainNoun.${geo.bucket}`);
+  const grainNounPlural = t(`peopleBoard.inspector.grainNounPlural.${geo.bucket}`);
+  const cellLabel = cell
+    ? geo.bucket === 'day'
+      ? dayjs(cell.from).format('D MMM')
+      : geo.bucket === 'month'
+        ? dayjs(cell.from).format('MMMM YYYY')
+        : t('peopleBoard.inspector.weekLabel', { week: isoWeek(dayjs(cell.from)) })
+    : '';
+
+  const presets: Array<{ value: Exclude<PeriodMode, 'cell'>; label: string; title: string }> = [
+    { value: 'current', label: t('peopleBoard.inspector.periodNow'), title: t('peopleBoard.inspector.periodNowTitle', { grain: grainNoun }) },
+    { value: 'next', label: t('peopleBoard.inspector.periodNext'), title: t('peopleBoard.inspector.periodNextTitle', { grains: grainNounPlural }) },
+    { value: 'all', label: t('peopleBoard.inspector.periodAll'), title: t('peopleBoard.inspector.periodAllTitle') },
+    { value: 'custom', label: t('peopleBoard.inspector.periodCustom'), title: t('peopleBoard.inspector.periodCustomTitle') },
+  ];
+
   const block = target.kind === 'block' ? target.block : null;
 
   return (
@@ -165,24 +228,55 @@ function UtilizationFace({
         </>
       )}
 
-      <div className={styles.sectionTitle}>
-        {target.kind === 'cell'
-          ? t('peopleBoard.inspector.bucketTitle', { label: focus.label })
-          : t('peopleBoard.inspector.rangeTitle')}
-      </div>
+      {/* PERIOD SELECTOR — the inspector always answers "quando?" explicitly. */}
+      <Segmented<Exclude<PeriodMode, 'cell'>>
+        block
+        size="small"
+        className={styles.periodRow}
+        value={mode === 'cell' ? 'current' : mode}
+        onChange={setMode}
+        options={presets}
+      />
+      {mode === 'custom' && (
+        <div className={styles.customRow}>
+          <DatePicker.RangePicker
+            size="small"
+            allowClear={false}
+            value={[dayjs(focus.from), dayjs(focus.toExcl).subtract(1, 'day')]}
+            onChange={(range) => {
+              if (!range?.[0] || !range[1]) return;
+              setCustom({ from: range[0].format(ISO), toExcl: range[1].add(1, 'day').format(ISO) });
+            }}
+          />
+        </div>
+      )}
+
+      {/* HERO — value + resolved period, always spelled out. */}
       {/* dynamic: band colours resolved from live data. */}
       <div className={styles.bandBox} style={{ background: c.bg, border: `1px solid ${c.solid}` }}>
         <span className={styles.bandValue} style={{ color: c.fg }}>
           {fmtPct(total.pct)}
         </span>
         <div className={styles.bandMeta} style={{ color: c.fg }}>
-          <div>{bandLabel}</div>
           <div>
-            {focus.from} → {dayjs(focus.toExcl).subtract(1, 'day').format('YYYY-MM-DD')} ·{' '}
-            {round(total.allocH)}h / {round(total.capH)}h
+            {bandLabel}
+            {mode === 'cell' && cellLabel ? ` · ${cellLabel}` : ''}
           </div>
+          <div>{humanRange(focus)}</div>
         </div>
+        {mode === 'next' && (
+          // dynamic: band text colour.
+          <span className={styles.bandNote} style={{ color: c.fg }}>
+            {t('peopleBoard.inspector.avgOver', {
+              count: bucketsInPeriod(buckets, focus),
+              grains: grainNounPlural,
+            })}
+          </span>
+        )}
       </div>
+      {Number.isFinite(total.pct) && total.pct > 0 && spanDays > (geo.bucket === 'day' ? 1 : 7) && (
+        <div className={styles.avgHint}>{t('peopleBoard.inspector.avgHint')}</div>
+      )}
 
       <div className={styles.sectionTitle}>
         {t('peopleBoard.inspector.composition', {
@@ -219,10 +313,14 @@ function UtilizationFace({
         </div>
       )}
 
-      {sub.length > 1 && (
+      {brk.length > 1 && (
         <>
-          <div className={styles.sectionTitle}>{t('peopleBoard.inspector.subDetail')}</div>
-          {sub.map((s, i) => {
+          <div className={styles.sectionTitle}>
+            {t('peopleBoard.inspector.distributionBy', {
+              grain: t(`peopleBoard.inspector.grainNoun.${brkGrain === 'week' ? 'week' : 'day'}`),
+            })}
+          </div>
+          {brk.map((s, i) => {
             const stat = bucketComposition(data, { ...s, x: 0, w: 0 }, countTentative).total;
             const sc = loadColor(stat.pct, bands);
             const fill = Number.isFinite(stat.pct) ? Math.min(100, stat.pct / 1.5) : 100;
@@ -245,6 +343,10 @@ function UtilizationFace({
 
       <div className={styles.ruleBox}>
         {t('peopleBoard.inspector.utilizationRule', {
+          range: humanRange(focus),
+          pct: fmtPct(total.pct),
+          band: bandLabel,
+          grain: grainNoun,
           tentMode: t(
             countTentative ? 'peopleBoard.inspector.utilizationRuleAll' : 'peopleBoard.inspector.utilizationRuleHard',
           ),

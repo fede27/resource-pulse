@@ -29,22 +29,33 @@ export const useStyles = createStyles(({ token, css }) => ({
       margin-block-start: 0;
     }
   `,
+  periodRow: css`
+    margin-block-end: ${token.marginXS}px;
+  `,
+  customRow: css`
+    margin-block-end: ${token.marginXS}px;
+
+    .ant-picker {
+      width: 100%;
+    }
+  `,
   bandBox: css`
     display: flex;
     align-items: center;
     gap: ${token.marginSM}px;
-    padding: ${token.paddingXS}px ${token.paddingSM}px;
+    padding: 12px ${token.paddingSM}px;
     border-radius: ${token.borderRadiusLG}px;
-    margin-block-end: ${token.marginXS}px;
+    margin-block-end: ${token.marginXXS}px;
   `,
   bandValue: css`
-    font-size: 28px;
+    font-size: 30px;
     font-weight: 700;
     line-height: 1;
     font-variant-numeric: tabular-nums;
   `,
   bandMeta: css`
     font-size: ${token.fontSizeSM}px;
+    min-width: 0;
 
     > div:first-child {
       font-weight: 600;
@@ -52,8 +63,20 @@ export const useStyles = createStyles(({ token, css }) => ({
     }
 
     > div:last-child {
-      opacity: 0.8;
+      opacity: 0.85;
+      font-variant-numeric: tabular-nums;
     }
+  `,
+  bandNote: css`
+    margin-inline-start: auto;
+    font-size: 11px;
+    opacity: 0.7;
+    white-space: nowrap;
+  `,
+  avgHint: css`
+    font-size: 11px;
+    color: ${token.colorTextQuaternary};
+    margin-block-end: ${token.marginXXS}px;
   `,
   compRow: css`
     display: flex;

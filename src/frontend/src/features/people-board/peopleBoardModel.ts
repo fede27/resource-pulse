@@ -263,15 +263,63 @@ export function personLanes(blocks: PersonBlock[]): ProjectLane[] {
     .sort((a, b) => (a.blocks[0]?.from ?? '').localeCompare(b.blocks[0]?.from ?? ''));
 }
 
-// ── Sub-grain detail (inspector: month → weeks, week → days) ─────────────
+// ── Inspector focus period (revised design: the inspector always answers
+// "quando?" explicitly — Ora / Prossimi / Tutto / Scegli…, or the clicked cell)
+
+export type PeriodMode = 'cell' | 'current' | 'next' | 'all' | 'custom';
+export type FocusPeriod = { from: string; toExcl: string };
+
+// Index of the bucket containing today; else the first bucket after today;
+// else 0 (horizon entirely in the past).
+export function todayBucketIdx(buckets: BoardBucket[], todayISO: string): number {
+  let i = buckets.findIndex((bk) => bk.from <= todayISO && todayISO < bk.toExcl);
+  if (i < 0) i = buckets.findIndex((bk) => bk.toExcl > todayISO);
+  return i < 0 ? 0 : i;
+}
+
+// 'current' = today's bucket · 'next' = today's bucket + the following 3 (at
+// the board grain) · 'all' = the visible horizon · 'custom' = user-picked.
+export function resolvePeriod(
+  mode: PeriodMode,
+  buckets: BoardBucket[],
+  todayISO: string,
+  custom: FocusPeriod | null,
+  cell: BoardBucket | null,
+): FocusPeriod {
+  if (buckets.length === 0) {
+    return { from: todayISO, toExcl: dayjs(todayISO).add(7, 'day').format(ISO) };
+  }
+  const last = buckets.length - 1;
+  if (mode === 'cell' && cell) return { from: cell.from, toExcl: cell.toExcl };
+  if (mode === 'all') return { from: buckets[0]!.from, toExcl: buckets[last]!.toExcl };
+  if (mode === 'custom' && custom) return custom;
+  const i = todayBucketIdx(buckets, todayISO);
+  if (mode === 'next') {
+    const j = Math.min(last, i + 3);
+    return { from: buckets[i]!.from, toExcl: buckets[j]!.toExcl };
+  }
+  return { from: buckets[i]!.from, toExcl: buckets[i]!.toExcl };
+}
+
+// Buckets (at the board grain) the focus period spans — the "media N
+// settimane/mesi" note counts these, not the breakdown rows.
+export function bucketsInPeriod(buckets: BoardBucket[], period: FocusPeriod): number {
+  return buckets.filter((bk) => bk.from < period.toExcl && bk.toExcl > period.from).length;
+}
+
+// ── Sub-grain distribution (adaptive: > ~10 days → weeks, else days) ──────
 
 export type SubBucket = { from: string; toExcl: string; label: string };
 
-export function subBuckets(from: string, toExcl: string, grain: Grain): SubBucket[] {
+export function breakdownGrain(from: string, toExcl: string): 'week' | 'day' | null {
+  const span = dayjs(toExcl).diff(dayjs(from), 'day');
+  return span > 10 ? 'week' : span > 1 ? 'day' : null;
+}
+
+export function subPeriods(from: string, toExcl: string, sub: 'week' | 'day'): SubBucket[] {
   const out: SubBucket[] = [];
   const end = dayjs(toExcl);
-  if (grain === 'month') {
-    // Weeks composing the month bucket.
+  if (sub === 'week') {
     let d = dayjs(from).subtract((dayjs(from).day() + 6) % 7, 'day');
     while (d.isBefore(end)) {
       const next = d.add(7, 'day');
@@ -280,8 +328,7 @@ export function subBuckets(from: string, toExcl: string, grain: Grain): SubBucke
       out.push({ from: f, toExcl: t, label: `S${isoWeek(d)}` });
       d = next;
     }
-  } else if (grain === 'week') {
-    // Days composing the week bucket.
+  } else {
     let d = dayjs(from);
     while (d.isBefore(end)) {
       out.push({ from: d.format(ISO), toExcl: d.add(1, 'day').format(ISO), label: d.format('D MMM') });
