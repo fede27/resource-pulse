@@ -1,7 +1,8 @@
-import type { ReactNode, RefObject } from 'react';
+import { useRef, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { LockOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { BoardGeo } from './boardGeo';
+import { useFrameMaxHeight } from './useFrameMaxHeight';
 import {
   FENCE_EDGE_SOFT,
   FENCE_EDGE_STRONG,
@@ -29,10 +30,15 @@ export type BoardTimelineProps = {
 // The scrollable timeline shell shared by the boards: 3-row header (major
 // bands / time-fence / unit ticks) + a backdrop (past hatch, fence tints,
 // gridlines, today line) behind the rows. Left labels stay pinned via sticky
-// positioning.
+// positioning; the header sticks to the top of the scroller, which is bounded
+// to the viewport height so both scrollbars live on the visible frame.
 export function BoardTimeline({ geo, scrollRef, headerTitle, isEmpty, emptyContent, children }: BoardTimelineProps) {
   const { t } = useTranslation();
   const { styles, cx } = useStyles();
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const maxHeight = useFrameMaxHeight(frameRef);
+  // dynamic: viewport-remaining height measured at runtime, applied via CSS var.
+  const frameStyle = { '--board-max-h': maxHeight === null ? 'none' : `${maxHeight}px` } as CSSProperties;
 
   const fenceSegments: Array<{
     key: 'frozen' | 'slushy' | 'liquid';
@@ -76,7 +82,7 @@ export function BoardTimeline({ geo, scrollRef, headerTitle, isEmpty, emptyConte
   const isTodayTick = (x: number, w: number) => geo.todayIn && geo.todayX >= x && geo.todayX < x + w;
 
   return (
-    <div className={styles.frame}>
+    <div ref={frameRef} className={styles.frame} style={frameStyle}>
       <div ref={scrollRef} className={styles.scroll}>
         {/* dynamic: total width = sticky label column + computed axis width. */}
         <div style={{ width: LEFT_W + geo.contentW, minWidth: LEFT_W + geo.contentW }}>

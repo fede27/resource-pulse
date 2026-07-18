@@ -21,7 +21,19 @@ import {
   type LoadSegmentDto,
   type ProjectNodeReadDto,
 } from '@/api/generated/schemas';
+import { ENVELOPE_H, LANE_H } from '@/components/board';
 import { parseDurationHours } from '@/lib/duration';
+
+// ── Row height (vertical windowing) ──────────────────────────────────────
+// Derived from state, never measured: envelope + (expanded) lanes-container
+// border-top + one LANE_H per lane (border-box) + the block's bottom border.
+// Must mirror ProjectRow's DOM (lane guard `expanded && lanes.length > 0`)
+// and ProjectRow.styles.ts exactly — any height/border change goes through
+// the shared tokens or updates this formula in lockstep.
+export function projectRowHeight(project: BoardProject, expanded: boolean): number {
+  const lanes = project.demands.reduce((n, d) => n + d.coverage.length, 0) + project.holes.length;
+  return ENVELOPE_H + (expanded && lanes > 0 ? 1 + lanes * LANE_H : 0) + 1;
+}
 
 // ── View-model types ─────────────────────────────────────────────────────
 

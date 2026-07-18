@@ -1,6 +1,10 @@
 import { createStyles } from 'antd-style';
 import { LEFT_W } from '@/components/board/BoardTimeline.styles';
 
+// Fixed group-header height (outer, border included): the vertical windowing
+// derives row offsets from state, so this may not be content-driven.
+export const GROUP_HEADER_H = 33;
+
 export const useStyles = createStyles(({ token, css }) => ({
   headerRow: css`
     display: flex;
@@ -20,6 +24,9 @@ export const useStyles = createStyles(({ token, css }) => ({
   groupHeader: css`
     display: flex;
     align-items: stretch;
+    height: ${GROUP_HEADER_H}px;
+    /* Border inside the height so the windowed offset math sees GROUP_HEADER_H. */
+    box-sizing: border-box;
     background: ${token.colorFillQuaternary};
     border-block-end: 1px solid ${token.colorBorderSecondary};
   `,
@@ -36,7 +43,7 @@ export const useStyles = createStyles(({ token, css }) => ({
     display: flex;
     align-items: center;
     gap: ${token.marginXS}px;
-    padding: 6px ${token.paddingSM}px;
+    padding: 0 ${token.paddingSM}px;
     font-size: 13px;
     font-weight: 600;
 

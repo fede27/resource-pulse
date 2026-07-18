@@ -7,6 +7,7 @@ import {
   type DemandCoverageDto,
   type ProjectNodeReadDto,
 } from '@/api/generated/schemas';
+import { ENVELOPE_H, LANE_H } from '@/components/board';
 import {
   activeFilterCount,
   allRoles,
@@ -18,6 +19,7 @@ import {
   lifecycleOf,
   peakOf,
   portfolioHealth,
+  projectRowHeight,
   projectVerdict,
   projectsExtent,
   sortProjects,
@@ -170,6 +172,32 @@ describe('buildBoardProject', () => {
     expect(p.holes).toHaveLength(1);
     expect(p.holes[0]!.roleName).toBe('Grafico');
     expect(p.totals.gapH).toBe(100); // 40 + 60
+  });
+});
+
+describe('projectRowHeight', () => {
+  it('is the envelope plus the block border when collapsed', () => {
+    expect(projectRowHeight(makeProject({}), false)).toBe(ENVELOPE_H + 1);
+  });
+
+  it('adds the lanes-container border plus one LANE_H per block and hole when expanded', () => {
+    // 1 coverage block + 1 hole = 2 lanes.
+    const p = makeProject({
+      demands: [
+        coverage(),
+        coverage({ demandId: 'd2', roleName: 'Grafico', requiredHours: 'PT60H', coveredHours: 'PT0S', gapHours: 'PT60H' }),
+      ],
+    });
+    expect(projectRowHeight(p, true)).toBe(ENVELOPE_H + 1 + 2 * LANE_H + 1);
+  });
+
+  it('stays at the collapsed height when expanded with zero lanes (guard parity with ProjectRow)', () => {
+    // Best-effort demand, no coverage: not a hole (no target) and no blocks.
+    const p = makeProject({
+      demands: [coverage({ requiredHours: null, gapHours: null, coveredHours: 'PT0S' })],
+      allocations: [],
+    });
+    expect(projectRowHeight(p, true)).toBe(ENVELOPE_H + 1);
   });
 });
 

@@ -3,7 +3,14 @@ import { Alert, Button, Empty, Skeleton, Spin } from 'antd';
 import { InfoCircleOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { BoardTimeline, buildGeo, useVisibleXRange, type BoardDomain } from '@/components/board';
+import {
+  BoardTimeline,
+  buildGeo,
+  RowGap,
+  useVisibleXRange,
+  useWindowedRows,
+  type BoardDomain,
+} from '@/components/board';
 import { PageHeader } from '@/components/domain/PageHeader';
 import { StatCard } from '@/components/domain/StatCard';
 import type { Grain } from '@/components/timeline';
@@ -14,17 +21,26 @@ import {
   matchesBands,
   matchesQuery,
   peopleKpis,
+  personRowHeight,
   personStats,
   sortPeople,
   type GroupBy,
+  type PeopleGroup,
   type PeopleSort,
+  type PersonData,
   type PersonStats,
 } from './peopleBoardModel';
 import { usePeopleBoard } from './usePeopleBoard';
 import { PeopleBoardToolbar, type Metric } from './PeopleBoardToolbar';
 import { PersonBoardRow, type InspectTarget } from './PersonBoardRow';
 import { PersonInspector } from './PersonInspector';
-import { useStyles } from './PeopleBoardPage.styles';
+import { GROUP_HEADER_H, useStyles } from './PeopleBoardPage.styles';
+
+// One positional sequence for the vertical windowing: group headers and person
+// rows flattened as siblings (the per-group wrapper carried no styling).
+type PeopleRowItem =
+  | { kind: 'header'; key: string; height: number; group: PeopleGroup }
+  | { kind: 'person'; key: string; height: number; data: PersonData; alt: boolean };
 
 const ISO = 'YYYY-MM-DD';
 const MAX_DOMAIN_DAYS = 366; // keep the visual domain within the API range cap
@@ -73,6 +89,9 @@ export function PeopleBoardPage() {
   const [sort, setSort] = useState<PeopleSort>('severity');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [inspect, setInspect] = useState<InspectTarget | null>(null);
+  // Rows with a live interaction (active drag / open CoverPopover) must never
+  // be windowed out — unmounting would kill the interaction's local state.
+  const [pinned, setPinned] = useState<Set<string>>(new Set());
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollNonce, setScrollNonce] = useState(0);
@@ -122,6 +141,33 @@ export function PeopleBoardPage() {
 
   const groups = useMemo(() => groupPeople(visible, groupBy), [visible, groupBy]);
 
+  // Vertical windowing (perf + reachability): headers + rows flattened into one
+  // positional sequence, heights derived from state. Presentation only — every
+  // computation above (stats, KPIs, filters, inspector) uses the full lists.
+  const rowItems = useMemo<PeopleRowItem[]>(
+    () =>
+      groups.flatMap((g): PeopleRowItem[] => [
+        { kind: 'header', key: `h-${g.key || '—'}`, height: GROUP_HEADER_H, group: g },
+        ...g.people.map(
+          (d, i): PeopleRowItem => ({
+            kind: 'person',
+            key: d.person.id,
+            height: personRowHeight(d, expanded.has(d.person.id)),
+            data: d,
+            alt: i % 2 === 1,
+          }),
+        ),
+      ]),
+    [groups, expanded],
+  );
+  const effectivePins = useMemo(() => {
+    if (!inspect) return pinned;
+    const s = new Set(pinned);
+    s.add(inspect.personId);
+    return s;
+  }, [pinned, inspect]);
+  const { segments } = useWindowedRows(scrollRef, rowItems, effectivePins);
+
   const kpis = useMemo(
     () => peopleKpis(board.people, statsOf, board.bands),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- statsOf is derived from statsById
@@ -162,6 +208,19 @@ export function PeopleBoardPage() {
         const next = new Set(prev);
         if (next.has(id)) next.delete(id);
         else next.add(id);
+        return next;
+      }),
+    [],
+  );
+
+  // Stable identity for the same reason as toggleExpand.
+  const setRowPinned = useCallback(
+    (personId: string, on: boolean) =>
+      setPinned((prev) => {
+        if (prev.has(personId) === on) return prev;
+        const next = new Set(prev);
+        if (on) next.add(personId);
+        else next.delete(personId);
         return next;
       }),
     [],
@@ -256,37 +315,43 @@ export function PeopleBoardPage() {
           </Empty>
         }
       >
-        {groups.map((g) => (
-          <div key={g.key || '—'}>
-            <div className={styles.groupHeader}>
-              <div className={styles.groupHeaderLabel}>
-                {groupBy === 'team' ? <TeamOutlined /> : <UserOutlined />}
-                <span>
-                  {g.label ?? t(groupBy === 'team' ? 'peopleBoard.groups.noTeam' : 'peopleBoard.groups.noRole')}
-                </span>
-                <span>· {g.people.length}</span>
+        {segments.map((s) => {
+          if (s.kind === 'gap') return <RowGap key={s.key} height={s.height} />;
+          if (s.item.kind === 'header') {
+            const g = s.item.group;
+            return (
+              <div key={s.item.key} className={styles.groupHeader}>
+                <div className={styles.groupHeaderLabel}>
+                  {groupBy === 'team' ? <TeamOutlined /> : <UserOutlined />}
+                  <span>
+                    {g.label ?? t(groupBy === 'team' ? 'peopleBoard.groups.noTeam' : 'peopleBoard.groups.noRole')}
+                  </span>
+                  <span>· {g.people.length}</span>
+                </div>
               </div>
-            </div>
-            {g.people.map((d, i) => (
-              <PersonBoardRow
-                key={d.person.id}
-                data={d}
-                geo={geo}
-                buckets={visibleBuckets}
-                visibleX={visibleX}
-                metric={metric}
-                countTentative={countTent}
-                bands={board.bands}
-                stats={statsOf(d.person.id)}
-                expanded={expanded.has(d.person.id)}
-                alt={i % 2 === 1}
-                onToggle={toggleExpand}
-                onInspect={setInspect}
-                rootProjects={board.rootProjects}
-              />
-            ))}
-          </div>
-        ))}
+            );
+          }
+          const d = s.item.data;
+          return (
+            <PersonBoardRow
+              key={s.item.key}
+              data={d}
+              geo={geo}
+              buckets={visibleBuckets}
+              visibleX={visibleX}
+              metric={metric}
+              countTentative={countTent}
+              bands={board.bands}
+              stats={statsOf(d.person.id)}
+              expanded={expanded.has(d.person.id)}
+              alt={s.item.alt}
+              onToggle={toggleExpand}
+              onInspect={setInspect}
+              onPinChange={setRowPinned}
+              rootProjects={board.rootProjects}
+            />
+          );
+        })}
       </BoardTimeline>
 
       <div className={styles.legend}>

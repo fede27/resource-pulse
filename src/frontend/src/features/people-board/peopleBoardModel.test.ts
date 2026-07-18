@@ -15,6 +15,7 @@ import {
   matchesQuery,
   peopleKpis,
   personLanes,
+  personRowHeight,
   personStats,
   proposalPercent,
   resolvePeriod,
@@ -29,6 +30,7 @@ import {
   type PersonBlock,
   type PersonData,
 } from './peopleBoardModel';
+import { PLANE_H, ROW_H } from './PersonBoardRow.styles';
 
 const FENCE = { todayISO: '2026-06-10', frozenEndISO: '2026-06-24', slushyEndISO: '2026-08-10' };
 const BANDS: LoadBand[] = [
@@ -217,6 +219,25 @@ describe('personLanes', () => {
     ]);
     expect(lanes.map((l) => l.projectName)).toEqual(['ACME', 'BETA']);
     expect(lanes[0]?.blocks.map((b) => b.id)).toEqual(['a1', 'a2']);
+  });
+});
+
+describe('personRowHeight', () => {
+  it('is the heatmap row plus the block border when collapsed', () => {
+    expect(personRowHeight(person('luca', [block({})]), false)).toBe(ROW_H + 1);
+  });
+
+  it('adds the lanes-container border plus one PLANE_H per project lane and the free lane when expanded', () => {
+    const d = person('luca', [
+      block({ id: 'a1', rootProjectId: 'p-acme' }),
+      block({ id: 'b1', rootProjectId: 'p-beta' }),
+    ]);
+    // 2 project lanes + the free-capacity lane.
+    expect(personRowHeight(d, true)).toBe(ROW_H + 1 + 3 * PLANE_H + 1);
+  });
+
+  it('keeps the free-capacity lane even with no blocks when expanded', () => {
+    expect(personRowHeight(person('elena', []), true)).toBe(ROW_H + 1 + PLANE_H + 1);
   });
 });
 

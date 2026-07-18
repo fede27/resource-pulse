@@ -21,14 +21,23 @@ export const useStyles = createStyles(({ token, css }) => ({
     overflow: hidden;
   `,
   scroll: css`
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: auto;
+    /* Bounded to the viewport-remaining height (measured by useFrameMaxHeight)
+       so rows scroll INSIDE the frame: the x-scrollbar stays reachable and the
+       sticky header has a scrollport. Unmeasurable layout → none (document flow). */
+    max-height: var(--board-max-h, none);
+    scrollbar-gutter: stable;
   `,
   header: css`
     display: flex;
     align-items: stretch;
     border-block-end: 1px solid ${token.colorBorderSecondary};
     background: ${token.colorBgContainer};
+    /* Above the sticky-left row labels (z 4) and the headerLeft corner (z 6,
+       inside this stacking context). */
+    position: sticky;
+    top: 0;
+    z-index: 8;
   `,
   headerLeft: css`
     width: ${LEFT_W}px;

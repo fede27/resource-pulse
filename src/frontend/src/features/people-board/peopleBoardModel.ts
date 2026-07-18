@@ -25,6 +25,7 @@ import {
 } from '@/api/generated/schemas';
 import { isoWeek, type BoardGeo } from '@/components/board';
 import type { Grain } from '@/components/timeline';
+import { PLANE_H, ROW_H } from './PersonBoardRow.styles';
 import { parseDurationHours } from '@/lib/duration';
 import { bandIndexFor, overloadFloor, type LoadBand } from '@/lib/loadBands';
 
@@ -270,6 +271,16 @@ export function personLanes(blocks: PersonBlock[]): ProjectLane[] {
       blocks: [...list].sort((a, b) => a.from.localeCompare(b.from)),
     }))
     .sort((a, b) => (a.blocks[0]?.from ?? '').localeCompare(b.blocks[0]?.from ?? ''));
+}
+
+// ── Row height (vertical windowing) ──────────────────────────────────────
+// Derived from state, never measured: heatmap row + (expanded) lanes-container
+// border-top + one PLANE_H per project lane plus the free-capacity lane
+// (border-box) + the block's bottom border. Must mirror PersonBoardRow's DOM
+// and PersonBoardRow.styles.ts exactly — any height/border change goes through
+// the shared tokens or updates this formula in lockstep.
+export function personRowHeight(data: PersonData, expanded: boolean): number {
+  return ROW_H + (expanded ? 1 + (personLanes(data.blocks).length + 1) * PLANE_H : 0) + 1;
 }
 
 // ── Inspector focus period (revised design: the inspector always answers

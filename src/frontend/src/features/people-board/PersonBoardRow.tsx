@@ -43,6 +43,10 @@ export type PersonBoardRowProps = {
   // (React.memo needs referentially stable props to skip re-renders).
   onToggle: (personId: string) => void;
   onInspect: (target: InspectTarget) => void;
+  // Pin/unpin this row against the vertical windowing while an interaction
+  // with row-local state is live (free-lane drag, open CoverPopover): a
+  // windowed-out unmount would silently kill it. Stable, id-keyed.
+  onPinChange?: (personId: string, pinned: boolean) => void;
   rootProjects: RootProjectOption[];
 };
 
@@ -148,7 +152,7 @@ export const PersonBoardRow = memo(function PersonBoardRow(props: PersonBoardRow
             </div>
             {/* dynamic: axis width computed from the domain. */}
             <div className={styles.axisCell} style={{ width: geo.contentW }}>
-              <FreeLane data={data} geo={geo} rootProjects={props.rootProjects} />
+              <FreeLane data={data} geo={geo} rootProjects={props.rootProjects} onPinChange={props.onPinChange} />
             </div>
           </div>
         </div>
@@ -295,16 +299,22 @@ function FreeLane({
   data,
   geo,
   rootProjects,
+  onPinChange,
 }: {
   data: PersonData;
   geo: BoardGeo;
   rootProjects: RootProjectOption[];
+  onPinChange?: ((personId: string, pinned: boolean) => void) | undefined;
 }) {
   const { t } = useTranslation();
   const { styles } = useStyles();
   const ref = useRef<HTMLDivElement | null>(null);
   const [drag, setDrag] = useState<{ x0: number; x1: number } | null>(null);
   const [pending, setPending] = useState<PendingRange | null>(null);
+
+  // Drag state and the pending popover live HERE: the row must stay mounted
+  // (pinned against the vertical windowing) for as long as either is active.
+  const setPin = (on: boolean) => onPinChange?.(data.person.id, on);
 
   const snappedISO = (x: number) => snapISO(isoAtX(geo, x), geo.bucket);
 
@@ -314,6 +324,7 @@ function FreeLane({
     if (!rect) return;
     const x = e.clientX - rect.left;
     setDrag({ x0: x, x1: x });
+    setPin(true);
     e.preventDefault();
   };
   const onMove = (e: React.MouseEvent) => {
@@ -326,12 +337,17 @@ function FreeLane({
     if (!drag) return;
     const a = Math.min(drag.x0, drag.x1);
     const b = Math.max(drag.x0, drag.x1);
+    let popoverOpened = false;
     if (b - a > 10) {
       const from = snappedISO(a);
       const toExcl = snappedISO(b);
-      if (from < toExcl) setPending({ from, toExcl, anchorX: geo.xPx(toExcl) });
+      if (from < toExcl) {
+        setPending({ from, toExcl, anchorX: geo.xPx(toExcl) });
+        popoverOpened = true;
+      }
     }
     setDrag(null);
+    if (!popoverOpened) setPin(false);
   };
 
   // Live ghost, snapped to the grain boundaries.
@@ -370,7 +386,10 @@ function FreeLane({
             person={data}
             pending={pending}
             rootProjects={rootProjects}
-            onClose={() => setPending(null)}
+            onClose={() => {
+              setPending(null);
+              setPin(false);
+            }}
           />
         </div>
       )}

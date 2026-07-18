@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { CheckOutlined, RightOutlined, SwapOutlined, UserOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
@@ -36,7 +37,9 @@ export type ProjectRowProps = {
   verdict: { verdict: Verdict; reason: ArischioReason };
   expanded: boolean;
   alt: boolean;
-  onToggle: () => void;
+  // Keyed by project id so the page can pass ONE stable callback to every row
+  // (React.memo needs referentially stable props to skip re-renders).
+  onToggle: (projectId: string) => void;
   onInspect: (target: InspectTarget) => void;
   peakByPerson: (resourceId: string) => number;
   overloadThreshold: number;
@@ -48,8 +51,10 @@ export type ProjectRowProps = {
 const round = (n: number) => Math.round(n);
 
 // One project on the board: the envelope row (aggregated) plus, when expanded,
-// one lane per coverage block and one lane per uncovered demand.
-export function ProjectRow(props: ProjectRowProps) {
+// one lane per coverage block and one lane per uncovered demand. Memoized:
+// with vertical windowing the page re-renders on every scroll step — unrelated
+// state (query, inspector, other rows' expansion) must not re-render rows.
+export const ProjectRow = memo(function ProjectRow(props: ProjectRowProps) {
   const { project, geo, expanded, alt } = props;
   const { t } = useTranslation();
   const { styles, cx } = useStyles();
@@ -93,7 +98,7 @@ export function ProjectRow(props: ProjectRowProps) {
               className={cx(styles.chevron, expanded && styles.chevronOpen)}
               role="button"
               aria-label={t('projects.row.toggle')}
-              onClick={props.onToggle}
+              onClick={() => props.onToggle(project.id)}
             >
               <RightOutlined style={{ fontSize: 12 }} />
             </span>
@@ -141,7 +146,7 @@ export function ProjectRow(props: ProjectRowProps) {
       )}
     </div>
   );
-}
+});
 
 // ── Envelope (aggregated bar with phases / totals) ────────────────────────
 

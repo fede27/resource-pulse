@@ -115,6 +115,9 @@ export const useStyles = createStyles(({ token, css }) => ({
     display: flex;
     align-items: stretch;
     height: ${PLANE_H}px;
+    /* Border inside the height: the derived row height (personRowHeight in
+       peopleBoardModel.ts) counts exactly PLANE_H per lane. */
+    box-sizing: border-box;
     border-block-end: 1px solid ${token.colorSplit};
 
     &:last-child {

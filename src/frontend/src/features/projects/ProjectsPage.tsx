@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Empty, Skeleton, Spin } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -10,6 +10,7 @@ import {
   filterProjects,
   lifecycleOf,
   portfolioHealth,
+  projectRowHeight,
   projectsExtent,
   projectVerdict,
   sortProjects,
@@ -19,7 +20,7 @@ import {
   type InspectTarget,
   type Verdict,
 } from './boardModel';
-import { BoardTimeline, buildGeo } from '@/components/board';
+import { BoardTimeline, buildGeo, RowGap, useWindowedRows } from '@/components/board';
 import { useProjectsBoard, type BoardDomain } from './useProjectsBoard';
 import { BoardInspector } from './BoardInspector';
 import { BoardLegend } from './BoardLegend';
@@ -38,6 +39,9 @@ function clampDomain(d: BoardDomain): BoardDomain {
   if (max.diff(min, 'day') + 1 <= MAX_DOMAIN_DAYS) return d;
   return { minISO: d.minISO, maxISO: min.add(MAX_DOMAIN_DAYS - 1, 'day').format(ISO) };
 }
+
+// Stable fallback: an inline object would defeat ProjectRow's memo on every render.
+const FALLBACK_VERDICT = { verdict: 'sostenibile', reason: null } as const;
 
 function withMargin(ext: { minISO: string; maxISO: string }, days = 10): BoardDomain {
   return {
@@ -140,13 +144,33 @@ export function ProjectsPage() {
     if (scrollRef.current) scrollRef.current.scrollLeft = 0;
   };
 
-  const toggleExpand = (id: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // Stable identity: ProjectRow is memoized, an inline closure per row would
+  // defeat it on every page render.
+  const toggleExpand = useCallback(
+    (id: string) =>
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      }),
+    [],
+  );
+
+  // Vertical windowing (perf + reachability): rows only RENDER inside the
+  // scroll viewport (+overscan); heights are derived from state, so the slice
+  // is pure. Filters/health/inspector keep computing on the full list.
+  const rowItems = useMemo(
+    () =>
+      visible.map((p, i) => ({
+        key: p.id,
+        height: projectRowHeight(p, expanded.has(p.id)),
+        project: p,
+        alt: i % 2 === 1,
+      })),
+    [visible, expanded],
+  );
+  const { segments } = useWindowedRows(scrollRef, rowItems);
 
   if (board.isLoading) return <Skeleton active paragraph={{ rows: 8 }} />;
 
@@ -203,22 +227,26 @@ export function ProjectsPage() {
           </Empty>
         }
       >
-        {visible.map((p, i) => (
-          <ProjectRow
-            key={p.id}
-            project={p}
-            geo={geo}
-            metric={metric}
-            verdict={verdicts.get(p.id) ?? { verdict: 'sostenibile', reason: null }}
-            expanded={expanded.has(p.id)}
-            alt={i % 2 === 1}
-            onToggle={() => toggleExpand(p.id)}
-            onInspect={setInspect}
-            peakByPerson={board.peakByPerson}
-            overloadThreshold={board.overloadThreshold}
-            blockHoursOf={board.blockHoursOf}
-          />
-        ))}
+        {segments.map((s) =>
+          s.kind === 'gap' ? (
+            <RowGap key={s.key} height={s.height} />
+          ) : (
+            <ProjectRow
+              key={s.item.key}
+              project={s.item.project}
+              geo={geo}
+              metric={metric}
+              verdict={verdicts.get(s.item.project.id) ?? FALLBACK_VERDICT}
+              expanded={expanded.has(s.item.project.id)}
+              alt={s.item.alt}
+              onToggle={toggleExpand}
+              onInspect={setInspect}
+              peakByPerson={board.peakByPerson}
+              overloadThreshold={board.overloadThreshold}
+              blockHoursOf={board.blockHoursOf}
+            />
+          ),
+        )}
       </BoardTimeline>
 
       <div className={styles.footnote}>

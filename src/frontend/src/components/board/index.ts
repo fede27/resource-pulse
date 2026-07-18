@@ -16,6 +16,14 @@ export {
 } from './boardGeo';
 export { BoardTimeline, type BoardTimelineProps } from './BoardTimeline';
 export { UNBOUNDED_X, useVisibleXRange, type VisibleXRange } from './useVisibleXRange';
+export { UNBOUNDED_Y, useVisibleYRange, type VisibleYRange } from './useVisibleYRange';
+export {
+  windowRows,
+  type RowItem,
+  type RowSegment,
+  type WindowedRows,
+} from './boardRowLayout';
+export { RowGap, useWindowedRows } from './useWindowedRows';
 export {
   BoardDateControls,
   type BoardDateControlsProps,
