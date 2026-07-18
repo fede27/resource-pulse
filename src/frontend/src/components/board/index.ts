@@ -15,6 +15,7 @@ export {
   type UnitTick,
 } from './boardGeo';
 export { BoardTimeline, type BoardTimelineProps } from './BoardTimeline';
+export { UNBOUNDED_X, useVisibleXRange, type VisibleXRange } from './useVisibleXRange';
 export {
   BoardDateControls,
   type BoardDateControlsProps,

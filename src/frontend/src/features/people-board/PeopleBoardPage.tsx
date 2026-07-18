@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Empty, Skeleton, Spin } from 'antd';
 import { InfoCircleOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { BoardTimeline, buildGeo, type BoardDomain } from '@/components/board';
+import { BoardTimeline, buildGeo, useVisibleXRange, type BoardDomain } from '@/components/board';
 import { PageHeader } from '@/components/domain/PageHeader';
 import { StatCard } from '@/components/domain/StatCard';
 import type { Grain } from '@/components/timeline';
@@ -83,6 +83,15 @@ export function PeopleBoardPage() {
   );
   const buckets = useMemo(() => bucketsFromGeo(geo), [geo]);
 
+  // Horizontal windowing (perf): rows only RENDER the buckets in the scroll
+  // viewport (+overscan). Every computation (stats, KPIs, band filters,
+  // inspector) stays on the FULL buckets — windowing is presentation only.
+  const visibleX = useVisibleXRange(scrollRef);
+  const visibleBuckets = useMemo(
+    () => buckets.filter((bk) => bk.x + bk.w >= visibleX.minX && bk.x <= visibleX.maxX),
+    [buckets, visibleX],
+  );
+
   // Scroll to today on mount and when the bucket/domain jump changes.
   useEffect(() => {
     const el = scrollRef.current;
@@ -145,13 +154,18 @@ export function PeopleBoardPage() {
     if (scrollRef.current) scrollRef.current.scrollLeft = 0;
   };
 
-  const toggleExpand = (id: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // Stable identity: PersonBoardRow is memoized, an inline closure per row
+  // would defeat it on every page render.
+  const toggleExpand = useCallback(
+    (id: string) =>
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      }),
+    [],
+  );
 
   const toggleBand = (i: number) =>
     setBandSel((prev) => {
@@ -258,14 +272,15 @@ export function PeopleBoardPage() {
                 key={d.person.id}
                 data={d}
                 geo={geo}
-                buckets={buckets}
+                buckets={visibleBuckets}
+                visibleX={visibleX}
                 metric={metric}
                 countTentative={countTent}
                 bands={board.bands}
                 stats={statsOf(d.person.id)}
                 expanded={expanded.has(d.person.id)}
                 alt={i % 2 === 1}
-                onToggle={() => toggleExpand(d.person.id)}
+                onToggle={toggleExpand}
                 onInspect={setInspect}
                 rootProjects={board.rootProjects}
               />

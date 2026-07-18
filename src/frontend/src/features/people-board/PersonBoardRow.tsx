@@ -1,9 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { RightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
-import type { BoardGeo } from '@/components/board';
+import type { BoardGeo, VisibleXRange } from '@/components/board';
 import { bandLabelFor, loadColor, NO_CAPACITY_CELL, type LoadBand } from '@/lib/loadBands';
 import {
   bucketStat,
@@ -29,14 +29,19 @@ export type InspectTarget =
 export type PersonBoardRowProps = {
   data: PersonData;
   geo: BoardGeo;
+  // Pre-filtered to the visible window by the page (horizontal windowing) —
+  // rendering only; stats/filters upstream use the full bucket list.
   buckets: BoardBucket[];
+  visibleX: VisibleXRange;
   metric: Metric;
   countTentative: boolean;
   bands: LoadBand[];
   stats: PersonStats;
   expanded: boolean;
   alt: boolean;
-  onToggle: () => void;
+  // Keyed by person id so the page can pass ONE stable callback to every row
+  // (React.memo needs referentially stable props to skip re-renders).
+  onToggle: (personId: string) => void;
   onInspect: (target: InspectTarget) => void;
   rootProjects: RootProjectOption[];
 };
@@ -45,8 +50,10 @@ const fmtPeak = (n: number) => `${Math.round(n)}%`;
 
 // One person on the board: the collapsed heatmap row (bucket-average bands)
 // plus, when expanded, one lane per root project and the drag-to-cover
-// free-capacity lane.
-export function PersonBoardRow(props: PersonBoardRowProps) {
+// free-capacity lane. Memoized: at day grain the board mounts hundreds of
+// cells per row — unrelated page state (query, inspector, other rows'
+// expansion) must not re-render them.
+export const PersonBoardRow = memo(function PersonBoardRow(props: PersonBoardRowProps) {
   const { data, geo, buckets, expanded, alt } = props;
   const { t } = useTranslation();
   const { styles, cx } = useStyles();
@@ -67,7 +74,7 @@ export function PersonBoardRow(props: PersonBoardRowProps) {
             className={cx(styles.chevron, expanded && styles.chevronOpen)}
             role="button"
             aria-label={t('peopleBoard.row.toggle')}
-            onClick={props.onToggle}
+            onClick={() => props.onToggle(person.id)}
           >
             <RightOutlined style={{ fontSize: 12 }} />
           </span>
@@ -90,8 +97,20 @@ export function PersonBoardRow(props: PersonBoardRowProps) {
         </div>
         {/* dynamic: axis width computed from the domain. */}
         <div className={styles.axisCell} style={{ width: geo.contentW }}>
+          {/* Explicit minimal props (no spread): with hundreds of cells per
+              row, per-cell object churn is the render bottleneck. */}
           {buckets.map((bk, i) => (
-            <HeatCell key={i} {...props} bucket={bk} />
+            <HeatCell
+              key={i}
+              data={data}
+              bucket={bk}
+              metric={props.metric}
+              countTentative={props.countTentative}
+              bands={props.bands}
+              styles={styles}
+              t={t}
+              onInspect={props.onInspect}
+            />
           ))}
         </div>
       </div>
@@ -100,6 +119,12 @@ export function PersonBoardRow(props: PersonBoardRowProps) {
         <div className={styles.lanes}>
           {lanes.map((lane) => {
             const hue = projectHue(lane.rootProjectId);
+            // Same horizontal windowing as the cells: only bars intersecting
+            // the visible range are mounted.
+            const visibleBlocks = lane.blocks.filter((b) => {
+              const left = geo.xPx(b.from);
+              return left <= props.visibleX.maxX && left + geo.wPxInclusive(b.from, b.to) >= props.visibleX.minX;
+            });
             return (
               <div key={lane.rootProjectId} className={styles.lane}>
                 <div className={styles.laneLabel}>
@@ -109,7 +134,7 @@ export function PersonBoardRow(props: PersonBoardRowProps) {
                 </div>
                 {/* dynamic: axis width computed from the domain. */}
                 <div className={styles.axisCell} style={{ width: geo.contentW }}>
-                  {lane.blocks.map((b) => (
+                  {visibleBlocks.map((b) => (
                     <BlockBar key={b.id} block={b} geo={geo} metric={props.metric} data={data} onInspect={props.onInspect} />
                   ))}
                 </div>
@@ -130,21 +155,34 @@ export function PersonBoardRow(props: PersonBoardRowProps) {
       )}
     </div>
   );
-}
+});
 
 // ── Heatmap cell (bucket-average utilization, config-driven bands) ────────
 
-function HeatCell({
+type HeatCellProps = {
+  data: PersonData;
+  bucket: BoardBucket;
+  metric: Metric;
+  countTentative: boolean;
+  bands: LoadBand[];
+  // Hoisted from the row: at day grain there are hundreds of cells per row —
+  // per-cell useStyles/useTranslation hooks were the profiled hot path.
+  styles: ReturnType<typeof useStyles>['styles'];
+  t: ReturnType<typeof useTranslation>['t'];
+  onInspect: (target: InspectTarget) => void;
+};
+
+const HeatCell = memo(function HeatCell({
   data,
   bucket,
   metric,
   countTentative,
   bands,
+  styles,
+  t,
   onInspect,
-}: PersonBoardRowProps & { bucket: BoardBucket }) {
-  const { t } = useTranslation();
-  const { styles } = useStyles();
-  const stat = useMemo(() => bucketStat(data, bucket, countTentative), [data, bucket, countTentative]);
+}: HeatCellProps) {
+  const stat = bucketStat(data, bucket, countTentative);
   // Zero-capacity bucket: utilization is undefined — neutral cell, never a
   // band colour. With active blocks it's the "fuori calendario" state: a
   // discreet hatch + explanatory tooltip, no number (0h counted).
@@ -155,14 +193,19 @@ function HeatCell({
       : stat.pct !== null
         ? String(Math.round(stat.pct))
         : '';
-  const title = stat.offCalendar
-    ? t('peopleBoard.cell.titleOffCalendar', { from: bucket.from })
-    : t('peopleBoard.cell.title', {
-        from: bucket.from,
-        pct: stat.pct !== null ? Math.round(stat.pct) : '—',
-        alloc: Math.round(stat.allocH),
-        cap: Math.round(stat.capH),
-      }) + (countTentative ? t('peopleBoard.cell.titleTent') : '');
+
+  // Tooltip computed LAZILY on hover: eager i18next interpolation per cell was
+  // a measurable slice of the day-grain render (cells × 1-2 t() calls).
+  const setTitle = (e: MouseEvent<HTMLDivElement>) => {
+    e.currentTarget.title = stat.offCalendar
+      ? t('peopleBoard.cell.titleOffCalendar', { from: bucket.from })
+      : t('peopleBoard.cell.title', {
+          from: bucket.from,
+          pct: stat.pct !== null ? Math.round(stat.pct) : '—',
+          alloc: Math.round(stat.allocH),
+          cap: Math.round(stat.capH),
+        }) + (countTentative ? t('peopleBoard.cell.titleTent') : '');
+  };
 
   return (
     // dynamic: cell geometry + band colours resolved from live data.
@@ -174,14 +217,14 @@ function HeatCell({
         background: stat.offCalendar ? `${OFF_CALENDAR_HATCH}, ${c.bg}` : c.bg,
         border: `1px solid ${c.empty ? 'transparent' : c.solid}`,
       }}
-      title={title}
+      onMouseEnter={setTitle}
       onClick={() => onInspect({ kind: 'cell', personId: data.person.id, bucket })}
     >
       {/* dynamic: band text colour. */}
       {bucket.w >= 30 && !c.empty && <span style={{ color: c.fg }}>{label}</span>}
     </div>
   );
-}
+});
 
 // ── Coverage block bar (expanded lane) ────────────────────────────────────
 
