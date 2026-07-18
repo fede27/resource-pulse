@@ -1,4 +1,5 @@
 import { createStyles } from 'antd-style';
+import { LEFT_W } from '@/components/board/BoardTimeline.styles';
 
 export const useStyles = createStyles(({ token, css }) => ({
   headerRow: css`
@@ -17,14 +18,25 @@ export const useStyles = createStyles(({ token, css }) => ({
     min-width: 180px;
   `,
   groupHeader: css`
+    display: flex;
+    align-items: stretch;
+    background: ${token.colorFillQuaternary};
+    border-block-end: 1px solid ${token.colorBorderSecondary};
+  `,
+  groupHeaderLabel: css`
+    width: ${LEFT_W}px;
+    flex-shrink: 0;
     position: sticky;
     left: 0;
+    z-index: 4;
+    /* Opaque: the sticky label must fully cover the backdrop scrolling underneath. */
+    background: linear-gradient(${token.colorFillQuaternary}, ${token.colorFillQuaternary}),
+      ${token.colorBgContainer};
+    border-inline-end: 1px solid ${token.colorBorderSecondary};
     display: flex;
     align-items: center;
     gap: ${token.marginXS}px;
     padding: 6px ${token.paddingSM}px;
-    background: ${token.colorFillQuaternary};
-    border-block-end: 1px solid ${token.colorBorderSecondary};
     font-size: 13px;
     font-weight: 600;
 

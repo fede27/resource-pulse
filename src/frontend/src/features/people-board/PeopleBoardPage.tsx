@@ -245,11 +245,13 @@ export function PeopleBoardPage() {
         {groups.map((g) => (
           <div key={g.key || '—'}>
             <div className={styles.groupHeader}>
-              {groupBy === 'team' ? <TeamOutlined /> : <UserOutlined />}
-              <span>
-                {g.label ?? t(groupBy === 'team' ? 'peopleBoard.groups.noTeam' : 'peopleBoard.groups.noRole')}
-              </span>
-              <span>· {g.people.length}</span>
+              <div className={styles.groupHeaderLabel}>
+                {groupBy === 'team' ? <TeamOutlined /> : <UserOutlined />}
+                <span>
+                  {g.label ?? t(groupBy === 'team' ? 'peopleBoard.groups.noTeam' : 'peopleBoard.groups.noRole')}
+                </span>
+                <span>· {g.people.length}</span>
+              </div>
             </div>
             {g.people.map((d, i) => (
               <PersonBoardRow

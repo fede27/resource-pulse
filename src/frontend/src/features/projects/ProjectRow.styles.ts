@@ -31,7 +31,9 @@ export const useStyles = createStyles(({ token, css }) => ({
     height: 100%;
   `,
   labelCellLane: css`
-    background: ${token.colorFillQuaternary};
+    /* Opaque: the sticky label must fully cover bars scrolling underneath. */
+    background: linear-gradient(${token.colorFillQuaternary}, ${token.colorFillQuaternary}),
+      ${token.colorBgContainer};
   `,
   stripe: css`
     width: 4px;

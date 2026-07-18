@@ -127,7 +127,9 @@ export const useStyles = createStyles(({ token, css }) => ({
     position: sticky;
     left: 0;
     z-index: 4;
-    background: ${token.colorFillQuaternary};
+    /* Opaque: the sticky label must fully cover bars scrolling underneath. */
+    background: linear-gradient(${token.colorFillQuaternary}, ${token.colorFillQuaternary}),
+      ${token.colorBgContainer};
     border-inline-end: 1px solid ${token.colorBorderSecondary};
     display: flex;
     align-items: center;
