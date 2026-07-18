@@ -161,7 +161,7 @@ public class AllocationFactoryTests
         var a = Allocation.CreateCoverage(Demand, Node, Resource, Start, End, 50m);
         a.ClearDomainEvents();
         var newDemand = Guid.NewGuid();
-        var newNode = Guid.NewGuid();
+        var newNode = Guid.NewGuid(); a.Reassign(newNode);
 
         a.RetargetToDemand(newDemand, newNode);
 

@@ -153,6 +153,7 @@ if (app.Environment.IsDevelopment())
     }
 
     await DevSeeder.SeedAsync(app.Services, app.Logger);
+    await BulkDevSeeder.SeedAsync(app.Services, app.Logger);
 }
 
 app.UseExceptionHandler();
