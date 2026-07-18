@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
 import { isoWeek, type BoardGeo } from '@/components/board';
-import { bandLabelFor, loadColor, type LoadBand } from '@/lib/loadBands';
+import { bandLabelFor, loadColor, NO_CAPACITY_CELL, type LoadBand } from '@/lib/loadBands';
 import {
   breakdownGrain,
   bucketComposition,
@@ -35,7 +35,9 @@ type Face = 'utilization' | 'coverage';
 
 const ISO = 'YYYY-MM-DD';
 const round = (n: number) => Math.round(n);
-const fmtPct = (n: number) => (Number.isFinite(n) ? `${round(n)}%` : '∞');
+// Null = zero-capacity bucket: utilization undefined ("fuori calendario" when
+// blocks touch it) — shown as a dash, never a number and never ∞.
+const fmtPct = (n: number | null) => (n !== null ? `${round(n)}%` : '—');
 
 // "1 lug → 31 lug" (inclusive end); single-day periods collapse to one date.
 function humanRange(p: FocusPeriod): string {
@@ -169,10 +171,13 @@ function UtilizationFace({
     [countTentative, data.blocks, focus],
   );
 
-  const c = loadColor(total.pct, bands);
-  const bandLabel = Number.isFinite(total.pct)
-    ? bandLabelFor(total.pct, bands)
-    : (bands[bands.length - 1]?.label ?? '—');
+  const c = total.pct !== null ? loadColor(total.pct, bands) : NO_CAPACITY_CELL;
+  const bandLabel =
+    total.pct !== null
+      ? bandLabelFor(total.pct, bands)
+      : total.offCalendar
+        ? t('peopleBoard.inspector.offCalendar')
+        : t('peopleBoard.inspector.noCapacity');
 
   const spanDays = dayjs(focus.toExcl).diff(dayjs(focus.from), 'day');
   const brkGrain = breakdownGrain(focus.from, focus.toExcl);
@@ -274,8 +279,11 @@ function UtilizationFace({
           </span>
         )}
       </div>
-      {Number.isFinite(total.pct) && total.pct > 0 && spanDays > (geo.bucket === 'day' ? 1 : 7) && (
+      {total.pct !== null && total.pct > 0 && spanDays > (geo.bucket === 'day' ? 1 : 7) && (
         <div className={styles.avgHint}>{t('peopleBoard.inspector.avgHint')}</div>
+      )}
+      {total.offCalendar && (
+        <div className={styles.avgHint}>{t('peopleBoard.inspector.offCalendarHint')}</div>
       )}
 
       <div className={styles.sectionTitle}>
@@ -322,8 +330,8 @@ function UtilizationFace({
           </div>
           {brk.map((s, i) => {
             const stat = bucketComposition(data, { ...s, x: 0, w: 0 }, countTentative).total;
-            const sc = loadColor(stat.pct, bands);
-            const fill = Number.isFinite(stat.pct) ? Math.min(100, stat.pct / 1.5) : 100;
+            const sc = stat.pct !== null ? loadColor(stat.pct, bands) : NO_CAPACITY_CELL;
+            const fill = stat.pct !== null ? Math.min(100, stat.pct / 1.5) : 0;
             return (
               <div key={i} className={styles.subRow}>
                 <span className={styles.subLabel}>{s.label}</span>

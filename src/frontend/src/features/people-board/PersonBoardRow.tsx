@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
 import type { BoardGeo } from '@/components/board';
-import { bandLabelFor, loadColor, type LoadBand } from '@/lib/loadBands';
+import { bandLabelFor, loadColor, NO_CAPACITY_CELL, type LoadBand } from '@/lib/loadBands';
 import {
   bucketStat,
   isoAtX,
@@ -19,7 +19,7 @@ import { hueAlpha, projectHue } from './projectHue';
 import { CoverPopover, type PendingRange } from './CoverPopover';
 import type { RootProjectOption } from './usePeopleBoard';
 import type { Metric } from './PeopleBoardToolbar';
-import { useStyles } from './PersonBoardRow.styles';
+import { OFF_CALENDAR_HATCH, useStyles } from './PersonBoardRow.styles';
 
 export type InspectTarget =
   | { kind: 'range'; personId: string }
@@ -41,7 +41,7 @@ export type PersonBoardRowProps = {
   rootProjects: RootProjectOption[];
 };
 
-const fmtPeak = (n: number) => (Number.isFinite(n) ? `${Math.round(n)}%` : '∞');
+const fmtPeak = (n: number) => `${Math.round(n)}%`;
 
 // One person on the board: the collapsed heatmap row (bucket-average bands)
 // plus, when expanded, one lane per root project and the drag-to-cover
@@ -53,10 +53,9 @@ export function PersonBoardRow(props: PersonBoardRowProps) {
   const person = data.person;
 
   const lanes = useMemo(() => personLanes(data.blocks), [data.blocks]);
+  // Peak is always finite: off-calendar buckets (pct null) don't participate.
   const peakColor = loadColor(props.stats.peak, props.bands);
-  const peakBand = Number.isFinite(props.stats.peak)
-    ? bandLabelFor(props.stats.peak, props.bands)
-    : (props.bands[props.bands.length - 1]?.label ?? '—');
+  const peakBand = bandLabelFor(props.stats.peak, props.bands);
 
   const subParts = [person.roleName, person.teamName, t('peopleBoard.row.capPerWeek', { hours: Math.round(data.weeklyCapH) })];
 
@@ -146,20 +145,24 @@ function HeatCell({
   const { t } = useTranslation();
   const { styles } = useStyles();
   const stat = useMemo(() => bucketStat(data, bucket, countTentative), [data, bucket, countTentative]);
-  const c = loadColor(stat.pct, bands);
+  // Zero-capacity bucket: utilization is undefined — neutral cell, never a
+  // band colour. With active blocks it's the "fuori calendario" state: a
+  // discreet hatch + explanatory tooltip, no number (0h counted).
+  const c = stat.pct !== null ? loadColor(stat.pct, bands) : NO_CAPACITY_CELL;
   const label =
     metric === 'hours'
       ? String(Math.round(stat.allocH))
-      : Number.isFinite(stat.pct)
+      : stat.pct !== null
         ? String(Math.round(stat.pct))
-        : '∞';
-  const title =
-    t('peopleBoard.cell.title', {
-      from: bucket.from,
-      pct: Number.isFinite(stat.pct) ? Math.round(stat.pct) : '∞',
-      alloc: Math.round(stat.allocH),
-      cap: Math.round(stat.capH),
-    }) + (countTentative ? t('peopleBoard.cell.titleTent') : '');
+        : '';
+  const title = stat.offCalendar
+    ? t('peopleBoard.cell.titleOffCalendar', { from: bucket.from })
+    : t('peopleBoard.cell.title', {
+        from: bucket.from,
+        pct: stat.pct !== null ? Math.round(stat.pct) : '—',
+        alloc: Math.round(stat.allocH),
+        cap: Math.round(stat.capH),
+      }) + (countTentative ? t('peopleBoard.cell.titleTent') : '');
 
   return (
     // dynamic: cell geometry + band colours resolved from live data.
@@ -168,7 +171,7 @@ function HeatCell({
       style={{
         left: bucket.x + 1,
         width: Math.max(2, bucket.w - 2),
-        background: c.bg,
+        background: stat.offCalendar ? `${OFF_CALENDAR_HATCH}, ${c.bg}` : c.bg,
         border: `1px solid ${c.empty ? 'transparent' : c.solid}`,
       }}
       title={title}

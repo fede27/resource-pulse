@@ -10,6 +10,9 @@
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Settings.Configuration" />
     <PackageReference Include="Swashbuckle.AspNetCore" />
+    <!-- Security pin (see Directory.Packages.props): overrides the vulnerable
+         transitive Microsoft.OpenApi pulled in by Swashbuckle. -->
+    <PackageReference Include="Microsoft.OpenApi" />
   </ItemGroup>
 
   <ItemGroup>

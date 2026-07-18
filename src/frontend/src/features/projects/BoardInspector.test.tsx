@@ -71,6 +71,8 @@ function renderInspector(target: InspectTarget) {
     todayISO: '2026-07-05',
     profileByPerson: () => lucaProfile,
     peakByPerson: () => 120,
+    // Deterministic derived hours (P3): 8h/day × 5 days/week ≈ fixed stub.
+    blockHoursOf: () => 300,
   };
   renderWithProviders(<BoardInspector {...props} />);
   return props;

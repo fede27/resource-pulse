@@ -9,6 +9,7 @@ import {
   bucketsFromGeo,
   bucketsInPeriod,
   capacityInWindow,
+  capacityMapFromSegments,
   groupPeople,
   matchesBands,
   matchesQuery,
@@ -122,11 +123,38 @@ describe('bucketStat', () => {
     expect(s.active).toBe(false);
   });
 
-  it('mirrors the zero-capacity sentinel as Infinity', () => {
+  it('marks active blocks on zero capacity as off-calendar (pct null, 0h — never ∞)', () => {
     const noCap: PersonData = { ...data, capacityByDay: new Map() };
     const s = bucketStat(noCap, buckets[0]!, false);
-    expect(s.pct).toBe(Number.POSITIVE_INFINITY);
+    expect(s.pct).toBeNull(); // utilization undefined, not Infinity
+    expect(s.allocH).toBe(0); // hours truth: 0h counted (ADR-0026)
     expect(s.active).toBe(true);
+    expect(s.offCalendar).toBe(true);
+  });
+
+  it('a zero-capacity bucket without blocks is not off-calendar', () => {
+    const noCap: PersonData = { ...person('idle', []), capacityByDay: new Map() };
+    const s = bucketStat(noCap, buckets[0]!, false);
+    expect(s.pct).toBeNull();
+    expect(s.offCalendar).toBe(false);
+  });
+
+  it('lands exactly on band floors (no 69.999… float drift at 70%)', () => {
+    // 70% × 8h × 5 days accumulates float error unrounded; the pct must equal
+    // the value the cell displays, or a 70-floor band pill reads "under 70%".
+    const seventy = person('elena', [block({ percent: 70, from: '2026-06-01', to: '2026-06-28' })]);
+    const s = bucketStat(seventy, buckets[0]!, false);
+    expect(s.pct).toBe(70);
+
+    const bandsAt70 = [
+      { label: 'Under 70%', lowerBound: 0 },
+      { label: '70–110%', lowerBound: 70 },
+      { label: 'Over', lowerBound: 110 },
+    ];
+    const stats = personStats(seventy, buckets, false);
+    expect(stats.peak).toBe(70);
+    expect(matchesBands(seventy, buckets, new Set([1]), bandsAt70, false)).toBe(true); // 70 → 70-band
+    expect(matchesBands(seventy, buckets, new Set([0]), bandsAt70, false)).toBe(false); // not "under"
   });
 });
 
@@ -138,6 +166,18 @@ describe('personStats / KPIs', () => {
     const s = personStats(data, buckets, false);
     expect(s.peak).toBe(120);
     expect(s.min).toBe(0);
+  });
+
+  it('off-calendar buckets never pollute the peak (no ∞ row state)', () => {
+    // Capacity only in week 1: weeks 2–4 are zero-capacity but the block is
+    // active there — they must not flip the person into "overloaded at peak".
+    const data = person('elena', [block({ percent: 60, from: '2026-06-01', to: '2026-06-28' })]);
+    const week1Only = new Map(
+      [...data.capacityByDay].filter(([iso]) => iso < '2026-06-08'),
+    );
+    const s = personStats({ ...data, capacityByDay: week1Only }, buckets, false);
+    expect(Number.isFinite(s.peak)).toBe(true);
+    expect(s.peak).toBe(60);
   });
 
   it('counts overloaded and underused people from the configured bands', () => {
@@ -196,6 +236,16 @@ describe('filters, grouping, sorting', () => {
     expect(matchesBands(luca, buckets, new Set([3]), BANDS, false)).toBe(true); // 120 → overload band
     expect(matchesBands(elena, buckets, new Set([3]), BANDS, false)).toBe(false);
     expect(matchesBands(elena, buckets, new Set(), BANDS, false)).toBe(true); // empty = no filter
+  });
+
+  it('matchesBands ignores off-calendar buckets (no band, not overload)', () => {
+    // Active block, zero capacity everywhere: no bucket has a band, so the
+    // person matches no band selection (previously leaked into overload).
+    const offCal = { ...luca, capacityByDay: new Map<string, number>() };
+    for (let i = 0; i < BANDS.length; i += 1) {
+      expect(matchesBands(offCal, buckets, new Set([i]), BANDS, false)).toBe(false);
+    }
+    expect(matchesBands(offCal, buckets, new Set(), BANDS, false)).toBe(true);
   });
 
   it('groups by role with the role-less group last', () => {
@@ -305,22 +355,22 @@ describe('normalization', () => {
     expect(rootIdFromPath(undefined)).toBe('');
   });
 
-  it('maps an allocation to a block with the project name joined client-side', () => {
-    const b = toPersonBlock(
-      {
-        id: 'a1',
-        demandId: 'd1',
-        resourceId: 'r1',
-        projectNodePath: '/p-acme/p-phase',
-        periodStart: '2026-06-01',
-        periodEnd: '2026-06-14',
-        allocationPercent: 60,
-        status: 1,
-        resourceRoleName: 'Dev',
-        demandRoleName: 'Grafico',
-      },
-      new Map([['p-acme', 'Portale ACME']]),
-    );
+  it('maps an allocation to a block with the DTO-resolved root project (P3)', () => {
+    const b = toPersonBlock({
+      id: 'a1',
+      demandId: 'd1',
+      resourceId: 'r1',
+      projectNodePath: '/p-acme/p-phase',
+      rootProjectId: 'p-acme',
+      rootProjectName: 'Portale ACME',
+      periodStart: '2026-06-01',
+      periodEnd: '2026-06-14',
+      allocationPercent: 60,
+      status: 1,
+      resourceRoleName: 'Dev',
+      demandRoleName: 'Grafico',
+    });
+    expect(b.rootProjectId).toBe('p-acme');
     expect(b.projectName).toBe('Portale ACME');
     expect(b.hard).toBe(true);
     expect(b.mismatch).toBe(true); // Dev covering a Grafico demand
@@ -342,5 +392,22 @@ describe('normalization', () => {
   it('computes the average weekly capacity over the fetched range', () => {
     const cap = weekdayCapacity('2026-06-01', '2026-06-14');
     expect(weeklyCapacity(cap, '2026-06-01', '2026-06-14')).toBe(40);
+  });
+
+  it('expands run-length capacity segments to a per-day map, gaps as absent keys', () => {
+    // Two Mon–Fri 8h runs (batch endpoint form); the weekend between is a gap.
+    const map = capacityMapFromSegments([
+      { from: '2026-06-01', to: '2026-06-05', hoursPerDay: 'PT8H' },
+      { from: '2026-06-08', to: '2026-06-12', hoursPerDay: '04:00:00' },
+    ]);
+
+    expect(map.get('2026-06-01')).toBe(8);
+    expect(map.get('2026-06-05')).toBe(8);
+    expect(map.has('2026-06-06')).toBe(false); // weekend gap = zero capacity
+    expect(map.get('2026-06-08')).toBe(4); // constant-format duration parses too
+    expect(map.size).toBe(10);
+
+    // Parity with the old daily form: the derived weekly average is unchanged.
+    expect(weeklyCapacity(map, '2026-06-01', '2026-06-14')).toBe(30);
   });
 });

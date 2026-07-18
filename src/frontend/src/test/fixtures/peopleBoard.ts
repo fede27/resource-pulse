@@ -1,9 +1,9 @@
 import dayjs from 'dayjs';
-import { getAllocationsGetForResourceMockHandler } from '@/api/generated/allocations/allocations.msw';
+import { getAllocationsGetInRangeMockHandler } from '@/api/generated/allocations/allocations.msw';
 import { getProjectNodesGetAllMockHandler } from '@/api/generated/project-nodes/project-nodes.msw';
 import {
   getResourcesGetAllMockHandler,
-  getResourcesGetCapacityMockHandler,
+  getResourcesGetCapacitiesMockHandler,
 } from '@/api/generated/resources/resources.msw';
 import { getRolesGetAllMockHandler } from '@/api/generated/roles/roles.msw';
 import { getTeamsGetAllMockHandler } from '@/api/generated/teams/teams.msw';
@@ -12,7 +12,7 @@ import {
   ProjectNodeType,
   ProjectStatus,
   type AllocationReadDto,
-  type DailyCapacityDto,
+  type CapacitySegmentDto,
 } from '@/api/generated/schemas';
 import { server } from '@/test/msw/server';
 import { seedConfig } from './settingsConfig';
@@ -37,6 +37,8 @@ export const lucaAllocations: AllocationReadDto[] = [
     demandRoleName: 'Dev senior',
     projectNodeId: 'p-acme',
     projectNodePath: '/p-acme',
+    rootProjectId: 'p-acme',
+    rootProjectName: 'Portale ACME',
     periodStart: blockFrom,
     periodEnd: blockTo,
     allocationPercent: 60,
@@ -53,6 +55,8 @@ export const lucaAllocations: AllocationReadDto[] = [
     demandRoleName: 'Dev senior',
     projectNodeId: 'p-beta',
     projectNodePath: '/p-beta',
+    rootProjectId: 'p-beta',
+    rootProjectName: 'Migrazione BETA',
     periodStart: blockFrom,
     periodEnd: blockTo,
     allocationPercent: 30,
@@ -60,15 +64,16 @@ export const lucaAllocations: AllocationReadDto[] = [
   },
 ];
 
-// Weekday capacity 8h over a generous window around today.
-function weekdayCapacity(): DailyCapacityDto[] {
-  const out: DailyCapacityDto[] = [];
+// Weekday capacity 8h over a generous window around today, in the batch
+// endpoint's run-length form: one Mon–Fri segment per week, weekends as gaps.
+function weekdaySegments(): CapacitySegmentDto[] {
+  const out: CapacitySegmentDto[] = [];
   let d = today.subtract(2, 'month');
+  while (d.day() !== 1) d = d.add(1, 'day'); // align to Monday
   const end = today.add(4, 'month');
   while (!d.isAfter(end)) {
-    const wd = (d.day() + 6) % 7;
-    out.push({ date: d.format(ISO), hours: wd >= 5 ? 'PT0S' : 'PT8H' });
-    d = d.add(1, 'day');
+    out.push({ from: d.format(ISO), to: d.add(4, 'day').format(ISO), hoursPerDay: 'PT8H' });
+    d = d.add(7, 'day');
   }
   return out;
 }
@@ -107,9 +112,12 @@ export function seedPeopleBoard(): void {
         },
       ],
     }),
-    getResourcesGetCapacityMockHandler(weekdayCapacity()),
-    getAllocationsGetForResourceMockHandler((info) =>
-      String(info.params['resourceId']) === 'r-luca' ? lucaAllocations : [],
-    ),
+    getResourcesGetCapacitiesMockHandler([
+      { resourceId: 'r-luca', segments: weekdaySegments() },
+      { resourceId: 'r-elena', segments: weekdaySegments() },
+    ]),
+    // One flat plan-slice read (P3): Luca's blocks; Elena has none, so the
+    // client-side pivot leaves her lane empty.
+    getAllocationsGetInRangeMockHandler(lucaAllocations),
   );
 }

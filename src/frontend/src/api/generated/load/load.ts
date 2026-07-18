@@ -25,15 +25,18 @@ import type {
   DailyNodeLoadDto,
   DemandCoverageDto,
   HttpValidationProblemDetails,
+  LoadGetDemandCoverageInRangeParams,
   LoadGetDemandCoverageParams,
   LoadGetOpenDemandsParams,
   LoadGetProjectNodeDemandCoverageParams,
   LoadGetProjectNodeLoadParams,
   LoadGetResourceLoadParams,
   LoadGetResourceLoadProfileParams,
+  LoadGetResourceLoadProfilesParams,
   LoadSegmentDto,
   OpenDemandDto,
   ProblemDetails,
+  ResourceLoadProfileDto,
   ValidationProblemDetails
 } from '../schemas';
 
@@ -222,6 +225,93 @@ export function useLoadGetResourceLoadProfile<TData = Awaited<ReturnType<typeof 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getLoadGetResourceLoadProfileQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+export const loadGetResourceLoadProfiles = (
+    params?: LoadGetResourceLoadProfilesParams,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<ResourceLoadProfileDto[]>(
+      {url: `/api/resources/load-profiles`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+
+
+
+
+export const getLoadGetResourceLoadProfilesQueryKey = (params?: LoadGetResourceLoadProfilesParams,) => {
+    return [
+    `/api/resources/load-profiles`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getLoadGetResourceLoadProfilesQueryOptions = <TData = Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>, TError = ErrorType<ValidationProblemDetails>>(params?: LoadGetResourceLoadProfilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLoadGetResourceLoadProfilesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>> = ({ signal }) => loadGetResourceLoadProfiles(params, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type LoadGetResourceLoadProfilesQueryResult = NonNullable<Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>>
+export type LoadGetResourceLoadProfilesQueryError = ErrorType<ValidationProblemDetails>
+
+
+export function useLoadGetResourceLoadProfiles<TData = Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>, TError = ErrorType<ValidationProblemDetails>>(
+ params: undefined |  LoadGetResourceLoadProfilesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>,
+          TError,
+          Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadGetResourceLoadProfiles<TData = Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>, TError = ErrorType<ValidationProblemDetails>>(
+ params?: LoadGetResourceLoadProfilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>,
+          TError,
+          Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadGetResourceLoadProfiles<TData = Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>, TError = ErrorType<ValidationProblemDetails>>(
+ params?: LoadGetResourceLoadProfilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useLoadGetResourceLoadProfiles<TData = Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>, TError = ErrorType<ValidationProblemDetails>>(
+ params?: LoadGetResourceLoadProfilesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetResourceLoadProfiles>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getLoadGetResourceLoadProfilesQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -497,6 +587,93 @@ export function useLoadGetOpenDemands<TData = Awaited<ReturnType<typeof loadGetO
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getLoadGetOpenDemandsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+export const loadGetDemandCoverageInRange = (
+    params?: LoadGetDemandCoverageInRangeParams,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<DemandCoverageDto[]>(
+      {url: `/api/demands/coverage`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+
+
+
+
+export const getLoadGetDemandCoverageInRangeQueryKey = (params?: LoadGetDemandCoverageInRangeParams,) => {
+    return [
+    `/api/demands/coverage`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getLoadGetDemandCoverageInRangeQueryOptions = <TData = Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>, TError = ErrorType<ValidationProblemDetails>>(params?: LoadGetDemandCoverageInRangeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getLoadGetDemandCoverageInRangeQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>> = ({ signal }) => loadGetDemandCoverageInRange(params, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type LoadGetDemandCoverageInRangeQueryResult = NonNullable<Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>>
+export type LoadGetDemandCoverageInRangeQueryError = ErrorType<ValidationProblemDetails>
+
+
+export function useLoadGetDemandCoverageInRange<TData = Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>, TError = ErrorType<ValidationProblemDetails>>(
+ params: undefined |  LoadGetDemandCoverageInRangeParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>,
+          TError,
+          Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadGetDemandCoverageInRange<TData = Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>, TError = ErrorType<ValidationProblemDetails>>(
+ params?: LoadGetDemandCoverageInRangeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>,
+          TError,
+          Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useLoadGetDemandCoverageInRange<TData = Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>, TError = ErrorType<ValidationProblemDetails>>(
+ params?: LoadGetDemandCoverageInRangeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useLoadGetDemandCoverageInRange<TData = Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>, TError = ErrorType<ValidationProblemDetails>>(
+ params?: LoadGetDemandCoverageInRangeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof loadGetDemandCoverageInRange>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getLoadGetDemandCoverageInRangeQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

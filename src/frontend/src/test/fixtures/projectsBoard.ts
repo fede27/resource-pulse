@@ -1,13 +1,16 @@
 import dayjs from 'dayjs';
-import { getAllocationsGetForProjectNodeMockHandler } from '@/api/generated/allocations/allocations.msw';
+import { getAllocationsGetInRangeMockHandler } from '@/api/generated/allocations/allocations.msw';
 import {
-  getLoadGetProjectNodeDemandCoverageMockHandler,
-  getLoadGetResourceLoadProfileMockHandler,
+  getLoadGetDemandCoverageInRangeMockHandler,
+  getLoadGetResourceLoadProfilesMockHandler,
 } from '@/api/generated/load/load.msw';
 import { getMeGetMockHandler } from '@/api/generated/me/me.msw';
-import { getProjectNodesGetSubtreeMockHandler } from '@/api/generated/project-nodes/project-nodes.msw';
+import { getProjectNodesGetAllMockHandler } from '@/api/generated/project-nodes/project-nodes.msw';
 import { getProjectsGetActiveInRangeMockHandler } from '@/api/generated/projects/projects.msw';
-import { getResourcesGetAllMockHandler } from '@/api/generated/resources/resources.msw';
+import {
+  getResourcesGetAllMockHandler,
+  getResourcesGetCapacitiesMockHandler,
+} from '@/api/generated/resources/resources.msw';
 import { getRolesGetAllMockHandler } from '@/api/generated/roles/roles.msw';
 import {
   AllocationStatus,
@@ -61,6 +64,8 @@ export const acmeDemandCoverage: DemandCoverageDto[] = [
   {
     demandId: 'd-dev',
     projectNodeId: 'p-acme',
+    rootProjectId: 'p-acme',
+    rootProjectName: 'Portale ACME',
     roleId: 'role-dev',
     roleName: 'Dev senior',
     provenance: DemandProvenance.Declared,
@@ -73,6 +78,8 @@ export const acmeDemandCoverage: DemandCoverageDto[] = [
   {
     demandId: 'd-grafico',
     projectNodeId: 'p-acme',
+    rootProjectId: 'p-acme',
+    rootProjectName: 'Portale ACME',
     roleId: 'role-grafico',
     roleName: 'Grafico',
     provenance: DemandProvenance.Declared,
@@ -96,12 +103,28 @@ export const acmeAllocations: AllocationReadDto[] = [
     demandRoleName: 'Dev senior',
     projectNodeId: 'p-acme',
     projectNodePath: '/p-acme',
+    rootProjectId: 'p-acme',
+    rootProjectName: 'Portale ACME',
     periodStart: from,
     periodEnd: to,
     allocationPercent: 60,
     status: AllocationStatus.Hard,
   },
 ];
+
+// Weekday capacity 8h for the covering person, in the batch endpoint's
+// run-length form (P1) — feeds the client-derived per-block hours (P3).
+function weekdaySegments() {
+  const out: { from: string; to: string; hoursPerDay: string }[] = [];
+  let d = today.subtract(2, 'month');
+  while (d.day() !== 1) d = d.add(1, 'day'); // align to Monday
+  const end = today.add(3, 'month');
+  while (!d.isAfter(end)) {
+    out.push({ from: d.format(ISO), to: d.add(4, 'day').format(ISO), hoursPerDay: 'PT8H' });
+    d = d.add(7, 'day');
+  }
+  return out;
+}
 
 export const lucaProfile: LoadSegmentDto[] = [
   {
@@ -119,10 +142,11 @@ export function seedProjectsBoard(overrides?: { projects?: ProjectNodeReadDto[] 
   seedConfig(); // load bands (overload ≥100), fence, bucketing
   server.use(
     getProjectsGetActiveInRangeMockHandler(overrides?.projects ?? [acmeRoot]),
-    getProjectNodesGetSubtreeMockHandler(acmeSubtree),
-    getLoadGetProjectNodeDemandCoverageMockHandler(acmeDemandCoverage),
-    getAllocationsGetForProjectNodeMockHandler(acmeAllocations),
-    getLoadGetResourceLoadProfileMockHandler(lucaProfile),
+    getProjectNodesGetAllMockHandler({ data: acmeSubtree }),
+    getLoadGetDemandCoverageInRangeMockHandler(acmeDemandCoverage),
+    getAllocationsGetInRangeMockHandler(acmeAllocations),
+    getResourcesGetCapacitiesMockHandler([{ resourceId: 'r-luca', segments: weekdaySegments() }]),
+    getLoadGetResourceLoadProfilesMockHandler([{ resourceId: 'r-luca', segments: lucaProfile }]),
     getMeGetMockHandler({
       isAuthenticated: true,
       sub: 'dev',

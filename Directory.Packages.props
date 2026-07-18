@@ -37,6 +37,11 @@
     <PackageVersion Include="DevExtreme.AspNet.Data" Version="5.1.0" />
     <!-- EF Core naming convention (snake_case for Postgres) -->
     <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
+    <!-- Security pins: transitive packages flagged by NuGet audit (NU1902/NU1903).
+         Referenced directly by the affected project to override the vulnerable
+         transitive version; drop the pin when the parent package catches up. -->
+    <PackageVersion Include="MessagePack" Version="2.5.302" />         <!-- via Aspire AppHost, GHSA-hv8m-jj95-wg3x et al. -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.10.0" />    <!-- via Swashbuckle 10.1.7, GHSA-v5pm-xwqc-g5wc -->
     <!-- Testing -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />

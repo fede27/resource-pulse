@@ -46,6 +46,19 @@ public sealed class AllocationsController(IAllocationService service) : Controll
         CancellationToken ct) =>
         FromResult(await service.GetForProjectNodeAsync(projectNodeId, from, to, ct));
 
+    // The flat plan slice (consolidation P3): every coverage overlapping the
+    // range. Boards read this once and pivot client-side (by root project on
+    // Progetti, by resource on Persone). The literal segment wins over
+    // GET {id} by route precedence (same pattern as api/demands/open).
+    [HttpGet("in-range")]
+    [ProducesResponseType<IReadOnlyList<AllocationReadDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetInRangeAsync(
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        CancellationToken ct) =>
+        FromResult(await service.GetInRangeAsync(from, to, ct));
+
     [HttpGet("{id}/resolved-hours")]
     [ProducesResponseType<AllocationResolvedHoursDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]

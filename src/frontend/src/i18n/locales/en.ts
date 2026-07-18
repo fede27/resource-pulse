@@ -146,6 +146,8 @@ export const en: Loose<typeof it> = {
     cell: {
       title: '{{from}} · average {{pct}}% · {{alloc}}h / {{cap}}h',
       titleTent: ' (incl. tentative)',
+      titleOffCalendar:
+        '{{from}} · off-calendar: active commitments on days with no capacity (0h counted)',
     },
     legend: {
       title: 'Band (bucket average)',
@@ -198,6 +200,10 @@ export const en: Loose<typeof it> = {
       weekLabel: 'Week {{week}}',
       avgOver: 'average of {{count}} {{grains}}',
       avgHint: 'Average value over the period — see the breakdown below for the distribution.',
+      offCalendar: 'Off-calendar',
+      noCapacity: 'No capacity in the period',
+      offCalendarHint:
+        'Active commitments on days with no capacity (uncovered calendar): 0h counted — not overload, and excluded from peak, KPIs and bands.',
       composition: 'Breakdown ({{mode}})',
       modeHard: 'hard blocks',
       modeAll: 'hard + tentative',

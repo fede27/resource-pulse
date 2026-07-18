@@ -8,15 +8,18 @@
 // The heatmap cell is the BUCKET AVERAGE utilization: allocated hours ÷
 // capacity hours (hours = % × daily capacity, ADR-0026 — the capacity series
 // already encodes the calendar). Only Hard blocks count by default; the
-// "conteggia tentative" toggle adds the proposed ones. A bucket with active
-// blocks but zero capacity mirrors the backend's full-overload sentinel as
-// Infinity (loadColor renders non-finite as the overload stop).
+// "conteggia tentative" toggle adds the proposed ones. A bucket with ZERO
+// capacity has UNDEFINED utilization (pct = null — 0h over 0h is neither 0%
+// nor overload): when blocks touch it, that's the OFF-CALENDAR state
+// ("fuori calendario"), rendered as a discreet hatch and excluded from
+// peak/KPIs/band filters — 0h are counted, so it is presentation, not load.
+// (The backend LoadPercent sentinel on /load is a domain signal for Phase 5
+// and stays untouched; this page derives its cells client-side.)
 
 import dayjs from 'dayjs';
 import {
   AllocationStatus,
   type AllocationReadDto,
-  type DailyCapacityDto,
   type OpenDemandDto,
   type ResourceReadDto,
 } from '@/api/generated/schemas';
@@ -89,20 +92,16 @@ export function toBoardPerson(
   };
 }
 
-// Project name resolution is a client-side join (allocation reads carry the
-// node PATH, not the root name — gap doc §GAP 4).
-export function toPersonBlock(
-  a: AllocationReadDto,
-  nodeNameById: ReadonlyMap<string, string>,
-): PersonBlock {
-  const rootProjectId = rootIdFromPath(a.projectNodePath);
+// Root project id/name come resolved on the DTO since consolidation P3
+// (gap doc §GAP 4 closed) — no client-side Path parsing + nodes join.
+export function toPersonBlock(a: AllocationReadDto): PersonBlock {
   const resourceRoleName = a.resourceRoleName ?? null;
   const demandRoleName = a.demandRoleName ?? '';
   return {
     id: a.id ?? '',
     demandId: a.demandId ?? '',
-    rootProjectId,
-    projectName: nodeNameById.get(rootProjectId) ?? '—',
+    rootProjectId: a.rootProjectId ?? rootIdFromPath(a.projectNodePath),
+    projectName: a.rootProjectName ?? '—',
     from: a.periodStart ?? '',
     to: a.periodEnd ?? '',
     percent: a.allocationPercent ?? 0,
@@ -114,11 +113,10 @@ export function toPersonBlock(
   };
 }
 
-export function capacityMap(rows: DailyCapacityDto[]): Map<string, number> {
-  const map = new Map<string, number>();
-  for (const r of rows) if (r.date) map.set(r.date, parseDurationHours(r.hours));
-  return map;
-}
+// RLE expansion promoted to the shared lib with consolidation P3 (the Progetti
+// board derives per-block hours from the same batch read); re-exported here so
+// existing imports don't churn.
+export { capacityMapFromSegments } from '@/lib/capacity';
 
 // Average weekly capacity over [from, to] inclusive — the "≈ Nh/sett" label and
 // the %↔ore bridge of the inspector.
@@ -148,10 +146,14 @@ export function bucketsFromGeo(geo: BoardGeo): BoardBucket[] {
 // ── Bucket utilization (hours truth: % × daily capacity) ─────────────────
 
 export type BucketStat = {
-  pct: number; // allocated ÷ capacity, %. Infinity = active blocks on zero capacity.
+  pct: number | null; // allocated ÷ capacity, %. Null = zero capacity (undefined).
   allocH: number;
   capH: number;
   active: boolean; // ≥1 block touches the bucket
+  // Active blocks on a zero-capacity bucket (weekend at day grain, absence or
+  // closure weeks): 0h counted, utilization undefined — a category of its own,
+  // never overload.
+  offCalendar: boolean;
 };
 
 export function bucketStat(data: PersonData, bucket: BoardBucket, includeTentative: boolean): BucketStat {
@@ -175,17 +177,24 @@ export function bucketStat(data: PersonData, bucket: BoardBucket, includeTentati
     allocH += (rate / 100) * cap;
     d = d.add(1, 'day');
   }
-  const pct = capH > 0 ? (allocH / capH) * 100 : active ? Number.POSITIVE_INFINITY : 0;
-  return { pct, allocH: round1(allocH), capH: round1(capH), active };
+  // Rounded at the source (1 decimal, like allocH/capH): band thresholds must
+  // compare the SAME value the cells display. Unrounded, 70% × 8h × 5d
+  // accumulates to 69.99999999999999 and a 70-floor band pill reads "under"
+  // while every cell shows 70.
+  const pct = capH > 0 ? round1((allocH / capH) * 100) : null;
+  return { pct, allocH: round1(allocH), capH: round1(capH), active, offCalendar: pct === null && active };
 }
 
 export type PersonStats = { peak: number; min: number };
 
 export function personStats(data: PersonData, buckets: BoardBucket[], includeTentative: boolean): PersonStats {
+  // Zero-capacity buckets (pct null) don't participate: off-calendar is a
+  // presentation category, not load — it must not flip a person's row state.
   let peak = 0;
   let min = Number.POSITIVE_INFINITY;
   for (const bk of buckets) {
     const { pct } = bucketStat(data, bk, includeTentative);
+    if (pct === null) continue;
     if (pct > peak) peak = pct;
     if (pct < min) min = pct;
   }
@@ -362,8 +371,8 @@ export function matchesBands(
   if (selected.size === 0) return true;
   return buckets.some((bk) => {
     const { pct } = bucketStat(data, bk, includeTentative);
-    const idx = Number.isFinite(pct) ? bandIndexFor(pct, bands) : bands.length - 1;
-    return selected.has(idx);
+    if (pct === null) return false; // off-calendar/no-capacity: no band
+    return selected.has(bandIndexFor(pct, bands));
   });
 }
 

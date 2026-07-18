@@ -1,35 +1,45 @@
 // Projects board — data layer. Composes the read surface into BoardProject[]:
 //   1 × GET /api/projects?from&to&dateSource=Planned        (roots in range)
-//   M × GET /api/project-nodes/{id}/subtree                 (phases)
-//   M × GET /api/project-nodes/{id}/demand-coverage?from&to (demand rows + gap)
-//   M × GET /api/allocations/by-project-node/{id}?from&to   (coverage blocks)
-//   P × GET /api/resources/{id}/load-profile?…&status=Hard  (peak + composition)
+//   1 × GET /api/project-nodes                              (phases, grouped by Path root)
+//   1 × GET /api/allocations/in-range?from&to               (slice del piano — P3)
+//   1 × GET /api/resources/capacity?from&to&ids=…           (RLE — ore per blocco)
+//   1 × GET /api/resources/load-profiles?…&status=Hard&ids=… (peak + composition — P2)
+//   1 × GET /api/demands/coverage?from&to                   (demand rows + gap — P4)
 // plus the org config (bands / fence / bucketing) and /api/me.
 //
-// The N+1 fan-out is a deliberate first-step trade-off (project-gap.md §★★): a
-// board bundle endpoint is page-shaped, not domain, and stays deferred. Every
-// query is cached per (id, from, to) so panning/re-sorting doesn't refetch.
+// No N+1 fan-out remains (api-roundtrip-consolidation.md P0–P4): every read is
+// a domain-shaped batch pivoted client-side by the DTO-resolved root project /
+// resource, so the request count is constant in the portfolio size. Per-block
+// hours are derived client-side as % × capacity over the fetched range
+// (ADR-0026) from the batch capacity read — RANGE-SCOPED like the coverage
+// reconciliation shown alongside (the resolved-hours sidecar was full-window).
+// The board bundle endpoint stays deferred (project-gap.md §★★ — page-shaped,
+// not domain).
 
 import { useMemo } from 'react';
 import dayjs from 'dayjs';
-import { useQueries } from '@tanstack/react-query';
-import { getAllocationsGetForProjectNodeQueryOptions } from '@/api/generated/allocations/allocations';
+import { useAllocationsGetInRange } from '@/api/generated/allocations/allocations';
 import { useBucketingGet } from '@/api/generated/bucketing/bucketing';
 import {
-  getLoadGetProjectNodeDemandCoverageQueryOptions,
-  getLoadGetResourceLoadProfileQueryOptions,
+  useLoadGetDemandCoverageInRange,
+  useLoadGetResourceLoadProfiles,
 } from '@/api/generated/load/load';
 import { useLoadBandsGet } from '@/api/generated/load-bands/load-bands';
 import { useMeGet } from '@/api/generated/me/me';
-import { getProjectNodesGetSubtreeQueryOptions } from '@/api/generated/project-nodes/project-nodes';
+import { useProjectNodesGetAll } from '@/api/generated/project-nodes/project-nodes';
 import { useProjectsGetActiveInRange } from '@/api/generated/projects/projects';
-import { useResourcesGetAll } from '@/api/generated/resources/resources';
+import {
+  useResourcesGetAll,
+  useResourcesGetCapacities,
+} from '@/api/generated/resources/resources';
 import { useRolesGetAll } from '@/api/generated/roles/roles';
 import { useTimeFenceGet } from '@/api/generated/time-fence/time-fence';
 import {
   AllocationStatus,
   BucketGrain,
   DateSource,
+  type AllocationReadDto,
+  type DemandCoverageDto,
   type LoadSegmentDto,
   type ProjectNodeReadDto,
   type ResourceReadDto,
@@ -37,7 +47,14 @@ import {
 } from '@/api/generated/schemas';
 import type { Grain } from '@/components/timeline';
 import { normalizeBands, overloadFloor, type LoadBand } from '@/lib/loadBands';
-import { buildBoardProject, peakOf, type BoardProject, type CurrentUser } from './boardModel';
+import { capacityMapFromSegments, blockHoursInRange } from '@/lib/capacity';
+import {
+  buildBoardProject,
+  peakOf,
+  type BoardProject,
+  type CoverageBlock,
+  type CurrentUser,
+} from './boardModel';
 import { fenceEnd, type FenceBoundaries } from '@/components/board';
 
 const ISO = 'YYYY-MM-DD';
@@ -75,6 +92,10 @@ export type ProjectsBoard = {
   personName: (resourceId: string) => string;
   peakByPerson: (resourceId: string) => number;
   profileByPerson: (resourceId: string) => LoadSegmentDto[];
+  // Hours a block resolves to over the FETCHED RANGE (% × capacity, ADR-0026),
+  // derived from the batch capacity read (consolidation P1/P3 — replaces the
+  // per-block resolved-hours sidecar). Null while capacity is still loading.
+  blockHoursOf: (block: CoverageBlock) => number | null;
   fetchRange: { from: string; to: string };
 };
 
@@ -99,33 +120,68 @@ export function useProjectsBoard(domain: BoardDomain): ProjectsBoard {
     [projectsQ.data],
   );
 
-  const subtreeQs = useQueries({
-    queries: roots.map((r) => getProjectNodesGetSubtreeQueryOptions(r.id)),
-  });
-  const coverageQs = useQueries({
-    queries: roots.map((r) => getLoadGetProjectNodeDemandCoverageQueryOptions(r.id, range)),
-  });
-  const allocQs = useQueries({
-    queries: roots.map((r) => getAllocationsGetForProjectNodeQueryOptions(r.id, range)),
-  });
+  // One flat read of every node; each root's subtree is the Path-prefix group
+  // (materialized path ⇒ first segment = root id). Replaces the former M×
+  // GET /{id}/subtree fan-out — P0 of api-roundtrip-consolidation.md.
+  const nodesQ = useProjectNodesGetAll();
+
+  const nodesByRoot = useMemo(() => {
+    const rows = (nodesQ.data?.data ?? []) as ProjectNodeReadDto[];
+    const map = new Map<string, ProjectNodeReadDto[]>();
+    for (const n of rows) {
+      const rootId = n.path?.split('/').find((s) => s.length > 0);
+      if (!rootId) continue;
+      const group = map.get(rootId);
+      if (group) group.push(n);
+      else map.set(rootId, [n]);
+    }
+    return map;
+  }, [nodesQ.data]);
+
+  // Cross-project demand reconciliation in ONE call (P4), pivoted by the
+  // DTO-resolved root project client-side — replaces M× per-node demand-coverage.
+  // Roots Closed/Cancelled are excluded server-side (I4), matching the board.
+  const coverageQ = useLoadGetDemandCoverageInRange({ from: range.from, to: range.to });
+
+  const coverageByRoot = useMemo(() => {
+    const map = new Map<string, DemandCoverageDto[]>();
+    for (const c of coverageQ.data ?? []) {
+      const rootId = c.rootProjectId;
+      if (!rootId) continue;
+      const list = map.get(rootId);
+      if (list) list.push(c);
+      else map.set(rootId, [c]);
+    }
+    return map;
+  }, [coverageQ.data]);
+
+  // One flat plan-slice read for every coverage in range (P3), pivoted by the
+  // DTO-resolved root project client-side — replaces M× by-project-node.
+  const allocationsQ = useAllocationsGetInRange({ from: range.from, to: range.to });
+
+  const allocationsByRoot = useMemo(() => {
+    const map = new Map<string, AllocationReadDto[]>();
+    for (const a of allocationsQ.data ?? []) {
+      const rootId = a.rootProjectId;
+      if (!rootId) continue;
+      const list = map.get(rootId);
+      if (list) list.push(a);
+      else map.set(rootId, [a]);
+    }
+    return map;
+  }, [allocationsQ.data]);
 
   const projects = useMemo(
     () =>
-      roots.map((r, i) =>
+      roots.map((r) =>
         buildBoardProject(
           r,
-          subtreeQs[i]?.data ?? [],
-          coverageQs[i]?.data ?? [],
-          allocQs[i]?.data ?? [],
+          nodesByRoot.get(r.id) ?? [],
+          coverageByRoot.get(r.id) ?? [],
+          allocationsByRoot.get(r.id) ?? [],
         ),
       ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- query result arrays are new each render; data identities gate the rebuild
-    [
-      roots,
-      ...subtreeQs.map((q) => q.data),
-      ...coverageQs.map((q) => q.data),
-      ...allocQs.map((q) => q.data),
-    ],
+    [roots, nodesByRoot, coverageByRoot, allocationsByRoot],
   );
 
   const personIds = useMemo(
@@ -135,27 +191,55 @@ export function useProjectsBoard(domain: BoardDomain): ProjectsBoard {
 
   // Hard-only profile: the sustainability verdict counts committed load only —
   // a proposed (tentative) block must not flip someone into "overloaded".
-  const profileQs = useQueries({
-    queries: personIds.map((id) =>
-      getLoadGetResourceLoadProfileQueryOptions(id, { ...range, status: AllocationStatus.Hard }),
-    ),
-  });
+  // ONE batch read for the whole covering population (consolidation P2);
+  // explicit ids because coverage may reference deactivated people.
+  const profilesQ = useLoadGetResourceLoadProfiles(
+    { from: range.from, to: range.to, status: AllocationStatus.Hard, ids: personIds },
+    { query: { enabled: personIds.length > 0 } },
+  );
 
   const profiles = useMemo(() => {
     const map = new Map<string, LoadSegmentDto[]>();
-    personIds.forEach((id, i) => {
-      const data = profileQs[i]?.data;
-      if (data) map.set(id, data);
-    });
+    for (const p of profilesQ.data ?? []) {
+      if (p.resourceId) map.set(p.resourceId, p.segments ?? []);
+    }
     return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
-  }, [personIds, ...profileQs.map((q) => q.data)]);
+  }, [profilesQ.data]);
 
   const peaks = useMemo(() => {
     const map = new Map<string, number>();
     for (const [id, segs] of profiles) map.set(id, peakOf(segs));
     return map;
   }, [profiles]);
+
+  // Batch capacity for the covering people (P1) — EXPLICIT ids: coverage may
+  // reference a since-deactivated resource, which the omitted-ids form (active
+  // only) would drop. Feeds the per-block hours derivation (% × capacity over
+  // the fetched range, ADR-0026) that replaced the resolved-hours sidecar.
+  const capacitiesQ = useResourcesGetCapacities(
+    { from: range.from, to: range.to, ids: personIds },
+    { query: { enabled: personIds.length > 0 } },
+  );
+
+  const capacityByPerson = useMemo(() => {
+    const map = new Map<string, ReadonlyMap<string, number>>();
+    for (const rc of capacitiesQ.data ?? []) {
+      if (rc.resourceId) map.set(rc.resourceId, capacityMapFromSegments(rc.segments ?? []));
+    }
+    return map;
+  }, [capacitiesQ.data]);
+
+  const blockHoursOf = useMemo(
+    () =>
+      (block: CoverageBlock): number | null => {
+        const capacityByDay = capacityByPerson.get(block.resourceId);
+        if (!capacityByDay) return null; // capacity still loading (or unknown person)
+        const from = block.from > range.from ? block.from : range.from;
+        const to = block.to < range.to ? block.to : range.to;
+        return Math.round(blockHoursInRange(from, to, block.percent, capacityByDay) * 10) / 10;
+      },
+    [capacityByPerson, range.from, range.to],
+  );
 
   const personPool = useMemo<PersonPoolEntry[]>(() => {
     const rows = (resourcesQ.data?.data ?? []) as ResourceReadDto[];
@@ -197,10 +281,10 @@ export function useProjectsBoard(domain: BoardDomain): ProjectsBoard {
   );
 
   const detailPending =
-    subtreeQs.some((q) => q.isPending) ||
-    coverageQs.some((q) => q.isPending) ||
-    allocQs.some((q) => q.isPending) ||
-    profileQs.some((q) => q.isPending);
+    nodesQ.isPending ||
+    allocationsQ.isPending ||
+    coverageQ.isPending ||
+    (personIds.length > 0 && (profilesQ.isPending || capacitiesQ.isPending));
 
   return {
     isLoading: projectsQ.isPending || bandsQ.isPending || fenceQ.isPending || bucketingQ.isPending,
@@ -218,6 +302,7 @@ export function useProjectsBoard(domain: BoardDomain): ProjectsBoard {
     personName: (id) => personNames.get(id) ?? '—',
     peakByPerson: (id) => peaks.get(id) ?? 0,
     profileByPerson: (id) => profiles.get(id) ?? [],
+    blockHoursOf,
     fetchRange: range,
   };
 }

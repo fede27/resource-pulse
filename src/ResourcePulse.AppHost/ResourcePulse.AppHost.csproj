@@ -3,6 +3,9 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
     <PackageReference Include="Aspire.Hosting.NodeJs" />
+    <!-- Security pin (see Directory.Packages.props): overrides the vulnerable
+         transitive MessagePack pulled in by the Aspire hosting packages. -->
+    <PackageReference Include="MessagePack" />
   </ItemGroup>
 
   <ItemGroup>

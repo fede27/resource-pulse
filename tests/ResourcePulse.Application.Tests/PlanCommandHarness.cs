@@ -148,9 +148,34 @@ internal sealed class FixedCapacity(TimeSpan perDay) : ICapacityQueryService
     public Task<ServiceResult<IReadOnlyList<DailyCapacityDto>>> GetForResourceAsync(
         Guid resourceId, DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
     {
+        return Task.FromResult(ServiceResult<IReadOnlyList<DailyCapacityDto>>.Success(Days(from, toInclusive)));
+    }
+
+    // Batch twin: same fixed series per requested id. The fake has no notion of
+    // "all active resources", so null/empty ids yields an empty dictionary.
+    public Task<ServiceResult<IReadOnlyDictionary<Guid, IReadOnlyList<DailyCapacityDto>>>> GetForResourcesAsync(
+        IReadOnlyCollection<Guid>? resourceIds, DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
+    {
+        var result = (resourceIds ?? []).Distinct().ToDictionary(id => id, _ => Days(from, toInclusive));
+        return Task.FromResult(ServiceResult<IReadOnlyDictionary<Guid, IReadOnlyList<DailyCapacityDto>>>.Success(result));
+    }
+
+    public async Task<ServiceResult<IReadOnlyList<ResourceCapacityDto>>> GetSegmentsForResourcesAsync(
+        IReadOnlyCollection<Guid>? resourceIds, DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
+    {
+        var daily = await GetForResourcesAsync(resourceIds, from, toInclusive, ct);
+        var dtos = daily.Value
+            .Select(kvp => new ResourceCapacityDto { ResourceId = kvp.Key, Segments = CapacitySegments.Compress(kvp.Value) })
+            .OrderBy(x => x.ResourceId)
+            .ToList();
+        return ServiceResult<IReadOnlyList<ResourceCapacityDto>>.Success(dtos);
+    }
+
+    private IReadOnlyList<DailyCapacityDto> Days(DateOnly from, DateOnly toInclusive)
+    {
         var list = new List<DailyCapacityDto>();
         for (var d = from; d <= toInclusive; d = d.AddDays(1))
             list.Add(new DailyCapacityDto { Date = d, Hours = perDay });
-        return Task.FromResult(ServiceResult<IReadOnlyList<DailyCapacityDto>>.Success(list));
+        return list;
     }
 }

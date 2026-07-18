@@ -23,6 +23,9 @@ export interface AllocationReadDto {
   projectNodeId?: string;
   /** @nullable */
   projectNodePath?: string | null;
+  rootProjectId?: string;
+  /** @nullable */
+  rootProjectName?: string | null;
   periodStart?: string;
   periodEnd?: string;
   allocationPercent?: number;

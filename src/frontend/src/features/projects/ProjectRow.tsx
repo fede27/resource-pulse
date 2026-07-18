@@ -1,8 +1,6 @@
 import { CheckOutlined, RightOutlined, SwapOutlined, UserOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { useAllocationsGetResolvedHours } from '@/api/generated/allocations/allocations';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
-import { parseDurationHours } from '@/lib/duration';
 import type {
   ArischioReason,
   BoardProject,
@@ -42,6 +40,9 @@ export type ProjectRowProps = {
   onInspect: (target: InspectTarget) => void;
   peakByPerson: (resourceId: string) => number;
   overloadThreshold: number;
+  // Range-scoped hours of a block (% × capacity, consolidation P3); null while
+  // the batch capacity read is still streaming in.
+  blockHoursOf: (block: CoverageBlock) => number | null;
 };
 
 const round = (n: number) => Math.round(n);
@@ -281,6 +282,7 @@ function CoverageBar({
   block,
   geo,
   metric,
+  blockHoursOf,
   onClick,
 }: ProjectRowProps & { block: CoverageBlock; onClick: () => void }) {
   const { t } = useTranslation();
@@ -289,13 +291,11 @@ function CoverageBar({
   const width = geo.wPxInclusive(block.from, block.to);
   const tentative = !block.hard;
 
-  // Per-block hours come from the resolved-hours sidecar (list reads carry
-  // null ResolvedHours by design, ADR-0013) — fetched lazily, only in hours
-  // metric, cached per allocation id.
-  const resolvedQ = useAllocationsGetResolvedHours(block.id, {
-    query: { enabled: metric === 'hours' && !!block.id },
-  });
-  const hours = resolvedQ.data?.resolvedHours ? round(parseDurationHours(resolvedQ.data.resolvedHours)) : null;
+  // Per-block hours are derived client-side (% × capacity over the fetched
+  // range, ADR-0026 / consolidation P3) — range-scoped like the coverage
+  // reconciliation, no per-block sidecar call.
+  const rawHours = metric === 'hours' ? blockHoursOf(block) : null;
+  const hours = rawHours !== null ? round(rawHours) : null;
 
   return (
     // dynamic: bar geometry + hard/tentative styling.

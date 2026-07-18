@@ -72,6 +72,13 @@ public sealed class DemandCoverageDto
 {
     public Guid DemandId { get; init; }
     public Guid ProjectNodeId { get; init; }
+
+    // Root project of the demand's node (first segment of the materialized
+    // Path), batch-resolved in the reconciliation (ADR-0024 pattern,
+    // consolidation P4) — the cross-project read pivots on it client-side.
+    public Guid RootProjectId { get; init; }
+    public string RootProjectName { get; init; } = string.Empty;
+
     public Guid RoleId { get; init; }
     public string RoleName { get; init; } = string.Empty;
     public DemandProvenance Provenance { get; init; }

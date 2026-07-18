@@ -134,6 +134,8 @@ export const it = {
     cell: {
       title: '{{from}} · media {{pct}}% · {{alloc}}h / {{cap}}h',
       titleTent: ' (incl. tentative)',
+      titleOffCalendar:
+        '{{from}} · fuori calendario: impegni attivi su giorni senza capacità (0h conteggiate)',
     },
     legend: {
       title: 'Fascia (media del bucket)',
@@ -186,6 +188,10 @@ export const it = {
       weekLabel: 'Settimana {{week}}',
       avgOver: 'media {{count}} {{grains}}',
       avgHint: 'Valore medio sul periodo — vedi il dettaglio sotto per la distribuzione.',
+      offCalendar: 'Fuori calendario',
+      noCapacity: 'Nessuna capacità nel periodo',
+      offCalendarHint:
+        'Impegni attivi su giorni senza capacità (calendario scoperto): 0h conteggiate — non è sovraccarico e non concorre a picco, KPI o fasce.',
       composition: 'Scomposizione ({{mode}})',
       modeHard: 'blocchi hard',
       modeAll: 'hard + tentative',

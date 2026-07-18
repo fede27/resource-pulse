@@ -26,6 +26,7 @@ import type {
   AllocationsGetAllParams,
   AllocationsGetForProjectNodeParams,
   AllocationsGetForResourceParams,
+  AllocationsGetInRangeParams,
   HttpValidationProblemDetails,
   LoadResult,
   ProblemDetails,
@@ -390,6 +391,93 @@ export function useAllocationsGetForProjectNode<TData = Awaited<ReturnType<typeo
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getAllocationsGetForProjectNodeQueryOptions(projectNodeId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+export const allocationsGetInRange = (
+    params?: AllocationsGetInRangeParams,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<AllocationReadDto[]>(
+      {url: `/api/allocations/in-range`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+
+
+
+
+export const getAllocationsGetInRangeQueryKey = (params?: AllocationsGetInRangeParams,) => {
+    return [
+    `/api/allocations/in-range`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getAllocationsGetInRangeQueryOptions = <TData = Awaited<ReturnType<typeof allocationsGetInRange>>, TError = ErrorType<ValidationProblemDetails>>(params?: AllocationsGetInRangeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetInRange>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAllocationsGetInRangeQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof allocationsGetInRange>>> = ({ signal }) => allocationsGetInRange(params, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof allocationsGetInRange>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type AllocationsGetInRangeQueryResult = NonNullable<Awaited<ReturnType<typeof allocationsGetInRange>>>
+export type AllocationsGetInRangeQueryError = ErrorType<ValidationProblemDetails>
+
+
+export function useAllocationsGetInRange<TData = Awaited<ReturnType<typeof allocationsGetInRange>>, TError = ErrorType<ValidationProblemDetails>>(
+ params: undefined |  AllocationsGetInRangeParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetInRange>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof allocationsGetInRange>>,
+          TError,
+          Awaited<ReturnType<typeof allocationsGetInRange>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAllocationsGetInRange<TData = Awaited<ReturnType<typeof allocationsGetInRange>>, TError = ErrorType<ValidationProblemDetails>>(
+ params?: AllocationsGetInRangeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetInRange>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof allocationsGetInRange>>,
+          TError,
+          Awaited<ReturnType<typeof allocationsGetInRange>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useAllocationsGetInRange<TData = Awaited<ReturnType<typeof allocationsGetInRange>>, TError = ErrorType<ValidationProblemDetails>>(
+ params?: AllocationsGetInRangeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetInRange>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useAllocationsGetInRange<TData = Awaited<ReturnType<typeof allocationsGetInRange>>, TError = ErrorType<ValidationProblemDetails>>(
+ params?: AllocationsGetInRangeParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof allocationsGetInRange>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getAllocationsGetInRangeQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

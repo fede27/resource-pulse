@@ -39,11 +39,32 @@ public interface ILoadQueryService
         AllocationStatus? status = null,
         CancellationToken ct = default);
 
+    // Batch twin of GetCommitmentProfileForResourceAsync (consolidation P2): the
+    // profiles of a whole population in one round of queries — the profile is
+    // capacity-independent, so the cost is flat in the population size.
+    // `resourceIds` null/empty = all active resources; explicit ids are honoured
+    // regardless of IsActive; unknown ids are simply absent from the result.
+    Task<ServiceResult<IReadOnlyList<ResourceLoadProfileDto>>> GetCommitmentProfilesForResourcesAsync(
+        IReadOnlyCollection<Guid>? resourceIds,
+        DateOnly from,
+        DateOnly toInclusive,
+        AllocationStatus? status = null,
+        CancellationToken ct = default);
+
     // Demand-vs-coverage reconciliation (Phase 5.2, ADR-0025/0026). Over the
     // node's subtree (node + descendants via Path prefix, ADR-0022): per demand,
     // required/covered/gap hours. Best-effort demands carry a null gap (§7).
     Task<ServiceResult<IReadOnlyList<DemandCoverageDto>>> GetDemandCoverageForProjectNodeAsync(
         Guid projectNodeId,
+        DateOnly from,
+        DateOnly toInclusive,
+        CancellationToken ct = default);
+
+    // Cross-project reconciliation (consolidation P4): every demand whose root
+    // project is not Closed/Cancelled (I4), reconciled over the range in one
+    // call — the batch twin of the per-node read; consumers pivot by the
+    // DTO-resolved RootProjectId. GetOpenDemandsAsync is its filtered view.
+    Task<ServiceResult<IReadOnlyList<DemandCoverageDto>>> GetDemandCoverageInRangeAsync(
         DateOnly from,
         DateOnly toInclusive,
         CancellationToken ct = default);

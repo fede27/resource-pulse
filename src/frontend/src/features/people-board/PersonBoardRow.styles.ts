@@ -5,8 +5,12 @@ import { LEFT_W } from '@/components/board/BoardTimeline.styles';
 export const ROW_H = 52;
 export const PLANE_H = 30;
 
-// Decorative-only pattern (not part of the token language).
+// Decorative-only patterns (not part of the token language).
 export const TENT_HATCH_ALPHA = 0.12;
+// Discreet diagonal hatch for the "fuori calendario" cell (active blocks on a
+// zero-capacity bucket): neutral by design — never a band colour.
+export const OFF_CALENDAR_HATCH =
+  'repeating-linear-gradient(135deg, rgba(0,0,0,0.07) 0 3px, transparent 3px 8px)';
 
 export const useStyles = createStyles(({ token, css }) => ({
   block: css`

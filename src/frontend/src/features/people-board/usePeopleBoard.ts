@@ -1,27 +1,28 @@
 // Persone board — data layer. Composes the read surface into PersonData[]:
 //   1 × GET /api/resources                         (rows = tutte le persone attive)
 //   1 × GET /api/roles + GET /api/teams            (group labels)
-//   1 × GET /api/project-nodes                     (node id → name, per le lane)
-//   P × GET /api/resources/{id}/capacity?from&to   (calendario → ore/giorno)
-//   P × GET /api/allocations/by-resource/{id}?from&to (blocchi di copertura)
+//   1 × GET /api/project-nodes                     (opzioni "materializza domanda inferita")
+//   1 × GET /api/resources/capacity?from&to        (RLE, tutte le attive — P1)
+//   1 × GET /api/allocations/in-range?from&to      (slice del piano — P3)
 // plus the org config (bands / fence / bucketing).
 //
 // Cells, lanes and the inspector all derive from (blocks × capacity) in the
 // pure model — hours = % × daily capacity (ADR-0026), so no per-person daily
-// load series is fetched. The P× fan-out is the same accepted first-step
-// trade-off as the Progetti board (gap doc §GAP 3); the open-demands picker
-// query lives in CoverPopover (lazy, GAP 1).
+// load series is fetched. Capacity comes in ONE batch read of run-length
+// segments (api-roundtrip-consolidation.md P1) and the coverage blocks in ONE
+// flat plan-slice read pivoted by resource client-side (P3): the request count
+// no longer depends on the population size. The open-demands picker query
+// lives in CoverPopover (lazy, GAP 1).
 
 import { useMemo } from 'react';
 import dayjs from 'dayjs';
-import { useQueries } from '@tanstack/react-query';
-import { getAllocationsGetForResourceQueryOptions } from '@/api/generated/allocations/allocations';
+import { useAllocationsGetInRange } from '@/api/generated/allocations/allocations';
 import { useBucketingGet } from '@/api/generated/bucketing/bucketing';
 import { useLoadBandsGet } from '@/api/generated/load-bands/load-bands';
 import { useProjectNodesGetAll } from '@/api/generated/project-nodes/project-nodes';
 import {
-  getResourcesGetCapacityQueryOptions,
   useResourcesGetAll,
+  useResourcesGetCapacities,
 } from '@/api/generated/resources/resources';
 import { useRolesGetAll } from '@/api/generated/roles/roles';
 import { useTeamsGetAll } from '@/api/generated/teams/teams';
@@ -39,10 +40,11 @@ import { fenceEnd, type BoardDomain, type FenceBoundaries } from '@/components/b
 import type { Grain } from '@/components/timeline';
 import { normalizeBands, overloadFloor, type LoadBand } from '@/lib/loadBands';
 import {
-  capacityMap,
+  capacityMapFromSegments,
   toBoardPerson,
   toPersonBlock,
   weeklyCapacity,
+  type PersonBlock,
   type PersonData,
 } from './peopleBoardModel';
 
@@ -112,11 +114,6 @@ export function usePeopleBoard(domain: BoardDomain): PeopleBoard {
     [nodesQ.data],
   );
 
-  const nodeNameById = useMemo(
-    () => new Map(nodes.filter((n) => n.id).map((n) => [n.id!, n.name ?? '—'])),
-    [nodes],
-  );
-
   const rootProjects = useMemo<RootProjectOption[]>(
     () =>
       nodes
@@ -132,32 +129,49 @@ export function usePeopleBoard(domain: BoardDomain): PeopleBoard {
     [nodes],
   );
 
-  const capacityQs = useQueries({
-    queries: persons.map((p) => getResourcesGetCapacityQueryOptions(p.id, range)),
-  });
-  const allocQs = useQueries({
-    queries: persons.map((p) => getAllocationsGetForResourceQueryOptions(p.id, range)),
-  });
+  // One batch capacity read for the whole active population (P1 of
+  // api-roundtrip-consolidation.md) — RLE segments per resource, expanded to
+  // the per-day maps the pure model works with.
+  const capacitiesQ = useResourcesGetCapacities({ from: range.from, to: range.to });
 
-  // The query-result arrays are new on every render; a scalar version built
-  // from dataUpdatedAt gates the rebuild instead of spreading them into deps.
-  const detailVersion =
-    capacityQs.reduce((s, q) => s + q.dataUpdatedAt, 0) +
-    allocQs.reduce((s, q) => s + q.dataUpdatedAt, 0);
+  const capacityByResource = useMemo(() => {
+    const map = new Map<string, ReadonlyMap<string, number>>();
+    for (const rc of capacitiesQ.data ?? []) {
+      if (rc.resourceId) map.set(rc.resourceId, capacityMapFromSegments(rc.segments ?? []));
+    }
+    return map;
+  }, [capacitiesQ.data]);
+
+  // One flat plan-slice read for every coverage in range (P3 of
+  // api-roundtrip-consolidation.md), pivoted by resource client-side.
+  const allocationsQ = useAllocationsGetInRange({ from: range.from, to: range.to });
+
+  const blocksByResource = useMemo(() => {
+    const map = new Map<string, PersonBlock[]>();
+    for (const a of allocationsQ.data ?? []) {
+      if (!a.resourceId) continue;
+      const block = toPersonBlock(a);
+      const list = map.get(a.resourceId);
+      if (list) list.push(block);
+      else map.set(a.resourceId, [block]);
+    }
+    return map;
+  }, [allocationsQ.data]);
+
+  const emptyCapacity: ReadonlyMap<string, number> = useMemo(() => new Map(), []);
 
   const people = useMemo<PersonData[]>(
     () =>
-      persons.map((r, i) => {
-        const capacityByDay = capacityMap(capacityQs[i]?.data ?? []);
+      persons.map((r) => {
+        const capacityByDay = capacityByResource.get(r.id) ?? emptyCapacity;
         return {
           person: toBoardPerson(r, roleNameById, teamNameById),
-          blocks: (allocQs[i]?.data ?? []).map((a) => toPersonBlock(a, nodeNameById)),
+          blocks: blocksByResource.get(r.id) ?? [],
           capacityByDay,
           weeklyCapH: weeklyCapacity(capacityByDay, range.from, range.to),
         };
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- detailVersion stands in for the per-person query results
-    [persons, roleNameById, teamNameById, nodeNameById, range.from, range.to, detailVersion],
+    [persons, roleNameById, teamNameById, capacityByResource, blocksByResource, emptyCapacity, range.from, range.to],
   );
 
   const bands = useMemo(() => normalizeBands(bandsQ.data?.bands), [bandsQ.data]);
@@ -171,8 +185,7 @@ export function usePeopleBoard(domain: BoardDomain): PeopleBoard {
     [todayISO, fenceQ.data],
   );
 
-  const detailPending =
-    capacityQs.some((q) => q.isPending) || allocQs.some((q) => q.isPending);
+  const detailPending = capacitiesQ.isPending || allocationsQ.isPending;
 
   return {
     isLoading:

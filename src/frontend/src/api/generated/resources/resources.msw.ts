@@ -21,6 +21,7 @@ import type {
   DailyCapacityDto,
   IndividualAdjustmentDto,
   LoadResult,
+  ResourceCapacityDto,
   ResourceReadDto,
   ResourceSkillDto,
   ResourceTagDto,
@@ -53,6 +54,8 @@ export const getResourcesReturnSkillToPendingResponseMock = (overrideResponse: P
 export const getResourcesAddTagResponseMock = (overrideResponse: Partial<Extract<ResourceTagDto, object>> = {}): ResourceTagDto => (faker.helpers.arrayElement([{tagId: faker.helpers.arrayElement([faker.string.uuid(), undefined]), ...overrideResponse}, {tagId: faker.helpers.arrayElement([faker.string.uuid(), undefined]), ...overrideResponse}, {tagId: faker.helpers.arrayElement([faker.string.uuid(), undefined]), ...overrideResponse}]))
 
 export const getResourcesGetCapacityResponseMock = (): DailyCapacityDto[] => (faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({date: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]), hours: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined])})), Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({date: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]), hours: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined])})), Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({date: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]), hours: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined])}))]))
+
+export const getResourcesGetCapacitiesResponseMock = (): ResourceCapacityDto[] => (faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({resourceId: faker.helpers.arrayElement([faker.string.uuid(), undefined]), segments: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({from: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]), to: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]), hoursPerDay: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined])})), undefined])})), Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({resourceId: faker.helpers.arrayElement([faker.string.uuid(), undefined]), segments: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({from: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]), to: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]), hoursPerDay: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined])})), undefined])})), Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({resourceId: faker.helpers.arrayElement([faker.string.uuid(), undefined]), segments: faker.helpers.arrayElement([Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({from: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]), to: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 10), undefined]), hoursPerDay: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), undefined])})), undefined])}))]))
 
 
 export const getResourcesGetAllMockHandler = (overrideResponse?: LoadResult | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<LoadResult> | LoadResult), options?: RequestHandlerOptions) => {
@@ -280,6 +283,18 @@ export const getResourcesGetCapacityMockHandler = (overrideResponse?: DailyCapac
       })
   }, options)
 }
+
+export const getResourcesGetCapacitiesMockHandler = (overrideResponse?: ResourceCapacityDto[] | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ResourceCapacityDto[]> | ResourceCapacityDto[]), options?: RequestHandlerOptions) => {
+  return http.get('*/api/resources/capacity', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getResourcesGetCapacitiesResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
 export const getResourcesMock = () => [
   getResourcesGetAllMockHandler(),
   getResourcesCreateMockHandler(),
@@ -300,5 +315,6 @@ export const getResourcesMock = () => [
   getResourcesReturnSkillToPendingMockHandler(),
   getResourcesAddTagMockHandler(),
   getResourcesRemoveTagMockHandler(),
-  getResourcesGetCapacityMockHandler()
+  getResourcesGetCapacityMockHandler(),
+  getResourcesGetCapacitiesMockHandler()
 ]

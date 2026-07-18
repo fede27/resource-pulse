@@ -152,4 +152,20 @@ public sealed class ResourcesController(
         [FromQuery] DateOnly to,
         CancellationToken ct) =>
         FromResult(await capacityService.GetForResourceAsync(id, from, to, ct));
+
+    // Batch capacity read-model (api-roundtrip-consolidation.md P1): run-length
+    // segments per resource over the range — days outside every segment have zero
+    // capacity. `ids` omitted/empty = all active resources; explicit ids are
+    // honoured regardless of active state; unknown ids are absent from the result.
+    // The literal segment wins over GET {id}/... by route precedence (same
+    // pattern as api/demands/open).
+    [HttpGet("capacity")]
+    [ProducesResponseType<IReadOnlyList<ResourceCapacityDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetCapacitiesAsync(
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        [FromQuery] Guid[]? ids = null,
+        CancellationToken ct = default) =>
+        FromResult(await capacityService.GetSegmentsForResourcesAsync(ids, from, to, ct));
 }

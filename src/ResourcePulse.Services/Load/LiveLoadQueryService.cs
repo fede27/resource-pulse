@@ -13,9 +13,9 @@ namespace ResourcePulse.Services.Load;
 // Loads allocations for a resource or project node, asks ICapacityQueryService for
 // the corresponding capacity, then runs the pure LoadCalculator. The capacity
 // service is injected via its interface so a future SnapshotCapacityQueryService
-// can be swapped in without touching this code. Project-node load issues capacity
-// queries sequentially (ResourcePulseDbContext is pooled — not safe for parallel
-// queries on the same instance). See ADR-0010.
+// can be swapped in without touching this code. Multi-resource capacity comes from
+// the single batch read GetForResourcesAsync (P1 of api-roundtrip-consolidation.md)
+// — one round of queries, still no concurrent use of the pooled DbContext (ADR-0010).
 public sealed class LiveLoadQueryService(
     ResourcePulseDbContext db,
     ICapacityQueryService capacity) : ILoadQueryService
@@ -134,17 +134,19 @@ public sealed class LiveLoadQueryService(
             .Distinct()
             .ToList();
 
-        // Sequential capacity loads — the pooled DbContext is not safe for
-        // concurrent queries (D4 in the Phase 4 plan).
+        // One batch capacity round for all covering resources (P1 of
+        // api-roundtrip-consolidation.md) — replaces the former sequential
+        // per-resource loop (4 queries each) with 4 queries total.
         var capacityByResourceAndDate = new Dictionary<(Guid, DateOnly), TimeSpan>();
-        foreach (var rid in resourceIds)
+        if (resourceIds.Count > 0)
         {
-            var capResult = await capacity.GetForResourceAsync(rid, from, toInclusive, ct);
+            var capResult = await capacity.GetForResourcesAsync(resourceIds, from, toInclusive, ct);
             if (capResult.IsFailure)
                 return ServiceResult<IReadOnlyList<DailyNodeLoadDto>>.Failure(capResult.Error!);
 
-            foreach (var d in capResult.Value)
-                capacityByResourceAndDate[(rid, d.Date)] = d.Hours;
+            foreach (var (rid, days) in capResult.Value)
+                foreach (var d in days)
+                    capacityByResourceAndDate[(rid, d.Date)] = d.Hours;
         }
 
         var resourceNames = await db.Resources
@@ -230,7 +232,104 @@ public sealed class LiveLoadQueryService(
             .Where(p => rootIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
 
-        var dtos = segments
+        var dtos = ToSegmentDtos(segments, rootNames);
+
+        return ServiceResult<IReadOnlyList<LoadSegmentDto>>.Success(dtos);
+    }
+
+    // Batch twin (consolidation P2): profiles of a whole population in one round
+    // of queries — resources, allocations, node paths, root names — then the pure
+    // calculator per resource. The profile is capacity-independent (ADR-0023), so
+    // the cost is flat in the population size.
+    public async Task<ServiceResult<IReadOnlyList<ResourceLoadProfileDto>>> GetCommitmentProfilesForResourcesAsync(
+        IReadOnlyCollection<Guid>? resourceIds,
+        DateOnly from,
+        DateOnly toInclusive,
+        AllocationStatus? status = null,
+        CancellationToken ct = default)
+    {
+        if (from > toInclusive)
+            return ServiceResult<IReadOnlyList<ResourceLoadProfileDto>>.Validation(new Dictionary<string, string[]>
+            {
+                ["range"] = ["'from' must be on or before 'to'."]
+            });
+
+        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
+        if (rangeDays > MaxRangeDays)
+            return ServiceResult<IReadOnlyList<ResourceLoadProfileDto>>.Validation(new Dictionary<string, string[]>
+            {
+                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
+            });
+
+        // null/empty = the active population; explicit ids are honoured regardless
+        // of IsActive; unknown ids are filtered out here (no per-id NotFound).
+        List<Guid> targetIds;
+        if (resourceIds is { Count: > 0 })
+        {
+            var wanted = resourceIds.Distinct().ToList();
+            targetIds = await db.Resources.AsNoTracking()
+                .Where(r => wanted.Contains(r.Id))
+                .Select(r => r.Id)
+                .ToListAsync(ct);
+        }
+        else
+        {
+            targetIds = await db.Resources.AsNoTracking()
+                .Where(r => r.IsActive)
+                .Select(r => r.Id)
+                .ToListAsync(ct);
+        }
+
+        if (targetIds.Count == 0)
+            return ServiceResult<IReadOnlyList<ResourceLoadProfileDto>>.Success([]);
+
+        var allocations = await db.Allocations
+            .AsNoTracking()
+            .Where(a => targetIds.Contains(a.ResourceId)
+                     && (status == null || a.Status == status)
+                     && a.PeriodStart <= toInclusive
+                     && a.PeriodEnd >= from)
+            .ToListAsync(ct);
+
+        var nodeIds = allocations.Select(a => a.ProjectNodeId).Distinct().ToList();
+        var nodePaths = await db.ProjectNodes
+            .AsNoTracking()
+            .Where(p => nodeIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.Path })
+            .ToListAsync(ct);
+
+        var rootByNode = nodePaths.ToDictionary(p => p.Id, p => RootIdFromPath(p.Path));
+
+        var rootIds = rootByNode.Values.Distinct().ToList();
+        var rootNames = await db.ProjectNodes
+            .AsNoTracking()
+            .Where(p => rootIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
+
+        var allocationsByResource = allocations
+            .GroupBy(a => a.ResourceId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var dtos = targetIds
+            .Select(rid => new ResourceLoadProfileDto
+            {
+                ResourceId = rid,
+                Segments = ToSegmentDtos(
+                    LoadCalculator.ResourceCommitmentProfile(
+                        rid,
+                        allocationsByResource.TryGetValue(rid, out var list) ? list : [],
+                        rootByNode, from, toInclusive),
+                    rootNames)
+            })
+            .OrderBy(x => x.ResourceId)
+            .ToList();
+
+        return ServiceResult<IReadOnlyList<ResourceLoadProfileDto>>.Success(dtos);
+    }
+
+    private static List<LoadSegmentDto> ToSegmentDtos(
+        IReadOnlyList<LoadSegment> segments, Dictionary<Guid, string> rootNames) =>
+        segments
             .Select(s => new LoadSegmentDto
             {
                 From = s.From,
@@ -248,9 +347,6 @@ public sealed class LiveLoadQueryService(
                     .ToList()
             })
             .ToList();
-
-        return ServiceResult<IReadOnlyList<LoadSegmentDto>>.Success(dtos);
-    }
 
     // ── Demand coverage (Phase 5.2, ADR-0025/0026) ───────────────────────────
 
@@ -293,6 +389,60 @@ public sealed class LiveLoadQueryService(
 
         var dtos = await ReconcileAsync([demand], from, toInclusive, ct);
         return ServiceResult<DemandCoverageDto>.Success(dtos[0]);
+    }
+
+    // Cross-project reconciliation (consolidation P4): every demand whose root
+    // project is not Closed/Cancelled (I4 — same exclusion as the open-demands
+    // read), reconciled over the range in one call. The board pivots by
+    // RootProjectId client-side; per-node subtree stays available as the
+    // singular read. GetOpenDemandsAsync is conceptually the filtered view of
+    // this (gap > 0 ∨ best-effort).
+    public async Task<ServiceResult<IReadOnlyList<DemandCoverageDto>>> GetDemandCoverageInRangeAsync(
+        DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
+    {
+        if (from > toInclusive)
+            return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Validation(new Dictionary<string, string[]>
+            {
+                ["range"] = ["'from' must be on or before 'to'."]
+            });
+
+        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
+        if (rangeDays > MaxRangeDays)
+            return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Validation(new Dictionary<string, string[]>
+            {
+                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
+            });
+
+        // All demands with their node's Path, so the root is derivable in memory.
+        var candidates = await db.Demands.AsNoTracking()
+            .Join(
+                db.ProjectNodes.AsNoTracking(),
+                d => d.ProjectNodeId,
+                p => p.Id,
+                (d, p) => new { Demand = d, p.Path })
+            .ToListAsync(ct);
+
+        if (candidates.Count == 0)
+            return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Success([]);
+
+        // Drop demands whose root project is Closed/Cancelled (I4).
+        var rootByDemand = candidates.ToDictionary(x => x.Demand.Id, x => RootIdFromPath(x.Path));
+        var rootIds = rootByDemand.Values.Distinct().ToList();
+        var openRoots = await db.ProjectNodes.AsNoTracking()
+            .Where(p => rootIds.Contains(p.Id)
+                     && p.Status != ProjectStatus.Closed
+                     && p.Status != ProjectStatus.Cancelled)
+            .Select(p => p.Id)
+            .ToListAsync(ct);
+        var openRootSet = openRoots.ToHashSet();
+
+        var demands = candidates
+            .Select(x => x.Demand)
+            .Where(d => openRootSet.Contains(rootByDemand[d.Id]))
+            .ToList();
+
+        var dtos = await ReconcileAsync(demands, from, toInclusive, ct);
+        return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Success(dtos);
     }
 
     public async Task<ServiceResult<IReadOnlyList<OpenDemandDto>>> GetOpenDemandsAsync(
@@ -386,8 +536,9 @@ public sealed class LiveLoadQueryService(
     }
 
     // Shared: load the coverage of the given demands + the capacity of the covering
-    // resources, run the pure calculator, resolve role/owner names. Capacity loads
-    // are sequential (pooled DbContext, ADR-0010).
+    // resources (one batch round, P1 of api-roundtrip-consolidation.md), run the
+    // pure calculator, resolve role/owner names and the demands' ROOT projects
+    // (ADR-0024 pattern, consolidation P4 — the cross-project read pivots on it).
     private async Task<IReadOnlyList<DemandCoverageDto>> ReconcileAsync(
         List<Demand> demands, DateOnly from, DateOnly toInclusive, CancellationToken ct)
     {
@@ -401,11 +552,14 @@ public sealed class LiveLoadQueryService(
             .ToListAsync(ct);
 
         var capacityByResourceAndDate = new Dictionary<(Guid, DateOnly), TimeSpan>();
-        foreach (var rid in coverage.Select(a => a.ResourceId).Distinct())
+        var coveringIds = coverage.Select(a => a.ResourceId).Distinct().ToList();
+        if (coveringIds.Count > 0)
         {
-            var cap = await capacity.GetForResourceAsync(rid, from, toInclusive, ct);
-            if (cap.IsFailure) continue; // treat as zero capacity for that resource
-            foreach (var d in cap.Value) capacityByResourceAndDate[(rid, d.Date)] = d.Hours;
+            var cap = await capacity.GetForResourcesAsync(coveringIds, from, toInclusive, ct);
+            if (cap.IsSuccess) // failure = zero capacity, same tolerance as before
+                foreach (var (rid, days) in cap.Value)
+                    foreach (var d in days)
+                        capacityByResourceAndDate[(rid, d.Date)] = d.Hours;
         }
 
         var reconciled = LoadCalculator.CoverageForDemands(demands, coverage, capacityByResourceAndDate, from, toInclusive);
@@ -417,14 +571,29 @@ public sealed class LiveLoadQueryService(
         var ownerNames = await db.Resources.AsNoTracking()
             .Where(r => ownerIds.Contains(r.Id)).ToDictionaryAsync(r => r.Id, r => r.Name, ct);
 
+        // Root project of each demand's node, via the materialized Path.
+        var demandNodeIds = demands.Select(d => d.ProjectNodeId).Distinct().ToList();
+        var demandNodePaths = await db.ProjectNodes.AsNoTracking()
+            .Where(p => demandNodeIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.Path })
+            .ToListAsync(ct);
+        var rootByNode = demandNodePaths.ToDictionary(p => p.Id, p => RootIdFromPath(p.Path));
+        var rootIds = rootByNode.Values.Distinct().ToList();
+        var rootNames = await db.ProjectNodes.AsNoTracking()
+            .Where(p => rootIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
+
         var byId = demands.ToDictionary(d => d.Id);
         return reconciled.Select(c =>
         {
             var d = byId[c.DemandId];
+            var rootId = rootByNode.GetValueOrDefault(c.ProjectNodeId);
             return new DemandCoverageDto
             {
                 DemandId = c.DemandId,
                 ProjectNodeId = c.ProjectNodeId,
+                RootProjectId = rootId,
+                RootProjectName = rootNames.GetValueOrDefault(rootId, string.Empty),
                 RoleId = c.RoleId,
                 RoleName = roleNames.GetValueOrDefault(c.RoleId, string.Empty),
                 Provenance = d.Provenance,

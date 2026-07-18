@@ -216,6 +216,7 @@ export function ProjectsPage() {
             onInspect={setInspect}
             peakByPerson={board.peakByPerson}
             overloadThreshold={board.overloadThreshold}
+            blockHoursOf={board.blockHoursOf}
           />
         ))}
       </BoardTimeline>
@@ -239,6 +240,7 @@ export function ProjectsPage() {
         todayISO={board.todayISO}
         profileByPerson={board.profileByPerson}
         peakByPerson={board.peakByPerson}
+        blockHoursOf={board.blockHoursOf}
       />
     </div>
   );

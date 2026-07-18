@@ -27,6 +27,13 @@ public sealed class AllocationReadDto
 
     public Guid ProjectNodeId { get; init; }
     public string ProjectNodePath { get; init; } = string.Empty;
+
+    // Root project of the node the coverage sits on (first segment of the
+    // materialized Path), resolved in the read projection (ADR-0024 pattern,
+    // gap #4 / consolidation P3) — no more client-side Path parsing + join.
+    public Guid RootProjectId { get; init; }
+    public string RootProjectName { get; init; } = string.Empty;
+
     public DateOnly PeriodStart { get; init; }
     public DateOnly PeriodEnd { get; init; }
     public decimal AllocationPercent { get; init; }

@@ -20,6 +20,12 @@ public interface IAllocationService
     Task<ServiceResult<IReadOnlyList<AllocationReadDto>>> GetForProjectNodeAsync(
         Guid projectNodeId, DateOnly from, DateOnly toInclusive, CancellationToken ct = default);
 
+    // The flat plan slice (api-roundtrip-consolidation.md P3): every coverage
+    // overlapping [from, to], across all resources and projects. Range capped
+    // at 366 days like the load/coverage reads.
+    Task<ServiceResult<IReadOnlyList<AllocationReadDto>>> GetInRangeAsync(
+        DateOnly from, DateOnly toInclusive, CancellationToken ct = default);
+
     // Sidecar — cheap per-row hours lookup at current capacity.
     // Returns Conflict if invoked on a placeholder allocation (no resource ⇒ no capacity).
     Task<ServiceResult<AllocationResolvedHoursDto>> GetResolvedHoursAsync(

@@ -15,6 +15,8 @@ public sealed class AllocationService(
     ResourcePulseDbContext db,
     ICapacityQueryService capacity) : IAllocationService
 {
+    private const int MaxRangeDays = 366;
+
     public async Task<ServiceResult<LoadResult>> GetAllAsync(
         DataSourceLoadOptionsBase? loadOptions = null,
         CancellationToken ct = default)
@@ -77,6 +79,32 @@ public sealed class AllocationService(
         return ServiceResult<IReadOnlyList<AllocationReadDto>>.Success(list);
     }
 
+    // The flat plan slice (consolidation P3): every coverage overlapping the
+    // range, across all resources and projects. Both boards consume this in one
+    // call and pivot client-side (by root project / by resource). Same 366-day
+    // cap as the load/coverage reads.
+    public async Task<ServiceResult<IReadOnlyList<AllocationReadDto>>> GetInRangeAsync(
+        DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
+    {
+        if (from > toInclusive)
+            return RangeValidation<IReadOnlyList<AllocationReadDto>>();
+
+        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
+        if (rangeDays > MaxRangeDays)
+        {
+            return ServiceResult<IReadOnlyList<AllocationReadDto>>.Validation(new Dictionary<string, string[]>
+            {
+                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
+            });
+        }
+
+        var list = await BuildReadQuery()
+            .Where(x => x.PeriodStart <= toInclusive && x.PeriodEnd >= from)
+            .OrderBy(x => x.PeriodStart)
+            .ToListAsync(ct);
+        return ServiceResult<IReadOnlyList<AllocationReadDto>>.Success(list);
+    }
+
     public async Task<ServiceResult<AllocationResolvedHoursDto>> GetResolvedHoursAsync(
         Guid id, CancellationToken ct = default)
     {
@@ -109,11 +137,18 @@ public sealed class AllocationService(
 
     // Read projection without ResolvedHours (list reads). Detail reads enrich
     // afterward via EnrichWithResolvedHoursAsync. See ADR-0013, D1.
+    // The root project (first Path segment) is resolved relationally — the root
+    // is the ancestor with no parent whose Path prefixes the node's (or the node
+    // itself) — so the enrichment also reaches the DevExtreme GetAll projection,
+    // where post-processing is not possible (consolidation P3 / gap #4).
     private IQueryable<AllocationReadDto> BuildReadQuery() =>
         from a in db.Allocations.AsNoTracking()
         join p in db.ProjectNodes.AsNoTracking() on a.ProjectNodeId equals p.Id
         join d in db.Demands.AsNoTracking() on a.DemandId equals d.Id
         join drole in db.Roles.AsNoTracking() on d.RoleId equals drole.Id
+        from root in db.ProjectNodes.AsNoTracking()
+            .Where(root => root.ParentId == null
+                        && (root.Id == p.Id || p.Path.StartsWith(root.Path + "/")))
         from r in db.Resources.AsNoTracking()
             .Where(r => r.Id == a.ResourceId).DefaultIfEmpty()
         from prole in db.Roles.AsNoTracking()
@@ -130,6 +165,8 @@ public sealed class AllocationService(
             DemandRoleName = drole.Name,
             ProjectNodeId = a.ProjectNodeId,
             ProjectNodePath = p.Path,
+            RootProjectId = root.Id,
+            RootProjectName = root.Name,
             PeriodStart = a.PeriodStart,
             PeriodEnd = a.PeriodEnd,
             AllocationPercent = a.AllocationPercent,
@@ -163,6 +200,8 @@ public sealed class AllocationService(
             DemandRoleName = dto.DemandRoleName,
             ProjectNodeId = dto.ProjectNodeId,
             ProjectNodePath = dto.ProjectNodePath,
+            RootProjectId = dto.RootProjectId,
+            RootProjectName = dto.RootProjectName,
             PeriodStart = dto.PeriodStart,
             PeriodEnd = dto.PeriodEnd,
             AllocationPercent = dto.AllocationPercent,

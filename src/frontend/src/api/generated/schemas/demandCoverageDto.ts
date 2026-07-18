@@ -10,6 +10,9 @@ import type { DemandProvenance } from './demandProvenance';
 export interface DemandCoverageDto {
   demandId?: string;
   projectNodeId?: string;
+  rootProjectId?: string;
+  /** @nullable */
+  rootProjectName?: string | null;
   roleId?: string;
   /** @nullable */
   roleName?: string | null;

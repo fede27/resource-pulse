@@ -35,9 +35,11 @@ import type {
   IndividualAdjustmentDto,
   LoadResult,
   ProblemDetails,
+  ResourceCapacityDto,
   ResourceReadDto,
   ResourceSkillDto,
   ResourceTagDto,
+  ResourcesGetCapacitiesParams,
   ResourcesGetCapacityParams,
   UpdateResourceDto,
   ValidationProblemDetails,
@@ -1276,6 +1278,93 @@ export function useResourcesGetCapacity<TData = Awaited<ReturnType<typeof resour
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
   const queryOptions = getResourcesGetCapacityQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+export const resourcesGetCapacities = (
+    params?: ResourcesGetCapacitiesParams,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<ResourceCapacityDto[]>(
+      {url: `/api/resources/capacity`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+
+
+
+
+export const getResourcesGetCapacitiesQueryKey = (params?: ResourcesGetCapacitiesParams,) => {
+    return [
+    `/api/resources/capacity`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getResourcesGetCapacitiesQueryOptions = <TData = Awaited<ReturnType<typeof resourcesGetCapacities>>, TError = ErrorType<ValidationProblemDetails>>(params?: ResourcesGetCapacitiesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetCapacities>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getResourcesGetCapacitiesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof resourcesGetCapacities>>> = ({ signal }) => resourcesGetCapacities(params, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof resourcesGetCapacities>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ResourcesGetCapacitiesQueryResult = NonNullable<Awaited<ReturnType<typeof resourcesGetCapacities>>>
+export type ResourcesGetCapacitiesQueryError = ErrorType<ValidationProblemDetails>
+
+
+export function useResourcesGetCapacities<TData = Awaited<ReturnType<typeof resourcesGetCapacities>>, TError = ErrorType<ValidationProblemDetails>>(
+ params: undefined |  ResourcesGetCapacitiesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetCapacities>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof resourcesGetCapacities>>,
+          TError,
+          Awaited<ReturnType<typeof resourcesGetCapacities>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useResourcesGetCapacities<TData = Awaited<ReturnType<typeof resourcesGetCapacities>>, TError = ErrorType<ValidationProblemDetails>>(
+ params?: ResourcesGetCapacitiesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetCapacities>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof resourcesGetCapacities>>,
+          TError,
+          Awaited<ReturnType<typeof resourcesGetCapacities>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useResourcesGetCapacities<TData = Awaited<ReturnType<typeof resourcesGetCapacities>>, TError = ErrorType<ValidationProblemDetails>>(
+ params?: ResourcesGetCapacitiesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetCapacities>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useResourcesGetCapacities<TData = Awaited<ReturnType<typeof resourcesGetCapacities>>, TError = ErrorType<ValidationProblemDetails>>(
+ params?: ResourcesGetCapacitiesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof resourcesGetCapacities>>, TError, TData>>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getResourcesGetCapacitiesQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 

@@ -50,3 +50,13 @@ public sealed class LoadSegmentProjectDto
     public string ProjectName { get; init; } = string.Empty;
     public decimal Percent { get; init; }
 }
+
+// Batch wire item for GET /api/resources/load-profiles (consolidation P2):
+// one resource's commitment profile — the plural of the ADR-0023 read, same
+// LoadSegmentDto and same shape as the singular: a resource with no
+// allocations in range is a single 0% segment spanning the whole range.
+public sealed class ResourceLoadProfileDto
+{
+    public Guid ResourceId { get; init; }
+    public IReadOnlyList<LoadSegmentDto> Segments { get; init; } = [];
+}

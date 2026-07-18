@@ -28,6 +28,18 @@ const LOAD_STOPS = [
 
 export type CellColor = { bg: string; fg: string; solid: string; empty: boolean };
 
+// Neutral cell for a bucket with ZERO capacity: utilization is undefined there
+// (0h over 0h), so it must never take a band colour — least of all overload.
+// Used by the people board's "fuori calendario" state (active blocks on
+// zero-capacity days): the hatch/marker is the caller's concern, the palette
+// stays here with its siblings.
+export const NO_CAPACITY_CELL: CellColor = {
+  bg: '#fbfbfb',
+  fg: 'rgba(0,0,0,.45)',
+  solid: '#f0f0f0',
+  empty: true,
+};
+
 export function bandStop(index: number, total: number): (typeof LOAD_STOPS)[number] {
   if (total <= 1) return LOAD_STOPS[4];
   if (index <= 0) return LOAD_STOPS[0];

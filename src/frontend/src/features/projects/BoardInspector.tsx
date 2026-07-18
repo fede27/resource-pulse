@@ -3,10 +3,8 @@ import { Drawer, Tabs } from 'antd';
 import { SwapOutlined, UserOutlined, WarningOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { useAllocationsGetResolvedHours } from '@/api/generated/allocations/allocations';
 import type { LoadSegmentDto } from '@/api/generated/schemas';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
-import { parseDurationHours } from '@/lib/duration';
 import { bandLabelFor, loadColor, type LoadBand } from '@/lib/loadBands';
 import type { BoardProject, CoverageBlock, DemandRow, InspectTarget } from './boardModel';
 import { tentativeNotesOf } from './boardModel';
@@ -34,6 +32,9 @@ export type BoardInspectorProps = {
   todayISO: string;
   profileByPerson: (resourceId: string) => LoadSegmentDto[];
   peakByPerson: (resourceId: string) => number;
+  // Range-scoped hours of a block (% × capacity, consolidation P3); null while
+  // the batch capacity read is still streaming in.
+  blockHoursOf: (block: CoverageBlock) => number | null;
 };
 
 type Face = 'coverage' | 'utilization';
@@ -87,6 +88,7 @@ export function BoardInspector(props: BoardInspectorProps) {
 function CoverageFace({
   target,
   onSwitchFace,
+  blockHoursOf,
 }: BoardInspectorProps & { target: InspectTarget; onSwitchFace: () => void }) {
   const { t } = useTranslation();
   const { styles } = useStyles();
@@ -108,7 +110,7 @@ function CoverageFace({
         </div>
         <div className={styles.sectionTitle}>{t('projects.inspector.coversHere')}</div>
         {rows.length ? (
-          rows.map((d) => <DemandRowCard key={d.demandId} demand={d} />)
+          rows.map((d) => <DemandRowCard key={d.demandId} demand={d} blockHoursOf={blockHoursOf} />)
         ) : (
           <div className={styles.emptyNote}>{t('projects.inspector.noRows')}</div>
         )}
@@ -151,7 +153,7 @@ function CoverageFace({
         {t('projects.inspector.demandRows', { count: project.demands.length })}
       </div>
       {project.demands.map((d) => (
-        <DemandRowCard key={d.demandId} demand={d} />
+        <DemandRowCard key={d.demandId} demand={d} blockHoursOf={blockHoursOf} />
       ))}
 
       <div className={styles.ruleBox}>{t('projects.inspector.coverageRule')}</div>
@@ -172,7 +174,13 @@ function MiniHours({ label, value, color }: { label: string; value: string; colo
 
 // One role's reconciliation, hours-native. Over-allocation is flagged, never
 // credited; best-effort shows consumption without a reference (no fake fill).
-function DemandRowCard({ demand: d }: { demand: DemandRow }) {
+function DemandRowCard({
+  demand: d,
+  blockHoursOf,
+}: {
+  demand: DemandRow;
+  blockHoursOf: (block: CoverageBlock) => number | null;
+}) {
   const { t } = useTranslation();
   const { styles } = useStyles();
   const meta = DEMAND_STATUS_COLORS[d.status];
@@ -271,7 +279,7 @@ function DemandRowCard({ demand: d }: { demand: DemandRow }) {
 
       <div className={styles.coverageEntries}>
         {d.coverage.map((c) => (
-          <CoverageEntry key={c.id} block={c} />
+          <CoverageEntry key={c.id} block={c} blockHoursOf={blockHoursOf} />
         ))}
         {d.uncovered && (
           <div className={styles.coverageEntry} style={{ color: HOLE_TEXT }}>
@@ -291,12 +299,19 @@ function DemandRowCard({ demand: d }: { demand: DemandRow }) {
   );
 }
 
-function CoverageEntry({ block: c }: { block: CoverageBlock }) {
+function CoverageEntry({
+  block: c,
+  blockHoursOf,
+}: {
+  block: CoverageBlock;
+  blockHoursOf: (block: CoverageBlock) => number | null;
+}) {
   const { t } = useTranslation();
   const { styles } = useStyles();
-  // Per-entry hours via the resolved-hours sidecar (ADR-0013): lazy + cached.
-  const resolvedQ = useAllocationsGetResolvedHours(c.id, { query: { enabled: !!c.id } });
-  const hours = resolvedQ.data?.resolvedHours ? round(parseDurationHours(resolvedQ.data.resolvedHours)) : null;
+  // Per-entry hours derived client-side (% × capacity over the fetched range,
+  // ADR-0026 / consolidation P3) — no per-block sidecar call.
+  const rawHours = blockHoursOf(c);
+  const hours = rawHours !== null ? round(rawHours) : null;
 
   return (
     <div className={styles.coverageEntry}>
