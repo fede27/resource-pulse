@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Empty, Skeleton, Spin } from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
+import { InfoCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { Grain } from '@/components/timeline';
@@ -23,6 +23,8 @@ import {
 import { BoardTimeline, buildGeo, RowGap, useWindowedRows } from '@/components/board';
 import { useProjectsBoard, type BoardDomain } from './useProjectsBoard';
 import { BoardInspector } from './BoardInspector';
+import { NewProjectPanel } from './NewProjectPanel';
+import { useCreateProject } from './useCreateProject';
 import { BoardLegend } from './BoardLegend';
 import { BoardToolbar, type Metric } from './BoardToolbar';
 import { HealthCards } from './HealthCards';
@@ -78,6 +80,10 @@ export function ProjectsPage() {
   const [filters, setFilters] = useState<BoardFilters>(defaultFilters);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [inspect, setInspect] = useState<InspectTarget | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const { submit: submitNewProject, saving: creatingProject } = useCreateProject(() =>
+    setPanelOpen(false),
+  );
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollNonce, setScrollNonce] = useState(0);
@@ -183,6 +189,11 @@ export function ProjectsPage() {
       <PageHeader
         title={t('projects.sectionTitle')}
         subtitle={t('projects.sectionSubtitle', { sustainable: health.sustainable, total: health.total })}
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setPanelOpen(true)}>
+            {t('projects.newProject.action')}
+          </Button>
+        }
       />
 
       <HealthCards health={health} overloadThreshold={board.overloadThreshold} />
@@ -269,6 +280,15 @@ export function ProjectsPage() {
         profileByPerson={board.profileByPerson}
         peakByPerson={board.peakByPerson}
         blockHoursOf={board.blockHoursOf}
+      />
+
+      <NewProjectPanel
+        open={panelOpen}
+        saving={creatingProject}
+        onClose={() => setPanelOpen(false)}
+        onSubmit={(values) => void submitNewProject(values)}
+        personPool={board.personPool}
+        defaultOwnerId={board.me.resourceId}
       />
     </div>
   );

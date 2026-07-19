@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { DatePicker, Drawer, Segmented, Tabs } from 'antd';
+import { DatePicker, Segmented, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
+import { InspectorDrawer } from '@/components/domain/InspectorDrawer';
 import { isoWeek, type BoardGeo } from '@/components/board';
 import { bandLabelFor, loadColor, NO_CAPACITY_CELL, type LoadBand } from '@/lib/loadBands';
 import {
@@ -62,12 +63,10 @@ export function PersonInspector(props: PersonInspectorProps) {
   const setFace = (f: Face) => setPicked({ key: targetKey, face: f });
 
   return (
-    <Drawer
+    <InspectorDrawer
       open={!!target && !!data}
       onClose={props.onClose}
-      width={440}
       title={t('peopleBoard.inspector.title')}
-      destroyOnHidden
     >
       {target && data && (
         <>
@@ -90,7 +89,7 @@ export function PersonInspector(props: PersonInspectorProps) {
           />
         </>
       )}
-    </Drawer>
+    </InspectorDrawer>
   );
 }
 

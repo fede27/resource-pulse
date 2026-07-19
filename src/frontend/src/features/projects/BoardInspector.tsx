@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Drawer, Tabs } from 'antd';
+import { useState } from 'react';
+import { Tabs } from 'antd';
 import { SwapOutlined, UserOutlined, WarningOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { LoadSegmentDto } from '@/api/generated/schemas';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
+import { InspectorDrawer } from '@/components/domain/InspectorDrawer';
 import { bandLabelFor, loadColor, type LoadBand } from '@/lib/loadBands';
 import type { BoardProject, CoverageBlock, DemandRow, InspectTarget } from './boardModel';
 import { tentativeNotesOf } from './boardModel';
@@ -43,24 +44,22 @@ type Face = 'coverage' | 'utilization';
 // demand reconciliation) and Utilizzo (percent, person load in time).
 export function BoardInspector(props: BoardInspectorProps) {
   const { t } = useTranslation();
-  const [face, setFace] = useState<Face>('coverage');
   const { target } = props;
 
-  // Reset the face on a new target: person opens on utilization, else coverage.
+  // Derived selection (repo convention): a new target resets the face — person
+  // opens on utilization, else coverage — without a setState-in-effect.
   const targetKey = target ? `${target.kind}:${target.kind === 'person' ? target.resourceId : target.project.id}` : '';
-  useEffect(() => {
-    if (target) setFace(target.kind === 'person' ? 'utilization' : 'coverage');
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by target identity
-  }, [targetKey]);
+  const [picked, setPicked] = useState<{ key: string; face: Face } | null>(null);
+  const face: Face =
+    picked && picked.key === targetKey
+      ? picked.face
+      : target?.kind === 'person'
+        ? 'utilization'
+        : 'coverage';
+  const setFace = (f: Face) => setPicked({ key: targetKey, face: f });
 
   return (
-    <Drawer
-      open={!!target}
-      onClose={props.onClose}
-      width={440}
-      title={t('projects.inspector.title')}
-      destroyOnHidden
-    >
+    <InspectorDrawer open={!!target} onClose={props.onClose} title={t('projects.inspector.title')}>
       {target && (
         <Tabs
           activeKey={face}
@@ -79,7 +78,7 @@ export function BoardInspector(props: BoardInspectorProps) {
           ]}
         />
       )}
-    </Drawer>
+    </InspectorDrawer>
   );
 }
 

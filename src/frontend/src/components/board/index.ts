@@ -23,7 +23,8 @@ export {
   type RowSegment,
   type WindowedRows,
 } from './boardRowLayout';
-export { RowGap, useWindowedRows } from './useWindowedRows';
+export { useWindowedRows } from './useWindowedRows';
+export { RowGap } from './RowGap';
 export {
   BoardDateControls,
   type BoardDateControlsProps,

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b tsconfig.app.json && vite build",
     "typecheck": "tsc -b && tsc -p tsconfig.vitest.json",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "preview": "vite preview",
     "generate:api": "orval --config ./orval.config.ts && node scripts/add-nocheck.mjs",
     "generate:api:watch": "orval --config ./orval.config.ts --watch",

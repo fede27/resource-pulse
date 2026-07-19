@@ -87,6 +87,11 @@ public sealed class CreateProjectNodeDto
 
     // Customer / committente (M1). Project-only; ignored on non-root nodes.
     public string? Client { get; init; }
+
+    // Optional planned window applied at creation (Project/Phase only —
+    // WorkPackage rejects dates). Later edits still go through /replan.
+    public DateOnly? PlannedStart { get; init; }
+    public DateOnly? PlannedEnd { get; init; }
 }
 
 public sealed class UpdateProjectNodeDto

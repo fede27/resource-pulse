@@ -31,6 +31,9 @@ public sealed class ProjectNodesController(IProjectNodeService service)
         FromResult(await service.GetSubtreeAsync(id, ct));
 
     [HttpPost]
+    [ProducesResponseType<ProjectNodeReadDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public override async Task<IActionResult> CreateAsync([FromBody] CreateProjectNodeDto dto, CancellationToken ct) =>
         FromCreateResult(await service.CreateAsync(dto, ct), x => x.Id);
 

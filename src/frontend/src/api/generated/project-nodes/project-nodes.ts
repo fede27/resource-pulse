@@ -38,7 +38,8 @@ import type {
   ReplanDto,
   SetPlanningModeDto,
   UpdateEstimatedWorkDto,
-  UpdateProjectNodeDto
+  UpdateProjectNodeDto,
+  ValidationProblemDetails
 } from '../schemas';
 
 import { apiClient } from '../../client';
@@ -141,7 +142,7 @@ export const projectNodesCreate = (
 ) => {
 
 
-      return apiClient<void>(
+      return apiClient<ProjectNodeReadDto>(
       {url: `/api/project-nodes`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
       data: createProjectNodeDto, signal
@@ -151,7 +152,7 @@ export const projectNodesCreate = (
 
 
 
-export const getProjectNodesCreateMutationOptions = <TError = ErrorType<unknown>,
+export const getProjectNodesCreateMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof projectNodesCreate>>, TError,{data?: BodyType<CreateProjectNodeDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
 ): UseMutationOptions<Awaited<ReturnType<typeof projectNodesCreate>>, TError,{data?: BodyType<CreateProjectNodeDto>}, TContext> => {
 
@@ -180,9 +181,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type ProjectNodesCreateMutationResult = NonNullable<Awaited<ReturnType<typeof projectNodesCreate>>>
     export type ProjectNodesCreateMutationBody = BodyType<CreateProjectNodeDto> | undefined
-    export type ProjectNodesCreateMutationError = ErrorType<unknown>
+    export type ProjectNodesCreateMutationError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>
 
-    export const useProjectNodesCreate = <TError = ErrorType<unknown>,
+    export const useProjectNodesCreate = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof projectNodesCreate>>, TError,{data?: BodyType<CreateProjectNodeDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof projectNodesCreate>>,

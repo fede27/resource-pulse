@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test/render';
-import { seedProjectsBoard } from '@/test/fixtures/projectsBoard';
+import { seedProjectsBoard, acmeRoot } from '@/test/fixtures/projectsBoard';
+import { getProjectNodesCreateMockHandler } from '@/api/generated/project-nodes/project-nodes.msw';
+import { ProjectNodeType, type CreateProjectNodeDto } from '@/api/generated/schemas';
+import { server } from '@/test/msw/server';
 import { ProjectsPage } from './ProjectsPage';
 
 describe('<ProjectsPage>', () => {
@@ -52,6 +55,63 @@ describe('<ProjectsPage>', () => {
     // Hours are the hero: required/covered/uncovered mini cards.
     expect(screen.getByText('Richieste')).toBeInTheDocument();
     expect(screen.getByText('400h')).toBeInTheDocument(); // 340 + 60
+  });
+
+  // Extended timeout: the flow types into 4 fields + 2 date pickers on the full
+  // board page — well over the 15s default under coverage instrumentation.
+  it('creates a project with a phase from the header panel', { timeout: 45_000 }, async () => {
+    seedProjectsBoard();
+    const bodies: CreateProjectNodeDto[] = [];
+    server.use(
+      getProjectNodesCreateMockHandler(async (info) => {
+        const body = (await info.request.json()) as CreateProjectNodeDto;
+        bodies.push(body);
+        return {
+          ...acmeRoot,
+          id: body.nodeType === ProjectNodeType.Project ? 'p-new' : 'ph-new',
+          name: body.name ?? null,
+        };
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ProjectsPage />);
+
+    await screen.findByText('Portale ACME');
+    await user.click(screen.getByRole('button', { name: /Nuovo progetto/ }));
+    expect(
+      await screen.findByText('La timeline resta visibile e interattiva dietro il pannello.'),
+    ).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Nome del progetto'), 'Rollout CRM');
+    await user.type(screen.getByLabelText('Data inizio'), '01/09/2026{enter}');
+    await user.type(screen.getByLabelText('Data fine'), '30/09/2026{enter}');
+    await user.click(screen.getByRole('button', { name: /Aggiungi fase/ }));
+    await user.type(screen.getByPlaceholderText('Nome fase (es. Analisi)'), 'Analisi');
+    await user.click(screen.getByRole('button', { name: /Crea progetto/ }));
+
+    // Success toast, panel closed, two POSTs: root then phase under the new id.
+    // Generous timeout: under coverage instrumentation the two sequential POSTs
+    // plus the toast can exceed the 1s findBy default.
+    expect(
+      await screen.findByText('Progetto «Rollout CRM» creato · 1 fase', undefined, {
+        timeout: 5000,
+      }),
+    ).toBeInTheDocument();
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0]).toMatchObject({
+      nodeType: ProjectNodeType.Project,
+      name: 'Rollout CRM',
+      plannedStart: '2026-09-01',
+      plannedEnd: '2026-09-30',
+      leadResourceId: 'r-elena', // /api/me resourceId is the default owner
+    });
+    expect(bodies[1]).toMatchObject({
+      nodeType: ProjectNodeType.Phase,
+      parentId: 'p-new',
+      name: 'Analisi',
+      plannedStart: '2026-09-01',
+      plannedEnd: '2026-09-30',
+    });
   });
 
   it('shows the empty state when no project matches', async () => {

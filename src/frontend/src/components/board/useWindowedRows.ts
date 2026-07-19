@@ -14,9 +14,3 @@ export function useWindowedRows<T extends RowItem>(
   const y = useVisibleYRange(scrollRef);
   return useMemo(() => windowRows(items, y.minY, y.maxY, pinnedKeys), [items, y, pinnedKeys]);
 }
-
-/** Fixed-height placeholder standing in for a run of windowed-out rows. */
-export function RowGap({ height }: { height: number }) {
-  // dynamic: gap height = sum of the hidden rows' derived heights.
-  return <div style={{ height }} aria-hidden />;
-}

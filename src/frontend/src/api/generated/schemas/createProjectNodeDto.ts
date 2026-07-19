@@ -23,4 +23,8 @@ export interface CreateProjectNodeDto {
   leadResourceId?: string | null;
   /** @nullable */
   client?: string | null;
+  /** @nullable */
+  plannedStart?: string | null;
+  /** @nullable */
+  plannedEnd?: string | null;
 }

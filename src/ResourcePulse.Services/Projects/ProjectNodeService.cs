@@ -97,6 +97,11 @@ public sealed class ProjectNodeService(
 
                 node = ProjectNode.CreateChild(parent, dto.NodeType, dto.Name, dto.Code);
             }
+
+            // Optional planned window at creation — same mutator as /replan, so
+            // event + capacity-level rules apply identically (single SaveChanges).
+            if (dto.PlannedStart.HasValue || dto.PlannedEnd.HasValue)
+                node.Replan(dto.PlannedStart, dto.PlannedEnd);
         }
         catch (DomainException ex)
         {

@@ -25,6 +25,19 @@ public sealed class CreateProjectNodeDtoValidator : AbstractValidator<CreateProj
             RuleFor(x => x.ParentId).NotNull().NotEqual(Guid.Empty)
                 .WithMessage("ParentId is required for Phase and WorkPackage nodes.");
         });
+
+        RuleFor(x => x.PlannedStart!.Value).LessThanOrEqualTo(x => x.PlannedEnd!.Value)
+            .When(x => x.PlannedStart.HasValue && x.PlannedEnd.HasValue)
+            .WithMessage("PlannedStart must be on or before PlannedEnd.");
+
+        // Planned dates are capacity-planning artifacts (Project/Phase only).
+        When(x => x.NodeType == ProjectNodeType.WorkPackage, () =>
+        {
+            RuleFor(x => x.PlannedStart).Null()
+                .WithMessage("WorkPackage nodes cannot carry planned dates.");
+            RuleFor(x => x.PlannedEnd).Null()
+                .WithMessage("WorkPackage nodes cannot carry planned dates.");
+        });
     }
 }
 

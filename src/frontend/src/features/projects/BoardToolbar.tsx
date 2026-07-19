@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useCallback, useMemo, type ReactNode } from 'react';
 import { Button, Checkbox, Popover, Segmented, Select, Tag } from 'antd';
 import { FilterOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import type { TFunction } from 'i18next';
@@ -59,12 +59,18 @@ export function BoardToolbar(props: BoardToolbarProps) {
   const { t } = useTranslation();
   const { styles } = useStyles();
   const { filters, onFiltersChange } = props;
-  const set = (patch: Partial<BoardFilters>) => onFiltersChange({ ...filters, ...patch });
+  const set = useCallback(
+    (patch: Partial<BoardFilters>) => onFiltersChange({ ...filters, ...patch }),
+    [filters, onFiltersChange],
+  );
 
   const count = activeFilterCount(filters);
   const dirty = count > 0 || filters.sort !== 'sustain';
 
-  const chips = useMemo(() => buildChips(filters, set, t, props.personPool), [filters, props.personPool, t]);
+  const chips = useMemo(
+    () => buildChips(filters, set, t, props.personPool),
+    [filters, set, props.personPool, t],
+  );
 
   const filterPanel = (
     <div className={styles.filterPanel}>
