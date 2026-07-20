@@ -1,11 +1,10 @@
 import { createStyles } from 'antd-style';
+import { alpha, blue, neutral } from '@/app/palette';
 import { ENVELOPE_H, LANE_H, LEFT_W } from '@/components/board/BoardTimeline.styles';
 
 // Decorative-only patterns (not part of the token language).
-export const TENTATIVE_HATCH =
-  'repeating-linear-gradient(135deg, rgba(22,119,255,.10) 0 7px, rgba(22,119,255,.02) 7px 14px)';
-export const PROPOSED_HATCH =
-  'repeating-linear-gradient(135deg, rgba(0,0,0,.03) 0 8px, rgba(0,0,0,.005) 8px 16px)';
+export const TENTATIVE_HATCH = `repeating-linear-gradient(135deg, ${alpha(blue[5], 0.1)} 0 7px, ${alpha(blue[5], 0.02)} 7px 14px)`;
+export const PROPOSED_HATCH = `repeating-linear-gradient(135deg, ${alpha(neutral.black, 0.03)} 0 8px, ${alpha(neutral.black, 0.005)} 8px 16px)`;
 
 export const useStyles = createStyles(({ token, css }) => ({
   block: css`

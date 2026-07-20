@@ -551,9 +551,9 @@ export const it = {
       overloadedFoot: 'soglia sovraccarico: ≥{{threshold}}%',
     },
     verdict: {
-      sostenibile: 'Sostenibile',
-      arischio: 'A rischio',
-      scoperto: 'Scoperto',
+      sustainable: 'Sostenibile',
+      atRisk: 'A rischio',
+      uncovered: 'Scoperto',
     },
     reason: {
       overload: 'capacità contesa',
@@ -561,25 +561,68 @@ export const it = {
       both: 'contesa + ruolo storto',
     },
     lifecycle: {
-      futuro: 'Non ancora partito',
-      attivo: 'Attivo',
-      chiuso: 'Chiuso',
+      future: 'Non ancora partito',
+      active: 'Attivo',
+      closed: 'Chiuso',
     },
     lifecycleShort: {
-      futuro: 'Non partito',
-      attivo: 'Attivo',
-      chiuso: 'Chiuso',
+      future: 'Non partito',
+      active: 'Attivo',
+      closed: 'Chiuso',
     },
     provenance: {
       committed: 'Committed',
       proposed: 'Proposto',
     },
+    status: {
+      draft: 'Bozza',
+      onHold: 'Sospeso',
+      closed: 'Chiuso',
+      cancelled: 'Annullato',
+    },
+    actions: {
+      menuLabel: 'Azioni progetto',
+      start: 'Avvia progetto',
+      startConfirmTitle: 'Avviare «{{name}}»?',
+      startConfirmBody:
+        'Il progetto passa in esecuzione (stato «Attivo») e la data di inizio effettiva viene fissata a oggi.',
+      startCta: 'Avvia',
+      startSuccess: 'Progetto «{{name}}» avviato',
+      complete: 'Chiudi progetto',
+      completeConfirmTitle: 'Chiudere «{{name}}»?',
+      completeConfirmBody:
+        'La data di fine effettiva viene fissata a oggi. Il progetto passa in «Chiuso» ed esce dalla vista di default della board.',
+      completeCta: 'Chiudi progetto',
+      completeSuccess: 'Progetto «{{name}}» chiuso',
+      suspend: 'Sospendi…',
+      suspendTitle: 'Sospendere «{{name}}»?',
+      suspendBody: 'Il progetto passa in «Sospeso». Potrai riprenderlo in qualsiasi momento.',
+      suspendCta: 'Sospendi',
+      suspendSuccess: 'Progetto «{{name}}» sospeso',
+      resume: 'Riprendi progetto',
+      resumeSuccess: 'Progetto «{{name}}» ripreso',
+      commitment: 'Commitment',
+      commitmentSuccess: 'Commitment di «{{name}}» aggiornato',
+      demoteTitle: 'Retrocedere il commitment di «{{name}}»?',
+      demoteBody:
+        '{{n}} allocazioni Hard nel sottoalbero del progetto verranno riportate a Tentative.',
+      demoteCta: 'Conferma e retrocedi',
+      cancel: 'Annulla progetto…',
+      cancelTitle: 'Annullare «{{name}}»?',
+      cancelBody:
+        'Azione definitiva: il progetto passa in «Annullato», esce dalla board e le sue domande non compaiono più tra quelle aperte.',
+      cancelCta: 'Annulla progetto',
+      cancelSuccess: 'Progetto «{{name}}» annullato',
+      reasonLabel: 'Motivo',
+      reasonPlaceholder: 'Es. budget in revisione…',
+      reasonRequired: 'Il motivo è obbligatorio.',
+    },
     demandStatus: {
-      coperta: 'Coperta',
-      parziale: 'Parziale',
-      scoperta: 'Scoperta',
-      sovra: 'Sovra-allocata',
-      senzaTarget: 'Best-effort',
+      covered: 'Coperta',
+      partial: 'Parziale',
+      uncovered: 'Scoperta',
+      over: 'Sovra-allocata',
+      noTarget: 'Best-effort',
     },
     toolbar: {
       metricPct: '%',
@@ -632,11 +675,11 @@ export const it = {
       title: 'Sostenibilità',
       hint: 'scoperto = ≥1 domanda con target non coperta · a rischio = sovraccarico al picco (≥{{threshold}}%) e/o ruolo storto',
       rule: {
-        sostenibile:
+        sustainable:
           '0 ruoli scoperti, nessuna persona oltre la soglia di sovraccarico al picco, nessun ruolo coperto fuori ruolo',
-        arischio:
+        atRisk:
           'coperto sulla carta, ma con capacità contesa (sovraccarico al picco) e/o ruolo storto',
-        scoperto: '≥1 riga di domanda con target e copertura vuota',
+        uncovered: '≥1 riga di domanda con target e copertura vuota',
       },
       hard: 'Blocco hard',
       tentative: 'Blocco tentative',

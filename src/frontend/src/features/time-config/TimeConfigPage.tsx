@@ -13,12 +13,12 @@ import { CalendarsTab } from './calendars/CalendarsTab';
 import { ClosuresTab } from './closures/ClosuresTab';
 import { useStyles } from './TimeConfigPage.styles';
 
-type TabKey = 'calendari' | 'chiusure';
+type TabKey = 'calendars' | 'closures';
 
 export function TimeConfigPage() {
   const { t } = useTranslation();
   const { styles } = useStyles();
-  const [tab, setTab] = useState<TabKey>('calendari');
+  const [tab, setTab] = useState<TabKey>('calendars');
 
   const { data: calData } = useBusinessCalendarsGetAll();
   const { data: cloData } = useCompanyClosuresGetAll();
@@ -33,8 +33,8 @@ export function TimeConfigPage() {
   );
 
   const items: StickyTabItem<TabKey>[] = [
-    { key: 'calendari', label: t('timeConfig.tabs.calendars'), count: calCount },
-    { key: 'chiusure', label: t('timeConfig.tabs.closures'), count: cloCount },
+    { key: 'calendars', label: t('timeConfig.tabs.calendars'), count: calCount },
+    { key: 'closures', label: t('timeConfig.tabs.closures'), count: cloCount },
   ];
 
   return (
@@ -52,7 +52,7 @@ export function TimeConfigPage() {
         }
       />
       <div className={styles.content}>
-        {tab === 'calendari' ? <CalendarsTab /> : <ClosuresTab />}
+        {tab === 'calendars' ? <CalendarsTab /> : <ClosuresTab />}
       </div>
     </div>
   );

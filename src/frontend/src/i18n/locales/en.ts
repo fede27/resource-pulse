@@ -560,9 +560,9 @@ export const en: Loose<typeof it> = {
       overloadedFoot: 'overload threshold: ≥{{threshold}}%',
     },
     verdict: {
-      sostenibile: 'Sustainable',
-      arischio: 'At risk',
-      scoperto: 'Uncovered',
+      sustainable: 'Sustainable',
+      atRisk: 'At risk',
+      uncovered: 'Uncovered',
     },
     reason: {
       overload: 'contended capacity',
@@ -570,25 +570,68 @@ export const en: Loose<typeof it> = {
       both: 'contention + role mismatch',
     },
     lifecycle: {
-      futuro: 'Not started yet',
-      attivo: 'Active',
-      chiuso: 'Closed',
+      future: 'Not started yet',
+      active: 'Active',
+      closed: 'Closed',
     },
     lifecycleShort: {
-      futuro: 'Not started',
-      attivo: 'Active',
-      chiuso: 'Closed',
+      future: 'Not started',
+      active: 'Active',
+      closed: 'Closed',
     },
     provenance: {
       committed: 'Committed',
       proposed: 'Proposed',
     },
+    status: {
+      draft: 'Draft',
+      onHold: 'On hold',
+      closed: 'Closed',
+      cancelled: 'Cancelled',
+    },
+    actions: {
+      menuLabel: 'Project actions',
+      start: 'Start project',
+      startConfirmTitle: 'Start "{{name}}"?',
+      startConfirmBody:
+        'The project moves into execution (status "Active") and the actual start date is set to today.',
+      startCta: 'Start',
+      startSuccess: 'Project "{{name}}" started',
+      complete: 'Close project',
+      completeConfirmTitle: 'Close "{{name}}"?',
+      completeConfirmBody:
+        'The actual end date is set to today. The project moves to "Closed" and leaves the board default view.',
+      completeCta: 'Close project',
+      completeSuccess: 'Project "{{name}}" closed',
+      suspend: 'Suspend…',
+      suspendTitle: 'Suspend "{{name}}"?',
+      suspendBody: 'The project moves to "On hold". You can resume it at any time.',
+      suspendCta: 'Suspend',
+      suspendSuccess: 'Project "{{name}}" suspended',
+      resume: 'Resume project',
+      resumeSuccess: 'Project "{{name}}" resumed',
+      commitment: 'Commitment',
+      commitmentSuccess: 'Commitment of "{{name}}" updated',
+      demoteTitle: 'Downgrade the commitment of "{{name}}"?',
+      demoteBody:
+        '{{n}} Hard allocations on the project subtree will be demoted to Tentative.',
+      demoteCta: 'Confirm and downgrade',
+      cancel: 'Cancel project…',
+      cancelTitle: 'Cancel "{{name}}"?',
+      cancelBody:
+        'This is final: the project moves to "Cancelled", leaves the board, and its demands no longer count as open.',
+      cancelCta: 'Cancel project',
+      cancelSuccess: 'Project "{{name}}" cancelled',
+      reasonLabel: 'Reason',
+      reasonPlaceholder: 'E.g. budget under review…',
+      reasonRequired: 'The reason is required.',
+    },
     demandStatus: {
-      coperta: 'Covered',
-      parziale: 'Partial',
-      scoperta: 'Uncovered',
-      sovra: 'Over-allocated',
-      senzaTarget: 'Best-effort',
+      covered: 'Covered',
+      partial: 'Partial',
+      uncovered: 'Uncovered',
+      over: 'Over-allocated',
+      noTarget: 'Best-effort',
     },
     toolbar: {
       metricPct: '%',
@@ -641,11 +684,11 @@ export const en: Loose<typeof it> = {
       title: 'Sustainability',
       hint: 'uncovered = ≥1 targeted demand with no coverage · at risk = overloaded at peak (≥{{threshold}}%) and/or role mismatch',
       rule: {
-        sostenibile:
+        sustainable:
           '0 open roles, nobody past the overload threshold at peak, no role covered off-role',
-        arischio:
+        atRisk:
           'covered on paper, but with contended capacity (overload at peak) and/or a role mismatch',
-        scoperto: '≥1 demand row with a target and empty coverage',
+        uncovered: '≥1 demand row with a target and empty coverage',
       },
       hard: 'Hard block',
       tentative: 'Tentative block',

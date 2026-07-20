@@ -1,4 +1,5 @@
 import { createStyles } from 'antd-style';
+import { gold } from '@/app/palette';
 
 export const useStyles = createStyles(({ token, css }) => ({
   header: css`
@@ -67,7 +68,7 @@ export const useStyles = createStyles(({ token, css }) => ({
     border: 1px solid ${token.colorWarningBorder};
     border-radius: ${token.borderRadiusLG}px;
     font-size: ${token.fontSizeSM}px;
-    color: #874d00;
+    color: ${gold[8]};
     line-height: 1.5;
   `,
   demandRow: css`

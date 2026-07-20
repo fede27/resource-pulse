@@ -112,7 +112,7 @@ export const PersonBoardRow = memo(function PersonBoardRow(props: PersonBoardRow
               countTentative={props.countTentative}
               bands={props.bands}
               styles={styles}
-              t={t}
+              t={t as CellTitleT}
               onInspect={props.onInspect}
             />
           ))}
@@ -163,6 +163,14 @@ export const PersonBoardRow = memo(function PersonBoardRow(props: PersonBoardRow
 
 // ── Heatmap cell (bucket-average utilization, config-driven bands) ────────
 
+// Narrow, stable t contract for the cell tooltip: the fully-typed TFunction
+// recurses over the entire locale key union at this call density and trips
+// TS2589 as the catalogue grows. Three keys in, string out.
+export type CellTitleT = (
+  key: 'peopleBoard.cell.title' | 'peopleBoard.cell.titleOffCalendar' | 'peopleBoard.cell.titleTent',
+  opts?: Record<string, string | number>,
+) => string;
+
 type HeatCellProps = {
   data: PersonData;
   bucket: BoardBucket;
@@ -172,7 +180,7 @@ type HeatCellProps = {
   // Hoisted from the row: at day grain there are hundreds of cells per row —
   // per-cell useStyles/useTranslation hooks were the profiled hot path.
   styles: ReturnType<typeof useStyles>['styles'];
-  t: ReturnType<typeof useTranslation>['t'];
+  t: CellTitleT;
   onInspect: (target: InspectTarget) => void;
 };
 

@@ -1,4 +1,5 @@
 import { createStyles } from 'antd-style';
+import { neutral } from '@/app/palette';
 
 // Row heights for the heatmap lanes.
 export const TEAM_H = 50;
@@ -7,10 +8,8 @@ export const ADD_H = 38;
 
 // Decorative loading/hatch patterns — pure shimmer ornament, intentionally not
 // part of the token design language.
-export const LOADING_BG =
-  'repeating-linear-gradient(45deg, #f0f0f0, #f0f0f0 4px, #f7f7f7 4px, #f7f7f7 8px)';
-export const ADD_ROW_HATCH =
-  'repeating-linear-gradient(45deg, #fafafa, #fafafa 6px, #f3f3f3 6px, #f3f3f3 12px)';
+export const LOADING_BG = `repeating-linear-gradient(45deg, ${neutral.fillSubtle}, ${neutral.fillSubtle} 4px, ${neutral.hatchLight} 4px, ${neutral.hatchLight} 8px)`;
+export const ADD_ROW_HATCH = `repeating-linear-gradient(45deg, ${neutral.bg}, ${neutral.bg} 6px, ${neutral.hatchDim} 6px, ${neutral.hatchDim} 12px)`;
 // Decorative inset bevel highlight (white at low alpha) — not a themeable colour.
 export const BEVEL = 'inset -1px -1px 0 rgba(255,255,255,.5)';
 

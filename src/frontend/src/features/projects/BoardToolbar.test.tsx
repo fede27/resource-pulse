@@ -46,7 +46,7 @@ describe('<BoardToolbar>', () => {
       people: new Set(['r-luca']),
       roles: new Set(['Grafico']),
       provenance: new Set(['proposed'] as const),
-      sustain: new Set(['scoperto'] as const),
+      sustain: new Set(['uncovered'] as const),
     });
     const user = userEvent.setup();
     renderWithProviders(<BoardToolbar {...props} />);

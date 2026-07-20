@@ -14,8 +14,11 @@
 
 import {
   AllocationStatus,
+  CommitmentLevel,
   DemandProvenance,
   ProjectNodeType,
+  ProjectStatus,
+  ProjectType,
   type AllocationReadDto,
   type DemandCoverageDto,
   type LoadSegmentDto,
@@ -52,7 +55,7 @@ export type CoverageBlock = {
   notes: string | null;
 };
 
-export type DemandRowStatus = 'coperta' | 'parziale' | 'scoperta' | 'sovra' | 'senzaTarget';
+export type DemandRowStatus = 'covered' | 'partial' | 'uncovered' | 'over' | 'noTarget';
 
 export type DemandRow = {
   demandId: string;
@@ -82,6 +85,11 @@ export type BoardProject = {
   ownerName: string | null;
   critical: boolean; // CommitmentLevel.Critical (4)
   proposed: boolean; // IsProposed (M3): complement of the hard-commit levels
+  status: ProjectStatus; // domain state machine (Draft → Active → Closed; ⇄ OnHold; → Cancelled)
+  // The PUT /api/projects/{id} is full-replace: the contextual actions must
+  // send back the current type/commitment/lead/client untouched.
+  type: ProjectType;
+  commitmentLevel: CommitmentLevel;
   from: string | null; // planned dates
   to: string | null;
   phases: BoardPhase[];
@@ -116,14 +124,14 @@ export function toCoverageBlock(a: AllocationReadDto): CoverageBlock {
   };
 }
 
-// Thresholds mirror the prototype: "covered" tolerates 2% under, "sovra" starts
+// Thresholds mirror the prototype: "covered" tolerates 2% under, "over" starts
 // at 5% over — presentation slack over exact-hours equality, not domain rules.
 export function demandRowStatus(requiredH: number | null, coveredH: number, hasBlocks: boolean): DemandRowStatus {
-  if (requiredH === null) return 'senzaTarget';
-  if (coveredH <= 0 && !hasBlocks) return 'scoperta';
-  if (coveredH < requiredH * 0.98) return 'parziale';
-  if (coveredH > requiredH * 1.05) return 'sovra';
-  return 'coperta';
+  if (requiredH === null) return 'noTarget';
+  if (coveredH <= 0 && !hasBlocks) return 'uncovered';
+  if (coveredH < requiredH * 0.98) return 'partial';
+  if (coveredH > requiredH * 1.05) return 'over';
+  return 'covered';
 }
 
 export function toDemandRow(d: DemandCoverageDto, blocks: CoverageBlock[]): DemandRow {
@@ -195,8 +203,11 @@ export function buildBoardProject(
     client: root.client ?? null,
     ownerId: root.leadResourceId ?? null,
     ownerName: root.leadResourceName ?? null,
-    critical: root.commitmentLevel === 4, // CommitmentLevel.Critical
+    critical: root.commitmentLevel === CommitmentLevel.Critical,
     proposed: root.isProposed ?? false,
+    status: root.status ?? ProjectStatus.Active,
+    type: root.type ?? ProjectType.Customer,
+    commitmentLevel: root.commitmentLevel ?? CommitmentLevel.Planned,
     from: root.plannedStart ?? null,
     to: root.plannedEnd ?? null,
     phases,
@@ -221,23 +232,23 @@ export function peakOf(segments: LoadSegmentDto[] | undefined): number {
 
 // ── Sustainability verdict (client-side, project-gap.md §★★) ─────────────
 
-export type Verdict = 'scoperto' | 'arischio' | 'sostenibile';
-export const VERDICT_SEVERITY: Record<Verdict, number> = { scoperto: 0, arischio: 1, sostenibile: 2 };
+export type Verdict = 'uncovered' | 'atRisk' | 'sustainable';
+export const VERDICT_SEVERITY: Record<Verdict, number> = { uncovered: 0, atRisk: 1, sustainable: 2 };
 
-export type ArischioReason = 'overload' | 'mismatch' | 'both' | null;
+export type AtRiskReason = 'overload' | 'mismatch' | 'both' | null;
 
 export function projectVerdict(
   p: BoardProject,
   peakByPerson: (resourceId: string) => number,
   overloadThreshold: number,
-): { verdict: Verdict; reason: ArischioReason } {
-  if (p.holes.length > 0) return { verdict: 'scoperto', reason: null };
+): { verdict: Verdict; reason: AtRiskReason } {
+  if (p.holes.length > 0) return { verdict: 'uncovered', reason: null };
   const overload = p.people.some((id) => peakByPerson(id) >= overloadThreshold);
   const mismatch = p.demands.some((d) => d.mismatch);
-  if (overload && mismatch) return { verdict: 'arischio', reason: 'both' };
-  if (overload) return { verdict: 'arischio', reason: 'overload' };
-  if (mismatch) return { verdict: 'arischio', reason: 'mismatch' };
-  return { verdict: 'sostenibile', reason: null };
+  if (overload && mismatch) return { verdict: 'atRisk', reason: 'both' };
+  if (overload) return { verdict: 'atRisk', reason: 'overload' };
+  if (mismatch) return { verdict: 'atRisk', reason: 'mismatch' };
+  return { verdict: 'sustainable', reason: null };
 }
 
 // People on the project whose hard peak crosses the threshold (why "a rischio").
@@ -253,12 +264,61 @@ export function conflictPeople(
 
 // ── Lifecycle & provenance (derived — no server concept yet) ─────────────
 
-export type Lifecycle = 'futuro' | 'attivo' | 'chiuso';
+export type Lifecycle = 'future' | 'active' | 'closed';
 
 export function lifecycleOf(p: BoardProject, todayISO: string): Lifecycle {
-  if (p.to && p.to < todayISO) return 'chiuso';
-  if (p.from && p.from > todayISO) return 'futuro';
-  return 'attivo';
+  // The domain status wins over dates: a Closed/Cancelled project is "closed"
+  // even when its planned window is still running.
+  if (p.status === ProjectStatus.Closed || p.status === ProjectStatus.Cancelled) return 'closed';
+  if (p.to && p.to < todayISO) return 'closed';
+  if (p.from && p.from > todayISO) return 'future';
+  return 'active';
+}
+
+// ── Contextual actions (kebab) ───────────────────────────────────────────
+// Availability mirrors ProjectNode's state machine (Draft → Active → Closed;
+// Active ⇄ OnHold; any non-terminal → Cancelled). Terminal states expose no
+// actions, so the kebab hides entirely.
+
+export type ProjectAction =
+  | { kind: 'start' }
+  | { kind: 'complete' }
+  | { kind: 'suspend' }
+  | { kind: 'resume' }
+  | { kind: 'setCommitment'; level: CommitmentLevel }
+  | { kind: 'cancel' };
+
+export type ProjectActionKind = ProjectAction['kind'];
+
+export function availableActionKinds(status: ProjectStatus): ProjectActionKind[] {
+  switch (status) {
+    case ProjectStatus.Draft:
+      return ['start', 'setCommitment', 'cancel'];
+    case ProjectStatus.Active:
+      return ['complete', 'suspend', 'setCommitment', 'cancel'];
+    case ProjectStatus.OnHold:
+      return ['resume', 'setCommitment', 'cancel'];
+    default:
+      return [];
+  }
+}
+
+// Row chip: the states worth a visual mark (Active is the norm — no chip).
+export type StatusChipKey = 'draft' | 'onHold' | 'closed' | 'cancelled';
+
+export function statusChipKey(status: ProjectStatus): StatusChipKey | null {
+  switch (status) {
+    case ProjectStatus.Draft:
+      return 'draft';
+    case ProjectStatus.OnHold:
+      return 'onHold';
+    case ProjectStatus.Closed:
+      return 'closed';
+    case ProjectStatus.Cancelled:
+      return 'cancelled';
+    default:
+      return null;
+  }
 }
 
 export type Provenance = 'committed' | 'proposed';
@@ -281,9 +341,9 @@ export type BoardFilters = {
 };
 
 export const defaultFilters = (): BoardFilters => ({
-  lifecycle: new Set<Lifecycle>(['futuro', 'attivo']), // default: hide closed
+  lifecycle: new Set<Lifecycle>(['future', 'active']), // default: hide closed
   provenance: new Set<Provenance>(['committed', 'proposed']),
-  sustain: new Set<Verdict>(['sostenibile', 'arischio', 'scoperto']),
+  sustain: new Set<Verdict>(['sustainable', 'atRisk', 'uncovered']),
   mineOwner: false,
   mineHoles: false,
   people: new Set<string>(),
@@ -388,15 +448,15 @@ export function portfolioHealth(
   peakByPerson: (resourceId: string) => number,
   overloadThreshold: number,
 ): PortfolioHealth {
-  const counts: Record<Verdict, number> = { scoperto: 0, arischio: 0, sostenibile: 0 };
+  const counts: Record<Verdict, number> = { uncovered: 0, atRisk: 0, sustainable: 0 };
   for (const p of projects) counts[verdictOf(p)] += 1;
   const allPeople = new Set<string>();
   for (const p of projects) for (const id of p.people) allPeople.add(id);
   return {
     total: projects.length,
-    sustainable: counts.sostenibile,
-    atRisk: counts.arischio,
-    uncovered: counts.scoperto,
+    sustainable: counts.sustainable,
+    atRisk: counts.atRisk,
+    uncovered: counts.uncovered,
     totalHoles: projects.reduce((a, p) => a + p.holes.length, 0),
     overloadedPeople: [...allPeople].filter((id) => peakByPerson(id) >= overloadThreshold).length,
   };

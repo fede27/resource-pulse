@@ -1,15 +1,19 @@
 import { memo } from 'react';
 import { CheckOutlined, RightOutlined, SwapOutlined, UserOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { alpha, blue, neutral, red, text } from '@/app/palette';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
-import type {
-  ArischioReason,
-  BoardProject,
-  CoverageBlock,
-  DemandRow,
-  InspectTarget,
-  Verdict,
+import {
+  statusChipKey,
+  type AtRiskReason,
+  type BoardProject,
+  type CoverageBlock,
+  type DemandRow,
+  type InspectTarget,
+  type ProjectAction,
+  type Verdict,
 } from './boardModel';
+import { ProjectActionsMenu } from './ProjectActionsMenu';
 import {
   BLOCK_ACCENT,
   BLOCK_ACCENT_SOFT,
@@ -24,6 +28,7 @@ import {
   MISMATCH_BORDER,
   MISMATCH_TEXT,
   OVER_ALLOC_TEXT,
+  STATUS_CHIP_COLORS,
   VERDICT_COLORS,
 } from './boardColors';
 import type { BoardGeo } from '@/components/board';
@@ -34,13 +39,14 @@ export type ProjectRowProps = {
   project: BoardProject;
   geo: BoardGeo;
   metric: Metric;
-  verdict: { verdict: Verdict; reason: ArischioReason };
+  verdict: { verdict: Verdict; reason: AtRiskReason };
   expanded: boolean;
   alt: boolean;
   // Keyed by project id so the page can pass ONE stable callback to every row
   // (React.memo needs referentially stable props to skip re-renders).
   onToggle: (projectId: string) => void;
   onInspect: (target: InspectTarget) => void;
+  onAction: (project: BoardProject, action: ProjectAction) => void;
   peakByPerson: (resourceId: string) => number;
   overloadThreshold: number;
   // Range-scoped hours of a block (% × capacity, consolidation P3); null while
@@ -74,18 +80,20 @@ export const ProjectRow = memo(function ProjectRow(props: ProjectRowProps) {
       ? t('projects.row.personOne')
       : t('projects.row.peopleMany', { count: project.people.length });
   const verdictNote =
-    props.verdict.verdict === 'scoperto'
+    props.verdict.verdict === 'uncovered'
       ? holesLabel
-      : props.verdict.verdict === 'arischio'
+      : props.verdict.verdict === 'atRisk'
         ? t(`projects.reason.${props.verdict.reason ?? 'overload'}`)
         : peopleLabel;
 
   const VerdictIcon =
-    props.verdict.verdict === 'scoperto'
+    props.verdict.verdict === 'uncovered'
       ? UserOutlined
-      : props.verdict.verdict === 'arischio'
+      : props.verdict.verdict === 'atRisk'
         ? WarningOutlined
         : CheckOutlined;
+
+  const chip = statusChipKey(project.status);
 
   return (
     <div className={styles.block}>
@@ -108,6 +116,19 @@ export const ProjectRow = memo(function ProjectRow(props: ProjectRowProps) {
                 <span className={cx(styles.provChip, project.proposed && styles.provChipProposed)}>
                   {t(`projects.provenance.${project.proposed ? 'proposed' : 'committed'}`)}
                 </span>
+                {chip && (
+                  // dynamic: status chip colours from the semantic palette.
+                  <span
+                    className={styles.provChip}
+                    style={{
+                      color: STATUS_CHIP_COLORS[chip].color,
+                      borderColor: STATUS_CHIP_COLORS[chip].border,
+                      background: STATUS_CHIP_COLORS[chip].bg,
+                    }}
+                  >
+                    {t(`projects.status.${chip}`)}
+                  </span>
+                )}
                 {project.critical && (
                   // dynamic: critical marker colour.
                   <span title={t('projects.row.critical')} className={styles.criticalDot} style={{ background: CRITICAL_DOT }} />
@@ -125,6 +146,7 @@ export const ProjectRow = memo(function ProjectRow(props: ProjectRowProps) {
                 <span className={styles.verdictNote}>{verdictNote}</span>
               </div>
             </div>
+            <ProjectActionsMenu project={project} onAction={props.onAction} />
           </div>
         </div>
         {/* dynamic: axis width computed from the domain. */}
@@ -167,9 +189,11 @@ function Envelope({ project, geo, metric, onInspect }: ProjectRowProps) {
       style={{
         left,
         width,
-        background: proposed ? PROPOSED_HATCH : 'rgba(22,119,255,.07)',
-        border: proposed ? '1px dashed #bfbfbf' : `1px solid ${project.critical ? '#ffccc7' : BLOCK_BORDER}`,
-        borderLeft: `3px solid ${proposed ? '#8c8c8c' : project.critical ? CRITICAL_DOT : BLOCK_ACCENT}`,
+        background: proposed ? PROPOSED_HATCH : alpha(blue[5], 0.07),
+        border: proposed
+          ? `1px dashed ${neutral.disabled}`
+          : `1px solid ${project.critical ? red[1] : BLOCK_BORDER}`,
+        borderLeft: `3px solid ${proposed ? neutral.icon : project.critical ? CRITICAL_DOT : BLOCK_ACCENT}`,
       }}
       onClick={() => onInspect({ kind: 'project', project })}
       title={project.client ? `${project.name} · ${project.client}` : project.name}
@@ -185,7 +209,7 @@ function Envelope({ project, geo, metric, onInspect }: ProjectRowProps) {
             style={{
               left: phL,
               width: phW,
-              borderRight: i < project.phases.length - 1 ? '1px dashed rgba(22,119,255,.35)' : 'none',
+              borderRight: i < project.phases.length - 1 ? `1px dashed ${alpha(blue[5], 0.35)}` : 'none',
             }}
           >
             {/* dynamic: phase label colour follows the block axis. */}
@@ -197,7 +221,7 @@ function Envelope({ project, geo, metric, onInspect }: ProjectRowProps) {
         <div className={styles.envelopeMeta}>
           {metric === 'hours' ? (
             // dynamic: text colour follows provenance.
-            <span style={{ color: proposed ? 'rgba(0,0,0,.45)' : BLOCK_TEXT }}>
+            <span style={{ color: proposed ? text.tertiary : BLOCK_TEXT }}>
               {requiredH ? (
                 <>
                   {round(usefulH)}h / {round(requiredH)}h
@@ -213,7 +237,7 @@ function Envelope({ project, geo, metric, onInspect }: ProjectRowProps) {
               )}
             </span>
           ) : (
-            <span style={{ color: proposed ? 'rgba(0,0,0,.45)' : BLOCK_TEXT }}>
+            <span style={{ color: proposed ? text.tertiary : BLOCK_TEXT }}>
               {proposed
                 ? t('projects.provenance.proposed')
                 : project.people.length === 1
@@ -377,7 +401,7 @@ function HoleLane(props: ProjectRowProps & { demand: DemandRow }) {
             style={{
               left: geo.xPx(project.from),
               width: geo.wPxInclusive(project.from, project.to),
-              background: `repeating-linear-gradient(135deg, ${HOLE_BG} 0 6px, #fff 6px 12px)`,
+              background: `repeating-linear-gradient(135deg, ${HOLE_BG} 0 6px, ${neutral.white} 6px 12px)`,
               border: `1.5px dashed ${HOLE_ACCENT}`,
             }}
             onClick={inspect}

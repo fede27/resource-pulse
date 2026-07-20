@@ -1,5 +1,6 @@
 import { LockOutlined, SwapOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { alpha, blue, neutral } from '@/app/palette';
 import type { Verdict } from './boardModel';
 import {
   BLOCK_ACCENT,
@@ -14,7 +15,7 @@ import {
 } from './boardColors';
 import { useStyles } from './BoardLegend.styles';
 
-const VERDICTS: Verdict[] = ['sostenibile', 'arischio', 'scoperto'];
+const VERDICTS: Verdict[] = ['sustainable', 'atRisk', 'uncovered'];
 
 // Two legend rows: the HERO axis (sustainability verdict) and the context axes
 // (block status, open role, conflict/mismatch flags, provenance, fence zones).
@@ -53,7 +54,7 @@ export function BoardLegend({ overloadThreshold }: { overloadThreshold: number }
           <span
             className={styles.swatch}
             style={{
-              background: 'repeating-linear-gradient(135deg, rgba(22,119,255,.10) 0 5px, rgba(22,119,255,.02) 5px 10px)',
+              background: `repeating-linear-gradient(135deg, ${alpha(blue[5], 0.1)} 0 5px, ${alpha(blue[5], 0.02)} 5px 10px)`,
               border: `1px dashed ${BLOCK_BORDER}`,
             }}
           />
@@ -64,7 +65,7 @@ export function BoardLegend({ overloadThreshold }: { overloadThreshold: number }
           <span
             className={styles.swatch}
             style={{
-              background: `repeating-linear-gradient(135deg, ${HOLE_BG} 0 5px, #fff 5px 10px)`,
+              background: `repeating-linear-gradient(135deg, ${HOLE_BG} 0 5px, ${neutral.white} 5px 10px)`,
               border: `1.5px dashed ${HOLE_ACCENT}`,
             }}
           />

@@ -24,7 +24,9 @@ import { BoardTimeline, buildGeo, RowGap, useWindowedRows } from '@/components/b
 import { useProjectsBoard, type BoardDomain } from './useProjectsBoard';
 import { BoardInspector } from './BoardInspector';
 import { NewProjectPanel } from './NewProjectPanel';
+import { ProjectReasonModal } from './ProjectReasonModal';
 import { useCreateProject } from './useCreateProject';
+import { useProjectActions } from './useProjectActions';
 import { BoardLegend } from './BoardLegend';
 import { BoardToolbar, type Metric } from './BoardToolbar';
 import { HealthCards } from './HealthCards';
@@ -43,7 +45,7 @@ function clampDomain(d: BoardDomain): BoardDomain {
 }
 
 // Stable fallback: an inline object would defeat ProjectRow's memo on every render.
-const FALLBACK_VERDICT = { verdict: 'sostenibile', reason: null } as const;
+const FALLBACK_VERDICT = { verdict: 'sustainable', reason: null } as const;
 
 function withMargin(ext: { minISO: string; maxISO: string }, days = 10): BoardDomain {
   return {
@@ -84,6 +86,7 @@ export function ProjectsPage() {
   const { submit: submitNewProject, saving: creatingProject } = useCreateProject(() =>
     setPanelOpen(false),
   );
+  const actions = useProjectActions();
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollNonce, setScrollNonce] = useState(0);
@@ -109,7 +112,7 @@ export function ProjectsPage() {
     return map;
   }, [board.projects, board.peakByPerson, board.overloadThreshold]);
 
-  const verdictOf = (p: BoardProject): Verdict => verdicts.get(p.id)?.verdict ?? 'sostenibile';
+  const verdictOf = (p: BoardProject): Verdict => verdicts.get(p.id)?.verdict ?? 'sustainable';
 
   const visible = useMemo(
     () =>
@@ -145,7 +148,7 @@ export function ProjectsPage() {
 
   const onFit = () => {
     const src = visible.length ? visible : board.projects;
-    const nonClosed = src.filter((p) => lifecycleOf(p, todayISO) !== 'chiuso');
+    const nonClosed = src.filter((p) => lifecycleOf(p, todayISO) !== 'closed');
     setDomain(withMargin(projectsExtent(nonClosed.length ? nonClosed : src, domain), 7));
     if (scrollRef.current) scrollRef.current.scrollLeft = 0;
   };
@@ -252,6 +255,7 @@ export function ProjectsPage() {
               alt={s.item.alt}
               onToggle={toggleExpand}
               onInspect={setInspect}
+              onAction={actions.run}
               peakByPerson={board.peakByPerson}
               overloadThreshold={board.overloadThreshold}
               blockHoursOf={board.blockHoursOf}
@@ -273,6 +277,7 @@ export function ProjectsPage() {
       <BoardInspector
         target={inspect}
         onClose={() => setInspect(null)}
+        onAction={actions.run}
         projects={board.projects}
         bands={board.bands}
         overloadThreshold={board.overloadThreshold}
@@ -289,6 +294,13 @@ export function ProjectsPage() {
         onSubmit={(values) => void submitNewProject(values)}
         personPool={board.personPool}
         defaultOwnerId={board.me.resourceId}
+      />
+
+      <ProjectReasonModal
+        state={actions.reasonModal}
+        submitting={actions.reasonSubmitting}
+        onSubmit={(reason) => void actions.onReasonSubmit(reason)}
+        onCancel={actions.onReasonCancel}
       />
     </div>
   );

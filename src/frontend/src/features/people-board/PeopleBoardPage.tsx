@@ -3,6 +3,7 @@ import { Alert, Button, Empty, Skeleton, Spin } from 'antd';
 import { InfoCircleOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
+import { red, steelBlue } from '@/app/palette';
 import {
   BoardTimeline,
   buildGeo,
@@ -249,7 +250,7 @@ export function PeopleBoardPage() {
               label={t('peopleBoard.kpi.overloaded')}
               value={kpis.overloaded}
               suffix={t('peopleBoard.kpi.overloadedFoot', { threshold: board.overloadThreshold })}
-              accentColor="#cf1322"
+              accentColor={red[6]}
             />
           </div>
           <div className={styles.kpi}>
@@ -257,7 +258,7 @@ export function PeopleBoardPage() {
               label={t('peopleBoard.kpi.underused')}
               value={kpis.underused}
               suffix={t('peopleBoard.kpi.underusedFoot')}
-              accentColor="#3a6ea5"
+              accentColor={steelBlue}
             />
           </div>
         </div>

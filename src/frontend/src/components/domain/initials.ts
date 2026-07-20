@@ -1,14 +1,16 @@
 // Helpers extracted from InitialsAvatar so HMR fast-refresh stays component-only.
 
+import { blue, cyan, geekblue, green, magenta, orange, purple, volcano } from '@/app/palette';
+
 const AVATAR_COLORS = [
-  '#1677ff',
-  '#722ed1',
-  '#13c2c2',
-  '#52c41a',
-  '#fa8c16',
-  '#eb2f96',
-  '#2f54eb',
-  '#fa541c',
+  blue[5],
+  purple[5],
+  cyan[5],
+  green[5],
+  orange[5],
+  magenta[5],
+  geekblue[5],
+  volcano[5],
 ];
 
 function hashIndex(seed: string, length: number): number {

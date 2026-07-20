@@ -4,6 +4,7 @@
 // threshold (half-open bands, ADR-0020).
 
 import type { LoadBandDto } from '@/api/generated/schemas';
+import { alpha, gold, green, lime, neutral, red, text } from '@/app/palette';
 
 export type LoadBand = { label: string; lowerBound: number };
 
@@ -19,11 +20,11 @@ export function normalizeBands(bands: LoadBandDto[] | null | undefined): LoadBan
 // keeps the visual honest for any 3- or 5-band configuration without baking a
 // fixed palette into the cells.
 const LOAD_STOPS = [
-  { solid: '#bfbfbf', bg: '#eef0f2', fg: 'rgba(0,0,0,.5)' },
-  { solid: '#52c41a', bg: '#d9f7be', fg: '#237804' },
-  { solid: '#a0d911', bg: '#f4ffb8', fg: '#5b8c00' },
-  { solid: '#faad14', bg: '#fff1b8', fg: '#874d00' },
-  { solid: '#ff4d4f', bg: '#ffccc7', fg: '#a8071a' },
+  { solid: neutral.disabled, bg: neutral.mist, fg: alpha(neutral.black, 0.5) },
+  { solid: green[5], bg: green[1], fg: green[7] },
+  { solid: lime[5], bg: lime[1], fg: lime[7] },
+  { solid: gold[5], bg: gold[1], fg: gold[8] },
+  { solid: red[4], bg: red[1], fg: red[7] },
 ] as const;
 
 export type CellColor = { bg: string; fg: string; solid: string; empty: boolean };
@@ -34,9 +35,9 @@ export type CellColor = { bg: string; fg: string; solid: string; empty: boolean 
 // zero-capacity days): the hatch/marker is the caller's concern, the palette
 // stays here with its siblings.
 export const NO_CAPACITY_CELL: CellColor = {
-  bg: '#fbfbfb',
-  fg: 'rgba(0,0,0,.45)',
-  solid: '#f0f0f0',
+  bg: neutral.bgFaint,
+  fg: text.tertiary,
+  solid: neutral.fillSubtle,
   empty: true,
 };
 
@@ -70,7 +71,7 @@ export function loadColor(pct: number, bands: LoadBand[]): CellColor {
     return { bg: s.bg, fg: s.fg, solid: s.solid, empty: false };
   }
   if (pct <= 0.5) {
-    return { bg: '#fbfbfb', fg: 'rgba(0,0,0,.25)', solid: '#f0f0f0', empty: true };
+    return { bg: neutral.bgFaint, fg: text.quaternary, solid: neutral.fillSubtle, empty: true };
   }
   const s = bandStop(bandIndexFor(pct, bands), bands.length);
   return { bg: s.bg, fg: s.fg, solid: s.solid, empty: false };

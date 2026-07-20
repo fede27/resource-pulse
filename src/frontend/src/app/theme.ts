@@ -1,5 +1,6 @@
 import type { ThemeConfig } from 'antd';
 import type { GetCustomToken } from 'antd-style';
+import { alpha, blue } from './palette';
 
 /**
  * Tier 1 — the single source of truth for the global design language
@@ -16,7 +17,7 @@ export const appTheme: ThemeConfig = {
     // Brand. AntD's default already matches, but pinning it here makes the
     // decision explicit and single-sourced — `getCustomToken` derives the
     // logo gradient from it.
-    colorPrimary: '#1677ff',
+    colorPrimary: blue[5],
     borderRadius: 6,
     fontSize: 14,
   },
@@ -49,7 +50,7 @@ export interface CustomTokens {
 
 export const getCustomToken: GetCustomToken<CustomTokens> = ({ token }) => ({
   brandGradient: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`,
-  brandLogoShadow: '0 2px 6px rgba(22, 119, 255, 0.25)',
+  brandLogoShadow: `0 2px 6px ${alpha(blue[5], 0.25)}`,
   layoutHeaderHeight: 64,
   pageGutter: 24,
   pageMaxWidth: 1440,

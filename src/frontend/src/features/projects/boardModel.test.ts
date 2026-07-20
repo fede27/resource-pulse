@@ -3,6 +3,7 @@ import {
   AllocationStatus,
   DemandProvenance,
   ProjectNodeType,
+  ProjectStatus,
   type AllocationReadDto,
   type DemandCoverageDto,
   type ProjectNodeReadDto,
@@ -11,6 +12,7 @@ import { ENVELOPE_H, LANE_H } from '@/components/board';
 import {
   activeFilterCount,
   allRoles,
+  availableActionKinds,
   buildBoardProject,
   defaultFilters,
   demandRowStatus,
@@ -23,6 +25,7 @@ import {
   projectVerdict,
   projectsExtent,
   sortProjects,
+  statusChipKey,
   tentativeNotesOf,
   toCoverageBlock,
   toDemandRow,
@@ -92,18 +95,18 @@ describe('toCoverageBlock', () => {
 });
 
 describe('demandRowStatus', () => {
-  it('is senzaTarget for a best-effort demand (null target)', () => {
-    expect(demandRowStatus(null, 120, true)).toBe('senzaTarget');
+  it('is noTarget for a best-effort demand (null target)', () => {
+    expect(demandRowStatus(null, 120, true)).toBe('noTarget');
   });
 
-  it('is scoperta with a target and no coverage', () => {
-    expect(demandRowStatus(60, 0, false)).toBe('scoperta');
+  it('is uncovered with a target and no coverage', () => {
+    expect(demandRowStatus(60, 0, false)).toBe('uncovered');
   });
 
-  it('is parziale / coperta / sovra around the target', () => {
-    expect(demandRowStatus(100, 60, true)).toBe('parziale');
-    expect(demandRowStatus(100, 100, true)).toBe('coperta');
-    expect(demandRowStatus(100, 110, true)).toBe('sovra');
+  it('is partial / covered / over around the target', () => {
+    expect(demandRowStatus(100, 60, true)).toBe('partial');
+    expect(demandRowStatus(100, 100, true)).toBe('covered');
+    expect(demandRowStatus(100, 110, true)).toBe('over');
   });
 });
 
@@ -113,13 +116,13 @@ describe('toDemandRow', () => {
     expect(row.requiredH).toBeNull();
     expect(row.gapH).toBeNull();
     expect(row.uncovered).toBe(false); // no target ⇒ no hole
-    expect(row.status).toBe('senzaTarget');
+    expect(row.status).toBe('noTarget');
   });
 
   it('marks a targeted demand without blocks as uncovered', () => {
     const row = toDemandRow(coverage({ coveredHours: 'PT0S', gapHours: 'PT340H' }), []);
     expect(row.uncovered).toBe(true);
-    expect(row.status).toBe('scoperta');
+    expect(row.status).toBe('uncovered');
   });
 
   it('caps useful hours at the target and flags the excess', () => {
@@ -129,7 +132,7 @@ describe('toDemandRow', () => {
     );
     expect(row.usefulH).toBe(100);
     expect(row.overH).toBe(30);
-    expect(row.status).toBe('sovra');
+    expect(row.status).toBe('over');
   });
 });
 
@@ -204,31 +207,31 @@ describe('projectRowHeight', () => {
 describe('projectVerdict', () => {
   const peaks = (map: Record<string, number>) => (id: string) => map[id] ?? 0;
 
-  it('is scoperto when a targeted demand has no coverage', () => {
+  it('is uncovered when a targeted demand has no coverage', () => {
     const p = makeProject({
       demands: [coverage({ demandId: 'd2', coveredHours: 'PT0S', gapHours: 'PT340H' })],
       allocations: [],
     });
-    expect(projectVerdict(p, peaks({}), 110).verdict).toBe('scoperto');
+    expect(projectVerdict(p, peaks({}), 110).verdict).toBe('uncovered');
   });
 
-  it('is arischio on peak overload', () => {
+  it('is atRisk on peak overload', () => {
     const p = makeProject({});
     const r = projectVerdict(p, peaks({ luca: 120 }), 110);
-    expect(r.verdict).toBe('arischio');
+    expect(r.verdict).toBe('atRisk');
     expect(r.reason).toBe('overload');
   });
 
-  it('is arischio on a role mismatch even without overload', () => {
+  it('is atRisk on a role mismatch even without overload', () => {
     const p = makeProject({ allocations: [alloc({ resourceRoleName: 'Sviluppatore' })] });
     const r = projectVerdict(p, peaks({ luca: 60 }), 110);
-    expect(r.verdict).toBe('arischio');
+    expect(r.verdict).toBe('atRisk');
     expect(r.reason).toBe('mismatch');
   });
 
-  it('is sostenibile otherwise', () => {
+  it('is sustainable otherwise', () => {
     const p = makeProject({});
-    expect(projectVerdict(p, peaks({ luca: 90 }), 110).verdict).toBe('sostenibile');
+    expect(projectVerdict(p, peaks({ luca: 90 }), 110).verdict).toBe('sustainable');
   });
 });
 
@@ -236,9 +239,21 @@ describe('lifecycle & filters', () => {
   const today = '2026-07-05';
 
   it('derives the lifecycle from planned dates vs today', () => {
-    expect(lifecycleOf(makeProject({}), today)).toBe('attivo');
-    expect(lifecycleOf(makeProject({ root: { plannedStart: '2026-08-01', plannedEnd: '2026-09-01' } }), today)).toBe('futuro');
-    expect(lifecycleOf(makeProject({ root: { plannedStart: '2026-01-01', plannedEnd: '2026-02-01' } }), today)).toBe('chiuso');
+    expect(lifecycleOf(makeProject({}), today)).toBe('active');
+    expect(lifecycleOf(makeProject({ root: { plannedStart: '2026-08-01', plannedEnd: '2026-09-01' } }), today)).toBe('future');
+    expect(lifecycleOf(makeProject({ root: { plannedStart: '2026-01-01', plannedEnd: '2026-02-01' } }), today)).toBe('closed');
+  });
+
+  it('domain status wins over dates: Closed/Cancelled are closed mid-window', () => {
+    expect(lifecycleOf(makeProject({ root: { status: ProjectStatus.Closed } }), today)).toBe('closed');
+    expect(
+      lifecycleOf(
+        makeProject({ root: { status: ProjectStatus.Cancelled, plannedStart: '2026-08-01', plannedEnd: '2026-09-01' } }),
+        today,
+      ),
+    ).toBe('closed');
+    // Draft/OnHold do not force a lifecycle — dates still decide.
+    expect(lifecycleOf(makeProject({ root: { status: ProjectStatus.OnHold } }), today)).toBe('active');
   });
 
   it('holeIsMine: owner match, or ownerless + staffing manager', () => {
@@ -252,14 +267,14 @@ describe('lifecycle & filters', () => {
   it('filters by verdict, person, role and lifecycle', () => {
     const p = makeProject({});
     const ctx = {
-      verdictOf: () => 'sostenibile' as const,
+      verdictOf: () => 'sustainable' as const,
       me: { resourceId: null, isStaffingManager: false },
       todayISO: today,
       domain: { minISO: '2026-05-01', maxISO: '2026-10-01' },
     };
     const f = defaultFilters();
     expect(filterProjects([p], f, ctx)).toHaveLength(1);
-    expect(filterProjects([p], { ...f, sustain: new Set(['scoperto']) }, ctx)).toHaveLength(0);
+    expect(filterProjects([p], { ...f, sustain: new Set(['uncovered']) }, ctx)).toHaveLength(0);
     expect(filterProjects([p], { ...f, people: new Set(['luca']) }, ctx)).toHaveLength(1);
     expect(filterProjects([p], { ...f, people: new Set(['giulia']) }, ctx)).toHaveLength(0);
     expect(filterProjects([p], { ...f, roles: new Set(['Dev senior']) }, ctx)).toHaveLength(1);
@@ -275,9 +290,27 @@ describe('lifecycle & filters', () => {
   it('sorts by sustainability severity first', () => {
     const a = makeProject({ root: { id: 'pa', name: 'A' } });
     const b = makeProject({ root: { id: 'pb', name: 'B' } });
-    const verdictOf = (p: BoardProject) => (p.id === 'pb' ? 'scoperto' : 'sostenibile');
+    const verdictOf = (p: BoardProject) => (p.id === 'pb' ? 'uncovered' : 'sustainable');
     const sorted = sortProjects([a, b], 'sustain', verdictOf);
     expect(sorted[0]!.id).toBe('pb');
+  });
+});
+
+describe('contextual actions availability', () => {
+  it('mirrors the domain state machine per status', () => {
+    expect(availableActionKinds(ProjectStatus.Draft)).toEqual(['start', 'setCommitment', 'cancel']);
+    expect(availableActionKinds(ProjectStatus.Active)).toEqual(['complete', 'suspend', 'setCommitment', 'cancel']);
+    expect(availableActionKinds(ProjectStatus.OnHold)).toEqual(['resume', 'setCommitment', 'cancel']);
+    expect(availableActionKinds(ProjectStatus.Closed)).toEqual([]);
+    expect(availableActionKinds(ProjectStatus.Cancelled)).toEqual([]);
+  });
+
+  it('statusChipKey marks every non-Active state and only those', () => {
+    expect(statusChipKey(ProjectStatus.Active)).toBeNull();
+    expect(statusChipKey(ProjectStatus.Draft)).toBe('draft');
+    expect(statusChipKey(ProjectStatus.OnHold)).toBe('onHold');
+    expect(statusChipKey(ProjectStatus.Closed)).toBe('closed');
+    expect(statusChipKey(ProjectStatus.Cancelled)).toBe('cancelled');
   });
 });
 
@@ -289,7 +322,7 @@ describe('portfolio & profile helpers', () => {
       demands: [coverage({ demandId: 'd2', coveredHours: 'PT0S', gapHours: 'PT340H' })],
       allocations: [],
     });
-    const health = portfolioHealth([covered, uncovered], (p) => (p.id === 'pb' ? 'scoperto' : 'sostenibile'), () => 0, 110);
+    const health = portfolioHealth([covered, uncovered], (p) => (p.id === 'pb' ? 'uncovered' : 'sustainable'), () => 0, 110);
     expect(health).toMatchObject({ total: 2, sustainable: 1, uncovered: 1, totalHoles: 1, overloadedPeople: 0 });
   });
 

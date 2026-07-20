@@ -65,6 +65,7 @@ function renderInspector(target: InspectTarget) {
   const props = {
     target,
     onClose: vi.fn(),
+    onAction: vi.fn(),
     projects: [project],
     bands,
     overloadThreshold: 100,

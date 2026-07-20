@@ -9,6 +9,8 @@ export type InspectorDrawerProps = {
   title: ReactNode;
   /** Optional second line under the title (e.g. "the timeline stays interactive"). */
   subtitle?: ReactNode;
+  /** Optional header-corner slot (e.g. the contextual-actions kebab). */
+  extra?: ReactNode;
   /** Optional right-aligned action row (e.g. Annulla / Crea). */
   footer?: ReactNode;
   /** false = non-modal form panel: the board behind stays interactive. */
@@ -24,6 +26,7 @@ export function InspectorDrawer({
   onClose,
   title,
   subtitle,
+  extra,
   footer,
   mask = true,
   children,
@@ -35,6 +38,7 @@ export function InspectorDrawer({
       onClose={onClose}
       size={INSPECTOR_SIZE}
       mask={mask}
+      extra={extra}
       destroyOnHidden
       title={
         subtitle ? (

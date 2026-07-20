@@ -1,7 +1,7 @@
 import { theme } from 'antd';
 import { useTranslation } from 'react-i18next';
 import type { PortfolioHealth } from './boardModel';
-import { HOLE_ACCENT } from './boardColors';
+import { HOLE_ACCENT, OVER_ALLOC_TEXT } from './boardColors';
 import { useStyles } from './HealthCards.styles';
 
 // The three portfolio health cards — signal, not nude counts. Derived
@@ -18,7 +18,7 @@ export function HealthCards({
   const { token } = theme.useToken();
 
   const ok = token.colorSuccess;
-  const sustainableAccent = health.sustainable === health.total ? ok : '#d46b08';
+  const sustainableAccent = health.sustainable === health.total ? ok : OVER_ALLOC_TEXT;
   const holesAccent = health.totalHoles ? HOLE_ACCENT : ok;
   const overloadedAccent = health.overloadedPeople ? token.colorError : ok;
 

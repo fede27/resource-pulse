@@ -29,4 +29,24 @@ export default defineConfig([
       'react-refresh/only-export-components': 'off',
     },
   },
+  {
+    // Chromatic single-source: raw hex values live ONLY in src/app/palette.ts —
+    // everything else derives from it (semantic palettes) or reads `token.*`
+    // in createStyles. Tests may pin expected hexes (they verify derivation).
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/app/palette.ts', 'src/test/**', 'src/**/*.{test,spec}.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Literal[value=/#[0-9a-fA-F]{3,8}\\b/]',
+          message: 'Raw hex colours live only in src/app/palette.ts — derive from the palette or use token.*.',
+        },
+        {
+          selector: 'TemplateElement[value.raw=/#[0-9a-fA-F]{3,8}\\b/]',
+          message: 'Raw hex colours live only in src/app/palette.ts — derive from the palette or use token.*.',
+        },
+      ],
+    },
+  },
 ])

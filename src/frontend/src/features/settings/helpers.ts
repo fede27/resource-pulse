@@ -1,6 +1,7 @@
 import dayjs, { type Dayjs } from 'dayjs';
 import type { TFunction } from 'i18next';
 import { BucketGrain, DurationUnit } from '@/api/generated/schemas';
+import { blue, gold, green, neutral, red } from '@/app/palette';
 
 // Strict local shape. The generated DurationDto has optional value/unit
 // (Swashbuckle marks reference types nullable); cards normalize into this.
@@ -35,7 +36,7 @@ export const addDuration = (from: Dayjs, d: Duration): Dayjs => {
 
 // Semantic ramp neutral→green→blue→amber→red along the bands. Bands stay
 // configurable; this is only a visual aid.
-const BAND_RAMP = ['#8c8c8c', '#52c41a', '#1677ff', '#faad14', '#ff4d4f'];
+const BAND_RAMP = [neutral.icon, green[5], blue[5], gold[5], red[4]];
 export const bandColor = (idx: number, total: number): string => {
   if (total <= 1) return BAND_RAMP[2]!;
   const t = idx / (total - 1);

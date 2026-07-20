@@ -3,6 +3,7 @@ import { Button, Checkbox, Popover, Segmented, Select, Tag } from 'antd';
 import { FilterOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { green, neutral } from '@/app/palette';
 import { BoardDateControls } from '@/components/board';
 import type { Grain } from '@/components/timeline';
 import {
@@ -19,14 +20,14 @@ import type { PersonPoolEntry } from './useProjectsBoard';
 import type { BoardDomain } from './useProjectsBoard';
 import { useStyles } from './BoardToolbar.styles';
 
-const LIFECYCLES: Lifecycle[] = ['futuro', 'attivo', 'chiuso'];
+const LIFECYCLES: Lifecycle[] = ['future', 'active', 'closed'];
 const PROVENANCES: Provenance[] = ['committed', 'proposed'];
-const VERDICTS: Verdict[] = ['sostenibile', 'arischio', 'scoperto'];
+const VERDICTS: Verdict[] = ['sustainable', 'atRisk', 'uncovered'];
 const SORTS: SortKey[] = ['sustain', 'name', 'start', 'owner'];
 const LIFECYCLE_DOTS: Record<Lifecycle, string> = {
-  futuro: '#8c8c8c',
-  attivo: '#52c41a',
-  chiuso: '#bfbfbf',
+  future: neutral.icon,
+  active: green[5],
+  closed: neutral.disabled,
 };
 
 export type Metric = 'pct' | 'hours';
@@ -249,7 +250,7 @@ function buildChips(
         key="lc"
         closable
         color="blue"
-        onClose={() => set({ lifecycle: new Set<Lifecycle>(['futuro', 'attivo', 'chiuso']) })}
+        onClose={() => set({ lifecycle: new Set<Lifecycle>(['future', 'active', 'closed']) })}
       >
         {t('projects.filters.chips.lifecycle', { labels: labels || t('projects.filters.chips.none') })}
       </Tag>,
@@ -275,7 +276,7 @@ function buildChips(
         key="su"
         closable
         color="blue"
-        onClose={() => set({ sustain: new Set<Verdict>(['sostenibile', 'arischio', 'scoperto']) })}
+        onClose={() => set({ sustain: new Set<Verdict>(['sustainable', 'atRisk', 'uncovered']) })}
       >
         {t('projects.filters.chips.sustain', { labels: labels || t('projects.filters.chips.none') })}
       </Tag>,

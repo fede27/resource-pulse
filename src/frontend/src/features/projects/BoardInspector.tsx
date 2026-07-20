@@ -4,12 +4,16 @@ import { SwapOutlined, UserOutlined, WarningOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { LoadSegmentDto } from '@/api/generated/schemas';
+import { gold, neutral, orange, text } from '@/app/palette';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
 import { InspectorDrawer } from '@/components/domain/InspectorDrawer';
 import { bandLabelFor, loadColor, type LoadBand } from '@/lib/loadBands';
-import type { BoardProject, CoverageBlock, DemandRow, InspectTarget } from './boardModel';
+import type { BoardProject, CoverageBlock, DemandRow, InspectTarget, ProjectAction } from './boardModel';
 import { tentativeNotesOf } from './boardModel';
+import { ProjectActionsMenu } from './ProjectActionsMenu';
 import {
+  BLOCK_BORDER,
+  BLOCK_TEXT,
   DEMAND_STATUS_COLORS,
   HOLE_ACCENT,
   HOLE_BG,
@@ -27,6 +31,7 @@ const fmtShort = (iso: string) => dayjs(iso).format('D MMM');
 export type BoardInspectorProps = {
   target: InspectTarget | null;
   onClose: () => void;
+  onAction: (project: BoardProject, action: ProjectAction) => void;
   projects: BoardProject[];
   bands: LoadBand[];
   overloadThreshold: number;
@@ -59,7 +64,14 @@ export function BoardInspector(props: BoardInspectorProps) {
   const setFace = (f: Face) => setPicked({ key: targetKey, face: f });
 
   return (
-    <InspectorDrawer open={!!target} onClose={props.onClose} title={t('projects.inspector.title')}>
+    <InspectorDrawer
+      open={!!target}
+      onClose={props.onClose}
+      title={t('projects.inspector.title')}
+      {...(target?.kind === 'project'
+        ? { extra: <ProjectActionsMenu project={target.project} onAction={props.onAction} /> }
+        : {})}
+    >
       {target && (
         <Tabs
           activeKey={face}
@@ -102,7 +114,7 @@ function CoverageFace({
           <InitialsAvatar name={name} size={40} />
           <div>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{name}</h3>
-            <div style={{ fontSize: 13, color: 'rgba(0,0,0,.45)' }}>
+            <div style={{ fontSize: 13, color: text.tertiary }}>
               {target.block.resourceRoleName ?? '—'} · {project.name}
             </div>
           </div>
@@ -134,16 +146,20 @@ function CoverageFace({
 
       <div className={styles.miniRow}>
         <MiniHours label={t('projects.inspector.required')} value={requiredH ? `${round(requiredH)}h` : '—'} />
-        <MiniHours label={t('projects.inspector.covered')} value={`${round(usefulH)}h`} color="#389e0d" />
+        <MiniHours
+          label={t('projects.inspector.covered')}
+          value={`${round(usefulH)}h`}
+          color={DEMAND_STATUS_COLORS.covered.color}
+        />
         <MiniHours
           label={t('projects.inspector.uncoveredLabel')}
           value={`${round(gapH)}h`}
-          color={gapH > 0 ? HOLE_TEXT : 'rgba(0,0,0,.45)'}
+          color={gapH > 0 ? HOLE_TEXT : text.tertiary}
         />
       </div>
       {overH > 0 && (
         <div className={styles.overWarning}>
-          <WarningOutlined style={{ color: '#d48806' }} />
+          <WarningOutlined style={{ color: gold[6] }} />
           <span>{t('projects.inspector.overAlloc', { hours: round(overH) })}</span>
         </div>
       )}
@@ -214,7 +230,7 @@ function DemandRowCard({
         {d.requiredH !== null ? (
           <>
             <strong>{round(d.requiredH)}h</strong> {t('projects.inspector.requestedWord')} ·{' '}
-            <span style={{ color: 'rgba(0,0,0,.88)' }}>
+            <span style={{ color: text.primary }}>
               {round(d.coveredH)}h {t('projects.inspector.allocatedWord')}
             </span>
             {d.gapH !== null && d.gapH > 0 && (
@@ -232,13 +248,13 @@ function DemandRowCard({
             {d.gapH !== null && d.gapH <= 0 && d.overH === 0 && (
               <>
                 {' '}
-                · <span style={{ color: '#389e0d' }}>{t('projects.inspector.exactWord')}</span>
+                · <span style={{ color: DEMAND_STATUS_COLORS.covered.color }}>{t('projects.inspector.exactWord')}</span>
               </>
             )}
           </>
         ) : (
           <>
-            <strong>{t('projects.demandStatus.senzaTarget')}</strong> ·{' '}
+            <strong>{t('projects.demandStatus.noTarget')}</strong> ·{' '}
             {t('projects.inspector.bestEffortLine', { covered: round(d.coveredH) })}
           </>
         )}
@@ -260,7 +276,7 @@ function DemandRowCard({
                   top: 0,
                   bottom: 0,
                   width: 16,
-                  background: 'repeating-linear-gradient(135deg, #d46b08 0 3px, #ffe7ba 3px 6px)',
+                  background: `repeating-linear-gradient(135deg, ${orange[6]} 0 3px, ${orange[1]} 3px 6px)`,
                 }}
               />
             )}
@@ -321,8 +337,8 @@ function CoverageEntry({
       <span
         className={styles.blockTag}
         style={{
-          color: c.hard ? '#0958d9' : 'rgba(0,0,0,.45)',
-          border: `1px ${c.hard ? 'solid' : 'dashed'} ${c.hard ? '#91caff' : '#d9d9d9'}`,
+          color: c.hard ? BLOCK_TEXT : text.tertiary,
+          border: `1px ${c.hard ? 'solid' : 'dashed'} ${c.hard ? BLOCK_BORDER : neutral.border}`,
         }}
       >
         {t(c.hard ? 'projects.bar.hard' : 'projects.bar.tentative')}
@@ -442,7 +458,7 @@ function PersonUtilization(
         <InitialsAvatar name={block.resourceName} size={44} />
         <div>
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600 }}>{block.resourceName}</h3>
-          <div style={{ fontSize: 13, color: 'rgba(0,0,0,.45)' }}>{block.resourceRoleName ?? '—'}</div>
+          <div style={{ fontSize: 13, color: text.tertiary }}>{block.resourceRoleName ?? '—'}</div>
         </div>
       </div>
 

@@ -26,7 +26,7 @@ export const useStyles = createStyles(({ token, css }) => ({
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: ${token.colorWhite};
     font-weight: 700;
     font-size: ${token.fontSize}px;
     box-shadow: ${token.brandLogoShadow};
