@@ -486,6 +486,24 @@ export type InspectTarget =
   | { kind: 'person'; project: BoardProject; resourceId: string; block: CoverageBlock }
   | { kind: 'hole'; project: BoardProject; demand: DemandRow };
 
+// ── Lane contextual actions (kebab on the expanded coverage / open-role lanes) ─
+// Every gesture is a plan-command envelope mutation (POST /api/plan/commands).
+// The person-lane gestures act on a coverage block (allocation); the hole-lane
+// gestures act on the demand. `project` rides along because retarget/cover need
+// the project's sibling demands and planned window.
+
+export type LaneAction =
+  | { kind: 'promote'; block: CoverageBlock; project: BoardProject }
+  | { kind: 'demote'; block: CoverageBlock; project: BoardProject }
+  | { kind: 'remove'; block: CoverageBlock; project: BoardProject }
+  | { kind: 'reassign'; block: CoverageBlock; project: BoardProject }
+  | { kind: 'retarget'; block: CoverageBlock; project: BoardProject }
+  | { kind: 'cover'; demand: DemandRow; project: BoardProject }
+  | { kind: 'editDemand'; demand: DemandRow; project: BoardProject }
+  | { kind: 'deleteDemand'; demand: DemandRow; project: BoardProject };
+
+export type LaneActionKind = LaneAction['kind'];
+
 // ── Timeline domain helpers ──────────────────────────────────────────────
 
 export function projectsExtent(

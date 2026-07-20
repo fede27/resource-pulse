@@ -10,10 +10,12 @@ import {
   type CoverageBlock,
   type DemandRow,
   type InspectTarget,
+  type LaneAction,
   type ProjectAction,
   type Verdict,
 } from './boardModel';
 import { ProjectActionsMenu } from './ProjectActionsMenu';
+import { LaneActionsMenu } from './LaneActionsMenu';
 import {
   BLOCK_ACCENT,
   BLOCK_ACCENT_SOFT,
@@ -47,6 +49,7 @@ export type ProjectRowProps = {
   onToggle: (projectId: string) => void;
   onInspect: (target: InspectTarget) => void;
   onAction: (project: BoardProject, action: ProjectAction) => void;
+  onLaneAction: (action: LaneAction) => void;
   peakByPerson: (resourceId: string) => number;
   overloadThreshold: number;
   // Range-scoped hours of a block (% × capacity, consolidation P3); null while
@@ -298,6 +301,9 @@ function BlockLane(props: ProjectRowProps & { block: CoverageBlock }) {
             </div>
           )}
         </div>
+        <div className={styles.laneKebab}>
+          <LaneActionsMenu target={{ kind: 'person', block, project }} onAction={props.onLaneAction} />
+        </div>
       </div>
       {/* dynamic: axis width computed from the domain. */}
       <div className={styles.axisCell} style={{ width: geo.contentW }}>
@@ -390,6 +396,9 @@ function HoleLane(props: ProjectRowProps & { demand: DemandRow }) {
               </span>
             </div>
           </div>
+        </div>
+        <div className={styles.laneKebab}>
+          <LaneActionsMenu target={{ kind: 'hole', demand, project }} onAction={props.onLaneAction} />
         </div>
       </div>
       {/* dynamic: axis width computed from the domain. */}

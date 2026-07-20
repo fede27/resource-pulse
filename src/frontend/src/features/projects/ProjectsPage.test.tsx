@@ -1,24 +1,48 @@
 import { describe, expect, it } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { renderWithProviders } from '@/test/render';
 import { seedProjectsBoard, acmeRoot } from '@/test/fixtures/projectsBoard';
 import { getProjectNodesCreateMockHandler } from '@/api/generated/project-nodes/project-nodes.msw';
+import { getPlanCommandsExecuteMockHandler } from '@/api/generated/plan-commands/plan-commands.msw';
 import {
   getProjectsStartMockHandler,
   getProjectsSuspendMockHandler,
 } from '@/api/generated/projects/projects.msw';
 import {
+  AllocationStatus,
   CommitmentLevel,
   ProjectNodeType,
   ProjectStatus,
   type CreateProjectNodeDto,
+  type PlanCommandResult,
   type ReasonDto,
   type UpdateProjectDto,
 } from '@/api/generated/schemas';
 import { server } from '@/test/msw/server';
 import { ProjectsPage } from './ProjectsPage';
+
+// Envelope command envelopes carry the System.Text.Json discriminator `kind`
+// which orval's union types don't surface (Swashbuckle) — the wire body is
+// captured untyped and asserted on the injected `kind`.
+type CapturedCommand = { kind?: string; [k: string]: unknown };
+const OK_RESULT: PlanCommandResult = { committed: true, changes: [], demandChanges: [] };
+
+function capturePlanCommands(bodies: CapturedCommand[]) {
+  server.use(
+    getPlanCommandsExecuteMockHandler(async (info) => {
+      bodies.push((await info.request.json()) as CapturedCommand);
+      return OK_RESULT;
+    }),
+  );
+}
+
+async function expandAcme(user: ReturnType<typeof userEvent.setup>) {
+  await screen.findByText('Portale ACME');
+  await user.click(await screen.findByRole('button', { name: /Espandi\/chiudi/ }));
+  await screen.findByText('Luca Ferri');
+}
 
 describe('<ProjectsPage>', () => {
   it('renders the board with health cards and the project row', async () => {
@@ -237,6 +261,127 @@ describe('<ProjectsPage>', () => {
       commitmentLevel: CommitmentLevel.Planned,
       confirmDemoteHardAllocations: true,
     });
+  });
+
+  it('demotes a hard coverage from the person-lane kebab (direct commit)', { timeout: 30_000 }, async () => {
+    seedProjectsBoard();
+    const bodies: CapturedCommand[] = [];
+    capturePlanCommands(bodies);
+    const user = userEvent.setup();
+    renderWithProviders(<ProjectsPage />);
+
+    await expandAcme(user);
+    await user.click(screen.getByLabelText('Azioni copertura'));
+    await user.click(await screen.findByText('Riporta a Tentative'));
+
+    expect(
+      await screen.findByText('Copertura riportata a Tentative', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toMatchObject({ kind: 'changeStatus', id: 'a-luca', status: AllocationStatus.Tentative });
+  });
+
+  it('removes a coverage through the confirm modal (person lane)', { timeout: 30_000 }, async () => {
+    seedProjectsBoard();
+    const bodies: CapturedCommand[] = [];
+    capturePlanCommands(bodies);
+    const user = userEvent.setup();
+    renderWithProviders(<ProjectsPage />);
+
+    await expandAcme(user);
+    await user.click(screen.getByLabelText('Azioni copertura'));
+    await user.click(await screen.findByText('Rimuovi copertura'));
+    // Confirm modal (title rendered twice: visible + aria node).
+    expect((await screen.findAllByText(/Rimuovere Luca Ferri/)).length).toBeGreaterThanOrEqual(1);
+    await user.click(screen.getByRole('button', { name: 'Rimuovi copertura' }));
+
+    expect(
+      await screen.findByText('Copertura rimossa', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(bodies).toEqual([{ kind: 'delete', id: 'a-luca' }]);
+  });
+
+  it('covers an open role from the hole-lane kebab picker (create, tentative)', { timeout: 30_000 }, async () => {
+    seedProjectsBoard();
+    const bodies: CapturedCommand[] = [];
+    capturePlanCommands(bodies);
+    const user = userEvent.setup();
+    renderWithProviders(<ProjectsPage />);
+
+    await expandAcme(user);
+    await user.click(screen.getByLabelText('Azioni domanda'));
+    await user.click(await screen.findByText('Copri…'));
+    // Cover modal: pick a person (% defaults 50). Scope the combobox to the
+    // dialog — the toolbar behind it has its own Selects.
+    expect(await screen.findByText('Copri «Grafico» con una persona')).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog');
+    await user.click(within(dialog).getByRole('combobox'));
+    const opts = await screen.findAllByText(/Anna Bianchi/);
+    await user.click(opts.find((el) => el.closest('.ant-select-item-option'))!);
+    await user.click(screen.getByRole('button', { name: 'Copri' }));
+
+    expect(
+      await screen.findByText('Domanda coperta', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toMatchObject({
+      kind: 'create',
+      demandId: 'd-grafico',
+      resourceId: 'r-anna',
+      percent: 50,
+      status: AllocationStatus.Tentative,
+    });
+  });
+
+  it('edits a demand: required hours go out as a .NET constant TimeSpan, notes untouched', { timeout: 30_000 }, async () => {
+    seedProjectsBoard();
+    const bodies: CapturedCommand[] = [];
+    capturePlanCommands(bodies);
+    const user = userEvent.setup();
+    renderWithProviders(<ProjectsPage />);
+
+    await expandAcme(user);
+    await user.click(screen.getByLabelText('Azioni domanda'));
+    await user.click(await screen.findByText('Modifica domanda…'));
+    expect(await screen.findByText('Modifica la domanda «Grafico»')).toBeInTheDocument();
+
+    // Prefilled from the fixture (60h). Change to 80 → 3 days 8 hours.
+    const hours = within(screen.getByRole('dialog')).getByRole('spinbutton');
+    await user.clear(hours);
+    await user.type(hours, '80');
+    await user.click(screen.getByRole('button', { name: 'Salva' }));
+
+    expect(
+      await screen.findByText('Domanda aggiornata', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0]).toMatchObject({
+      kind: 'editDemand',
+      id: 'd-grafico',
+      roleId: 'role-grafico',
+      requiredHours: '3.08:00:00', // constant format, NOT "PT80H"
+      requiredHoursSet: true,
+      notesSet: false,
+    });
+  });
+
+  it('deletes a demand through the confirm modal (hole lane)', { timeout: 30_000 }, async () => {
+    seedProjectsBoard();
+    const bodies: CapturedCommand[] = [];
+    capturePlanCommands(bodies);
+    const user = userEvent.setup();
+    renderWithProviders(<ProjectsPage />);
+
+    await expandAcme(user);
+    await user.click(screen.getByLabelText('Azioni domanda'));
+    await user.click(await screen.findByText('Elimina domanda'));
+    expect((await screen.findAllByText(/Eliminare la domanda/)).length).toBeGreaterThanOrEqual(1);
+    await user.click(screen.getByRole('button', { name: 'Elimina domanda' }));
+
+    expect(
+      await screen.findByText('Domanda eliminata', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(bodies).toEqual([{ kind: 'deleteDemand', id: 'd-grafico' }]);
   });
 
   it('shows the empty state when no project matches', async () => {

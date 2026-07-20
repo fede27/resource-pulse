@@ -25,8 +25,10 @@ import { useProjectsBoard, type BoardDomain } from './useProjectsBoard';
 import { BoardInspector } from './BoardInspector';
 import { NewProjectPanel } from './NewProjectPanel';
 import { ProjectReasonModal } from './ProjectReasonModal';
+import { LaneActionModal } from './LaneActionModal';
 import { useCreateProject } from './useCreateProject';
 import { useProjectActions } from './useProjectActions';
+import { useLaneActions } from './useLaneActions';
 import { BoardLegend } from './BoardLegend';
 import { BoardToolbar, type Metric } from './BoardToolbar';
 import { HealthCards } from './HealthCards';
@@ -87,6 +89,7 @@ export function ProjectsPage() {
     setPanelOpen(false),
   );
   const actions = useProjectActions();
+  const laneActions = useLaneActions();
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollNonce, setScrollNonce] = useState(0);
@@ -256,6 +259,7 @@ export function ProjectsPage() {
               onToggle={toggleExpand}
               onInspect={setInspect}
               onAction={actions.run}
+              onLaneAction={laneActions.run}
               peakByPerson={board.peakByPerson}
               overloadThreshold={board.overloadThreshold}
               blockHoursOf={board.blockHoursOf}
@@ -301,6 +305,17 @@ export function ProjectsPage() {
         submitting={actions.reasonSubmitting}
         onSubmit={(reason) => void actions.onReasonSubmit(reason)}
         onCancel={actions.onReasonCancel}
+      />
+
+      <LaneActionModal
+        state={laneActions.laneModal}
+        submitting={laneActions.laneSubmitting}
+        personPool={board.personPool}
+        onReassign={laneActions.onReassignSubmit}
+        onRetarget={laneActions.onRetargetSubmit}
+        onCover={laneActions.onCoverSubmit}
+        onEditDemand={laneActions.onEditDemandSubmit}
+        onCancel={laneActions.closeModal}
       />
     </div>
   );

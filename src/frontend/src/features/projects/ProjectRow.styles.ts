@@ -313,4 +313,10 @@ export const useStyles = createStyles(({ token, css }) => ({
     justify-content: center;
     background: ${token.colorBgContainer};
   `,
+  laneKebab: css`
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding-inline-end: 4px;
+  `,
 }));
