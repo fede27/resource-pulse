@@ -7,23 +7,29 @@ import type { WorkWindowDto } from '@/api/generated/schemas';
 import { useDays } from '@/i18n/useDays';
 import {
   columnIndexToDayOfWeek,
+  filterWindowsByView,
   formatHourMinute,
-  isWindowActiveToday,
-  isWindowFuture,
-  isWindowHistorical,
   timeToMinutes,
+  windowKindForView,
+  type WindowView,
 } from './workWindow.utils';
 import { WorkWindowPopoverContent } from './WorkWindowPopover';
 import type { WorkWindowFormValues } from './workWindowForm';
 import { HOUR_END, HOUR_START, HOURS, PX_PER_HOUR, useStyles } from './WeekGrid.styles';
 
-export type WeekGridView = 'today' | 'all' | 'historical' | 'future';
+export type WeekGridView = WindowView;
 
 export type WeekGridProps = {
   windows: WorkWindowDto[];
   view: WeekGridView;
   saving: boolean;
   deleting: boolean;
+  /**
+   * Preview mode: no click-to-create on empty columns, and clicking a block
+   * opens the inspect-first popover (facts → Modifica/Elimina). The day editor
+   * is the primary editing surface; the grid is the read-only preview.
+   */
+  readOnly?: boolean;
   onCreate: (values: WorkWindowFormValues) => Promise<void> | void;
   onUpdate: (id: string, values: WorkWindowFormValues) => Promise<void> | void;
   onDelete: (id: string) => Promise<void> | void;
@@ -34,20 +40,12 @@ type OpenState =
   | { kind: 'create'; dayIdx: number; seed: Partial<WorkWindowDto> }
   | { kind: 'edit'; windowId: string };
 
-function windowKind(w: WorkWindowDto, view: WeekGridView): 'active' | 'past' | 'future' {
-  if (view === 'all') {
-    if (isWindowHistorical(w)) return 'past';
-    if (isWindowFuture(w)) return 'future';
-    return 'active';
-  }
-  return view === 'historical' ? 'past' : view === 'future' ? 'future' : 'active';
-}
-
 export function WeekGrid({
   windows,
   view,
   saving,
   deleting,
+  readOnly = false,
   onCreate,
   onUpdate,
   onDelete,
@@ -57,16 +55,12 @@ export function WeekGrid({
   const days = useDays();
   const [open, setOpen] = useState<OpenState>({ kind: 'closed' });
 
-  const filtered = useMemo(() => {
-    if (view === 'today') return windows.filter(isWindowActiveToday);
-    if (view === 'historical') return windows.filter(isWindowHistorical);
-    if (view === 'future') return windows.filter(isWindowFuture);
-    return windows;
-  }, [windows, view]);
+  const filtered = useMemo(() => filterWindowsByView(windows, view), [windows, view]);
 
   const close = () => setOpen({ kind: 'closed' });
 
   const handleColumnClick = (dayIdx: number, evt: React.MouseEvent<HTMLDivElement>) => {
+    if (readOnly) return;
     const target = evt.currentTarget;
     const rect = target.getBoundingClientRect();
     const y = evt.clientY - rect.top;
@@ -138,6 +132,7 @@ export function WeekGrid({
                 styles.dayCol,
                 dayIdx === 6 && styles.dayColLast,
                 isWeekend && styles.dayColWeekend,
+                readOnly && styles.dayColReadOnly,
               )}
             >
               {Array.from({ length: HOURS }).map((_, i) => (
@@ -189,6 +184,7 @@ export function WeekGrid({
                       initial={w}
                       saving={saving}
                       deleting={deleting}
+                      startMode={readOnly ? 'inspect' : 'edit'}
                       onSubmit={(values) => {
                         if (w.id) void submitUpdate(w.id, values);
                       }}
@@ -217,7 +213,9 @@ export function WeekGrid({
           </>
         )}
         <span className={styles.legendHint}>
-          {t('timeConfig.calendars.grid.emptyAreaHint')}
+          {readOnly
+            ? t('timeConfig.calendars.grid.previewHint')
+            : t('timeConfig.calendars.grid.emptyAreaHint')}
         </span>
       </div>
     </div>
@@ -247,7 +245,7 @@ function WindowBlock({
 }: WindowBlockProps) {
   const { token } = theme.useToken();
   const { styles } = useStyles();
-  const kind = windowKind(w, view);
+  const kind = windowKindForView(w, view);
   const palette = paletteFor(kind, token);
   const startMin = timeToMinutes(w.startTime) - HOUR_START * 60;
   const endMin = timeToMinutes(w.endTime) - HOUR_START * 60;

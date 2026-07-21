@@ -48,4 +48,22 @@ describe('<WorkWindowPopoverContent>', () => {
     await user.click(screen.getByRole('button', { name: /Elimina/ }));
     expect(onDelete).toHaveBeenCalled();
   });
+
+  it('shows facts first in inspect mode, then reveals the form on Modifica', async () => {
+    const initial: WorkWindowDto = {
+      id: 'w1',
+      dayOfWeek: 2,
+      startTime: '08:00:00',
+      endTime: '16:00:00',
+      validFrom: '2020-01-01',
+      validTo: null,
+    };
+    const { user } = base({ initial, startMode: 'inspect', onDelete: vi.fn() });
+    // Facts view: the time appears but the edit form's Save is not present yet.
+    expect(screen.getByText('08:00–16:00')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Salva' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Modifica/ }));
+    expect(screen.getByRole('button', { name: 'Salva' })).toBeInTheDocument();
+  });
 });

@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import dayjs from 'dayjs';
 import {
   getBusinessCalendarsGetAllQueryKey,
   useBusinessCalendarsAddWorkWindow,
@@ -27,14 +28,19 @@ import {
   useBusinessCalendarsRemoveWorkWindow,
   useBusinessCalendarsUpdate,
 } from '@/api/generated/business-calendars/business-calendars';
-import type { BusinessCalendarReadDto } from '@/api/generated/schemas';
+import type { BusinessCalendarReadDto, DayOfWeek, WorkWindowDto } from '@/api/generated/schemas';
 import { useApiError } from '@/lib/errors';
+import { useDays } from '@/i18n/useDays';
 import {
+  dayOfWeekToColumnIndex,
+  filterWindowsByView,
   isWindowActiveToday,
   isWindowFuture,
   isWindowHistorical,
   weeklyHours,
+  type WindowView,
 } from './workWindow.utils';
+import { DayPatternEditor } from './DayPatternEditor';
 import { WeekGrid, type WeekGridView } from './WeekGrid';
 import { formValuesToDto, type WorkWindowFormValues } from './workWindowForm';
 import { useStyles } from './CalendarDetail.styles';
@@ -52,6 +58,7 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const showApiError = useApiError();
+  const days = useDays();
 
   const calendarId = calendar.id ?? '';
   const windows = calendar.workWindows ?? [];
@@ -121,6 +128,14 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
     },
   });
 
+  // Silent add used only by the copy-day bulk op — a single summary toast is
+  // shown at the end instead of one per added window.
+  const copyAddMutation = useBusinessCalendarsAddWorkWindow({
+    mutation: {
+      onError: (e) => showApiError(e),
+    },
+  });
+
   const handleCreateWindow = async (values: WorkWindowFormValues) => {
     await addWindowMutation.mutateAsync({ id: calendarId, data: formValuesToDto(values) });
   };
@@ -134,6 +149,49 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
   const handleDeleteWindow = async (windowId: string) => {
     await removeWindowMutation.mutateAsync({ id: calendarId, windowId });
     message.success(t('timeConfig.calendars.window.removeSuccess'));
+    void invalidate();
+  };
+
+  // Copy a day's windows (within the current validity scope) onto other days:
+  // clear the targets' windows in that same scope, then re-add copies of the
+  // source with their validity preserved. Scoping to the view is what lets a
+  // future change be replicated across days without touching present windows.
+  // Sequential (pooled DbContext is not concurrency-safe) with a single summary
+  // toast — mirrors the update path.
+  const handleCopyDay = async (
+    source: DayOfWeek,
+    targets: DayOfWeek[],
+    view: WindowView,
+  ) => {
+    const scoped = filterWindowsByView(windows, view);
+    const srcWindows = scoped.filter((w) => w.dayOfWeek === source);
+    if (srcWindows.length === 0 || targets.length === 0) return;
+
+    const toRemove = scoped.filter(
+      (w) => w.id && w.dayOfWeek !== undefined && targets.includes(w.dayOfWeek),
+    );
+    for (const w of toRemove) {
+      await removeWindowMutation.mutateAsync({ id: calendarId, windowId: w.id! });
+    }
+    const today = dayjs().format('YYYY-MM-DD');
+    for (const target of targets) {
+      for (const w of srcWindows) {
+        if (!w.startTime || !w.endTime) continue;
+        const data: WorkWindowDto = {
+          dayOfWeek: target,
+          startTime: w.startTime,
+          endTime: w.endTime,
+          validFrom: w.validFrom ?? today,
+          validTo: w.validTo ?? null,
+        };
+        await copyAddMutation.mutateAsync({ id: calendarId, data });
+      }
+    }
+    message.success(
+      t('timeConfig.calendars.dayEditor.copySuccess', {
+        day: days.long[dayOfWeekToColumnIndex(source)] ?? '',
+      }),
+    );
     void invalidate();
   };
 
@@ -337,9 +395,21 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
         />
       )}
 
+      <DayPatternEditor
+        windows={windows}
+        view={view}
+        saving={addWindowMutation.isPending}
+        deleting={removeWindowMutation.isPending}
+        onCreate={handleCreateWindow}
+        onUpdate={handleUpdateWindow}
+        onDelete={handleDeleteWindow}
+        onCopyDay={handleCopyDay}
+      />
+
       <WeekGrid
         windows={windows}
         view={view}
+        readOnly
         saving={addWindowMutation.isPending}
         deleting={removeWindowMutation.isPending}
         onCreate={handleCreateWindow}

@@ -1,10 +1,12 @@
 import { useState, type ReactNode } from 'react';
-import { Card, Dropdown, Table, Tag, Typography } from 'antd';
+import { Card, Dropdown, Table, Typography } from 'antd';
 import { CaretRightFilled, MoreOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { CompanyClosureReadDto } from '@/api/generated/schemas';
+import { closureDays, formatClosureRange } from './closure.utils';
+import { ClosureStatusPill } from './ClosureStatusPill';
+import type { ClosureInspectAnchor } from './ClosureInspectPopover';
 import { useStyles } from './ClosureSection.styles';
 
 const { Text } = Typography;
@@ -20,6 +22,7 @@ export type ClosureSectionProps = {
   /** Row with this id is hidden from the table (because the inline editor took over). */
   hiddenRowId?: string | null;
   defaultOpen?: boolean;
+  onInspect: (closure: CompanyClosureReadDto, anchor: ClosureInspectAnchor) => void;
   onEdit: (closure: CompanyClosureReadDto) => void;
   onDelete: (closure: CompanyClosureReadDto) => void;
 };
@@ -31,6 +34,7 @@ export function ClosureSection({
   inlineSlot,
   hiddenRowId,
   defaultOpen = true,
+  onInspect,
   onEdit,
   onDelete,
 }: ClosureSectionProps) {
@@ -50,7 +54,7 @@ export function ClosureSection({
       dataIndex: 'dateFrom',
       key: 'period',
       render: (_, c) => (
-        <span className={styles.tnum}>{formatRange(c.dateFrom, c.dateTo)}</span>
+        <span className={styles.tnum}>{formatClosureRange(c.dateFrom, c.dateTo)}</span>
       ),
     },
     {
@@ -66,7 +70,7 @@ export function ClosureSection({
       align: 'right',
       render: (_, c) => (
         <span className={styles.tnum}>
-          {computeDays(c.dateFrom, c.dateTo)}
+          {closureDays(c.dateFrom, c.dateTo)}
           {dayShort}
         </span>
       ),
@@ -75,7 +79,7 @@ export function ClosureSection({
       title: t('timeConfig.closures.columnStatus'),
       key: 'status',
       width: 110,
-      render: (_, c) => <ClosureStatusTag closure={c} />,
+      render: (_, c) => <ClosureStatusPill closure={c} />,
     },
     {
       title: '',
@@ -140,7 +144,7 @@ export function ClosureSection({
                 className: c.id ? styles.rowClickable : undefined,
                 onClick: (e) => {
                   if ((e.target as HTMLElement).closest('.ant-dropdown-trigger')) return;
-                  if (c.id) onEdit(c);
+                  if (c.id) onInspect(c, { x: e.clientX, y: e.clientY });
                 },
               })}
             />
@@ -149,44 +153,4 @@ export function ClosureSection({
       )}
     </Card>
   );
-}
-
-function ClosureStatusTag({ closure }: { closure: CompanyClosureReadDto }) {
-  const { t } = useTranslation();
-  const today = dayjs().startOf('day');
-  const from = closure.dateFrom ? dayjs(closure.dateFrom) : null;
-  const to = closure.dateTo ? dayjs(closure.dateTo) : null;
-  if (
-    from &&
-    to &&
-    (today.isSame(from, 'day') ||
-      (today.isAfter(from) && (today.isSame(to, 'day') || today.isBefore(to))))
-  ) {
-    return <Tag color="red">{t('timeConfig.closures.statusOngoing')}</Tag>;
-  }
-  if (from && from.isAfter(today, 'day')) {
-    return <Tag color="blue">{t('timeConfig.closures.statusUpcoming')}</Tag>;
-  }
-  return <Tag>{t('timeConfig.closures.statusPast')}</Tag>;
-}
-
-function formatRange(fromIso: string | undefined, toIso: string | undefined): string {
-  if (!fromIso) return '—';
-  const from = dayjs(fromIso);
-  const to = toIso ? dayjs(toIso) : from;
-  if (from.isSame(to, 'day')) return from.format('DD MMMM YYYY');
-  if (from.isSame(to, 'year') && from.isSame(to, 'month')) {
-    return `${from.format('D')}–${to.format('D MMMM YYYY')}`;
-  }
-  if (from.isSame(to, 'year')) {
-    return `${from.format('D MMM')} – ${to.format('D MMM YYYY')}`;
-  }
-  return `${from.format('D MMM YYYY')} – ${to.format('D MMM YYYY')}`;
-}
-
-function computeDays(fromIso: string | undefined, toIso: string | undefined): number {
-  if (!fromIso) return 0;
-  const from = dayjs(fromIso).startOf('day');
-  const to = toIso ? dayjs(toIso).startOf('day') : from;
-  return Math.max(0, to.diff(from, 'day') + 1);
 }

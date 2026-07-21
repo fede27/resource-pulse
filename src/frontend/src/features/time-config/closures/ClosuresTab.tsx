@@ -17,6 +17,10 @@ import { PageHeader } from '@/components/domain/PageHeader';
 import { StatCard } from '@/components/domain/StatCard';
 import { YearSelector } from '@/components/domain/YearSelector';
 import { ClosureInlineForm, type ClosureFormValues } from './ClosureInlineForm';
+import {
+  ClosureInspectPopover,
+  type ClosureInspectAnchor,
+} from './ClosureInspectPopover';
 import { ClosureSection } from './ClosureSection';
 import { useStyles } from './ClosuresTab.styles';
 
@@ -40,6 +44,17 @@ export function ClosuresTab() {
 
   const [year, setYear] = useState<number>(() => dayjs().year());
   const [editState, setEditState] = useState<EditState>({ kind: 'idle' });
+  const [inspect, setInspect] = useState<{
+    closure: CompanyClosureReadDto;
+    anchor: ClosureInspectAnchor;
+  } | null>(null);
+
+  const openInspect = (closure: CompanyClosureReadDto, anchor: ClosureInspectAnchor) =>
+    setInspect({ closure, anchor });
+  const closeInspect = () => setInspect(null);
+  const startEdit = (c: CompanyClosureReadDto) => {
+    if (c.id) setEditState({ kind: 'editing', id: c.id });
+  };
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: getCompanyClosuresGetAllQueryKey() });
@@ -268,7 +283,8 @@ export function ClosuresTab() {
           }
           hiddenRowId={editingInUpcoming ? editingId : null}
           defaultOpen
-          onEdit={(c) => c.id && setEditState({ kind: 'editing', id: c.id })}
+          onInspect={openInspect}
+          onEdit={startEdit}
           onDelete={confirmDelete}
         />
         <ClosureSection
@@ -278,7 +294,8 @@ export function ClosuresTab() {
           inlineSlot={editingInPast && editingClosure ? formForEdit(editingClosure) : undefined}
           hiddenRowId={editingInPast ? editingId : null}
           defaultOpen={upcoming.length === 0}
-          onEdit={(c) => c.id && setEditState({ kind: 'editing', id: c.id })}
+          onInspect={openInspect}
+          onEdit={startEdit}
           onDelete={confirmDelete}
         />
 
@@ -288,6 +305,16 @@ export function ClosuresTab() {
           </Card>
         )}
       </Flex>
+
+      {inspect && (
+        <ClosureInspectPopover
+          closure={inspect.closure}
+          anchor={inspect.anchor}
+          onClose={closeInspect}
+          onEdit={startEdit}
+          onDelete={confirmDelete}
+        />
+      )}
     </div>
   );
 }

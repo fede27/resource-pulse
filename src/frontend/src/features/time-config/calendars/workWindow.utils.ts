@@ -47,6 +47,31 @@ export function isWindowActiveToday(w: WorkWindowDto): boolean {
   return isWindowActiveOn(w, dayjs().startOf('day'));
 }
 
+/** Validity-scope filter shared by the week grid and the day-pattern editor. */
+export type WindowView = 'today' | 'all' | 'historical' | 'future';
+
+export function filterWindowsByView(
+  windows: WorkWindowDto[],
+  view: WindowView,
+): WorkWindowDto[] {
+  if (view === 'today') return windows.filter(isWindowActiveToday);
+  if (view === 'historical') return windows.filter(isWindowHistorical);
+  if (view === 'future') return windows.filter(isWindowFuture);
+  return windows;
+}
+
+export type WindowKind = 'active' | 'past' | 'future';
+
+/** Colour class of a window under a given view (mixed only in the "all" view). */
+export function windowKindForView(w: WorkWindowDto, view: WindowView): WindowKind {
+  if (view === 'all') {
+    if (isWindowHistorical(w)) return 'past';
+    if (isWindowFuture(w)) return 'future';
+    return 'active';
+  }
+  return view === 'historical' ? 'past' : view === 'future' ? 'future' : 'active';
+}
+
 export function isWindowHistorical(w: WorkWindowDto): boolean {
   const { to } = parseValidity(w);
   if (!to) return false;

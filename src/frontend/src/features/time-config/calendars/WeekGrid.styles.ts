@@ -68,6 +68,9 @@ export const useStyles = createStyles(({ token, css }) => ({
   dayColWeekend: css`
     background: ${token.colorFillQuaternary};
   `,
+  dayColReadOnly: css`
+    cursor: default;
+  `,
   gridLine: css`
     position: absolute;
     left: 0;
