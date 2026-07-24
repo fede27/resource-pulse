@@ -28,6 +28,42 @@ public sealed class IndividualAdjustment
         string reason,
         string? notes)
     {
+        var trimmedReason = Validate(dateFrom, dateTo, type, hours, reason);
+
+        return new IndividualAdjustment
+        {
+            Id = Guid.NewGuid(),
+            DateFrom = dateFrom,
+            DateTo = dateTo,
+            Type = type,
+            Hours = hours,
+            Reason = trimmedReason,
+            Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim()
+        };
+    }
+
+    // In-place edit preserving identity — the adjustment is an "event" whose
+    // span/hours/reason can be corrected without losing its Id (see ADR: G2).
+    public void Update(
+        DateOnly dateFrom,
+        DateOnly dateTo,
+        AdjustmentType type,
+        TimeSpan? hours,
+        string reason,
+        string? notes)
+    {
+        var trimmedReason = Validate(dateFrom, dateTo, type, hours, reason);
+        DateFrom = dateFrom;
+        DateTo = dateTo;
+        Type = type;
+        Hours = hours;
+        Reason = trimmedReason;
+        Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+    }
+
+    // Shared invariants for Create/Update. Returns the trimmed reason.
+    private static string Validate(DateOnly dateFrom, DateOnly dateTo, AdjustmentType type, TimeSpan? hours, string reason)
+    {
         if (dateFrom > dateTo)
             throw new DomainException("IndividualAdjustment DateFrom must be on or before DateTo.");
         var trimmedReason = (reason ?? string.Empty).Trim();
@@ -46,16 +82,7 @@ public sealed class IndividualAdjustment
             throw new DomainException("Partial Absence Hours must be positive when provided.");
         }
 
-        return new IndividualAdjustment
-        {
-            Id = Guid.NewGuid(),
-            DateFrom = dateFrom,
-            DateTo = dateTo,
-            Type = type,
-            Hours = hours,
-            Reason = trimmedReason,
-            Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim()
-        };
+        return trimmedReason;
     }
 
     public bool Covers(DateOnly date) => DateFrom <= date && date <= DateTo;

@@ -253,6 +253,21 @@ public sealed partial class Resource : Entity<Guid>, IAuditable
         _adjustments.Remove(adjustment);
     }
 
+    public void UpdateAdjustment(
+        Guid adjustmentId,
+        DateOnly dateFrom,
+        DateOnly dateTo,
+        AdjustmentType type,
+        TimeSpan? hours,
+        string reason,
+        string? notes)
+    {
+        var adjustment = _adjustments.FirstOrDefault(a => a.Id == adjustmentId);
+        if (adjustment is null)
+            throw new DomainException($"Adjustment {adjustmentId} not found on this resource.");
+        adjustment.Update(dateFrom, dateTo, type, hours, reason, notes);
+    }
+
     private void EnsureNoOverlap(WorkWindow candidate)
     {
         foreach (var existing in _workWindows)

@@ -79,14 +79,12 @@ export function AppLayout() {
 
 function resolveBreadcrumb(pathname: string, t: TFunction): string[] {
   if (pathname === '/' || pathname === '') return [t('breadcrumb.dashboard')];
-  if (pathname.startsWith('/people/registry'))
-    return [t('breadcrumb.configuration'), t('nav.peopleRegistry')];
   if (pathname.startsWith('/people'))
     return [t('breadcrumb.planning'), t('breadcrumb.people')];
   if (pathname.startsWith('/projects'))
     return [t('breadcrumb.planning'), t('breadcrumb.projects')];
-  if (pathname.startsWith('/teams'))
-    return [t('breadcrumb.configuration'), t('breadcrumb.teams')];
+  if (pathname.startsWith('/roles-teams'))
+    return [t('nav.groupManagement'), t('nav.rolesTeams')];
   if (pathname.startsWith('/time-config'))
     return [t('breadcrumb.configuration'), t('breadcrumb.timeConfig')];
   if (pathname.startsWith('/settings'))

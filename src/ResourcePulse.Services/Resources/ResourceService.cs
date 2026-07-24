@@ -255,6 +255,26 @@ public sealed class ResourceService(
         return ServiceResult.Ok();
     }
 
+    public async Task<ServiceResult<Unit>> AssignCalendarAsync(Guid resourceId, AssignCalendarDto dto, CancellationToken ct = default)
+    {
+        var resource = await repository.GetByIdAsync(resourceId, ct);
+        if (resource is null) return ServiceResult.NotFound($"Resource {resourceId} not found.");
+
+        if (resource.BusinessCalendarId == dto.BusinessCalendarId) return ServiceResult.Ok();
+
+        var exists = await db.BusinessCalendars.AnyAsync(c => c.Id == dto.BusinessCalendarId, ct);
+        if (!exists)
+            return ServiceResult.Validation(new Dictionary<string, string[]>
+            {
+                [nameof(AssignCalendarDto.BusinessCalendarId)] =
+                    [$"BusinessCalendar {dto.BusinessCalendarId} does not exist."]
+            });
+
+        resource.ChangeBusinessCalendar(dto.BusinessCalendarId);
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult.Ok();
+    }
+
     public async Task<ServiceResult<Unit>> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var resource = await repository.GetByIdAsync(id, ct);
@@ -309,6 +329,31 @@ public sealed class ResourceService(
         resource.RemoveAdjustment(adjustmentId);
         await repository.SaveChangesAsync(ct);
         return ServiceResult.Ok();
+    }
+
+    public async Task<ServiceResult<IndividualAdjustmentDto>> UpdateAdjustmentAsync(
+        Guid resourceId, Guid adjustmentId, IndividualAdjustmentDto dto, CancellationToken ct = default)
+    {
+        var resource = await LoadWithOwnedAsync(resourceId, ct);
+        if (resource is null) return ServiceResult<IndividualAdjustmentDto>.NotFound($"Resource {resourceId} not found.");
+
+        try
+        {
+            resource.UpdateAdjustment(adjustmentId, dto.DateFrom, dto.DateTo, dto.Type, dto.Hours, dto.Reason, dto.Notes);
+        }
+        catch (Common.Domain.DomainException ex)
+        {
+            // The adjustment is missing on this resource, or the new values are
+            // invalid. Missing → NotFound; invalid values are caught by the
+            // validator before we get here, so treat a raised exception as a
+            // not-found (unknown adjustmentId).
+            return ServiceResult<IndividualAdjustmentDto>.NotFound(ex.Message);
+        }
+
+        await repository.SaveChangesAsync(ct);
+
+        var updated = resource.Adjustments.Single(a => a.Id == adjustmentId);
+        return ServiceResult<IndividualAdjustmentDto>.Success(mapper.Map<IndividualAdjustmentDto>(updated));
     }
 
     public async Task<ServiceResult<Unit>> AssignTeamAsync(Guid resourceId, AssignTeamDto dto, CancellationToken ct = default)

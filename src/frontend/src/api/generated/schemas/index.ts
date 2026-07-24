@@ -18,6 +18,7 @@ export * from './allocationsGetForProjectNodeParams';
 export * from './allocationsGetForResourceParams';
 export * from './allocationsGetInRangeParams';
 export * from './allocationStatus';
+export * from './assignCalendarDto';
 export * from './assignRoleDto';
 export * from './assignTeamDto';
 export * from './backfillActualsDto';

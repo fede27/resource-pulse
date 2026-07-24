@@ -81,6 +81,12 @@ public sealed class AssignRoleDto
     public Guid? RoleId { get; init; }
 }
 
+public sealed class AssignCalendarDto
+{
+    // The BusinessCalendar the resource's base availability derives from.
+    public Guid BusinessCalendarId { get; init; }
+}
+
 public sealed class AddOrUpdateResourceSkillDto
 {
     public Guid SkillId { get; init; }

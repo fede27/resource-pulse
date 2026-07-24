@@ -20,6 +20,9 @@ public interface IResourceService
 
     Task<ServiceResult<Unit>> AssignTeamAsync(Guid resourceId, AssignTeamDto dto, CancellationToken ct = default);
     Task<ServiceResult<Unit>> AssignRoleAsync(Guid resourceId, AssignRoleDto dto, CancellationToken ct = default);
+    Task<ServiceResult<Unit>> AssignCalendarAsync(Guid resourceId, AssignCalendarDto dto, CancellationToken ct = default);
+
+    Task<ServiceResult<IndividualAdjustmentDto>> UpdateAdjustmentAsync(Guid resourceId, Guid adjustmentId, IndividualAdjustmentDto dto, CancellationToken ct = default);
 
     Task<ServiceResult<ResourceSkillDto>> AddSkillAsync(Guid resourceId, AddOrUpdateResourceSkillDto dto, CancellationToken ct = default);
     Task<ServiceResult<ResourceSkillDto>> UpdateSkillLevelAsync(Guid resourceId, Guid skillId, AddOrUpdateResourceSkillDto dto, CancellationToken ct = default);

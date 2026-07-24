@@ -191,4 +191,87 @@ public class ResourceExtensionsTests
         act.Should().Throw<DomainException>()
             .WithMessage("*does not have tag*");
     }
+
+    // ── Business calendar ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void ChangeBusinessCalendar_SetsNewId()
+    {
+        var resource = MakeResource();
+        var newCalendarId = Guid.NewGuid();
+
+        resource.ChangeBusinessCalendar(newCalendarId);
+
+        resource.BusinessCalendarId.Should().Be(newCalendarId);
+    }
+
+    [Fact]
+    public void ChangeBusinessCalendar_Empty_Throws()
+    {
+        var resource = MakeResource();
+
+        var act = () => resource.ChangeBusinessCalendar(Guid.Empty);
+
+        act.Should().Throw<DomainException>()
+            .WithMessage("*must reference a business calendar*");
+    }
+
+    // ── Adjustments (update preserves identity) ───────────────────────────────
+
+    [Fact]
+    public void UpdateAdjustment_ChangesFields_KeepingId()
+    {
+        var resource = MakeResource();
+        var adjustment = IndividualAdjustment.Create(
+            new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 3),
+            AdjustmentType.Absence, null, "Ferie", null);
+        resource.AddAdjustment(adjustment);
+        var id = adjustment.Id;
+
+        resource.UpdateAdjustment(
+            id,
+            new DateOnly(2026, 7, 2), new DateOnly(2026, 7, 5),
+            AdjustmentType.ExtraTime, TimeSpan.FromHours(4), "Straordinario", "note");
+
+        var updated = resource.Adjustments.Single();
+        updated.Id.Should().Be(id);
+        updated.Type.Should().Be(AdjustmentType.ExtraTime);
+        updated.DateFrom.Should().Be(new DateOnly(2026, 7, 2));
+        updated.DateTo.Should().Be(new DateOnly(2026, 7, 5));
+        updated.Hours.Should().Be(TimeSpan.FromHours(4));
+        updated.Reason.Should().Be("Straordinario");
+        updated.Notes.Should().Be("note");
+    }
+
+    [Fact]
+    public void UpdateAdjustment_NotPresent_Throws()
+    {
+        var resource = MakeResource();
+
+        var act = () => resource.UpdateAdjustment(
+            Guid.NewGuid(),
+            new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 1),
+            AdjustmentType.Absence, null, "Ferie", null);
+
+        act.Should().Throw<DomainException>()
+            .WithMessage("*not found on this resource*");
+    }
+
+    [Fact]
+    public void UpdateAdjustment_ExtraTimeWithoutHours_Throws()
+    {
+        var resource = MakeResource();
+        var adjustment = IndividualAdjustment.Create(
+            new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 1),
+            AdjustmentType.Absence, null, "Ferie", null);
+        resource.AddAdjustment(adjustment);
+
+        var act = () => resource.UpdateAdjustment(
+            adjustment.Id,
+            new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 1),
+            AdjustmentType.ExtraTime, null, "Straordinario", null);
+
+        act.Should().Throw<DomainException>()
+            .WithMessage("*ExtraTime adjustment requires Hours*");
+    }
 }

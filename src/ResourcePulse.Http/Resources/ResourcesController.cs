@@ -68,6 +68,13 @@ public sealed class ResourcesController(
     public async Task<IActionResult> AddAdjustmentAsync(Guid id, [FromBody] IndividualAdjustmentDto dto, CancellationToken ct) =>
         FromCreateResult(await service.AddAdjustmentAsync(id, dto, ct), x => x.Id);
 
+    [HttpPut("{id}/adjustments/{adjustmentId}")]
+    [ProducesResponseType<IndividualAdjustmentDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateAdjustmentAsync(Guid id, Guid adjustmentId, [FromBody] IndividualAdjustmentDto dto, CancellationToken ct) =>
+        FromResult(await service.UpdateAdjustmentAsync(id, adjustmentId, dto, ct));
+
     [HttpDelete("{id}/adjustments/{adjustmentId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -86,6 +93,13 @@ public sealed class ResourcesController(
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> AssignRoleAsync(Guid id, [FromBody] AssignRoleDto dto, CancellationToken ct) =>
         FromResult(await service.AssignRoleAsync(id, dto, ct));
+
+    [HttpPut("{id}/calendar")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AssignCalendarAsync(Guid id, [FromBody] AssignCalendarDto dto, CancellationToken ct) =>
+        FromResult(await service.AssignCalendarAsync(id, dto, ct));
 
     [HttpPost("{id}/skills")]
     [ProducesResponseType<ResourceSkillDto>(StatusCodes.Status201Created)]

@@ -27,6 +27,7 @@ import type {
 import type {
   AddOrUpdateResourceSkillDto,
   AddResourceTagDto,
+  AssignCalendarDto,
   AssignRoleDto,
   AssignTeamDto,
   CreateResourceDto,
@@ -568,6 +569,65 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getResourcesAddAdjustmentMutationOptions(options), queryClient);
     }
+    export const resourcesUpdateAdjustment = (
+    id: string,
+    adjustmentId: string,
+    individualAdjustmentDto?: BodyType<IndividualAdjustmentDto>,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<IndividualAdjustmentDto>(
+      {url: `/api/resources/${id}/adjustments/${adjustmentId}`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: individualAdjustmentDto, signal
+    },
+      options);
+    }
+
+
+
+export const getResourcesUpdateAdjustmentMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesUpdateAdjustment>>, TError,{id: string;adjustmentId: string;data?: BodyType<IndividualAdjustmentDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof resourcesUpdateAdjustment>>, TError,{id: string;adjustmentId: string;data?: BodyType<IndividualAdjustmentDto>}, TContext> => {
+
+const mutationKey = ['resourcesUpdateAdjustment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resourcesUpdateAdjustment>>, {id: string;adjustmentId: string;data?: BodyType<IndividualAdjustmentDto>}> = (props) => {
+          const {id,adjustmentId,data} = props ?? {};
+
+          return  resourcesUpdateAdjustment(id,adjustmentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResourcesUpdateAdjustmentMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesUpdateAdjustment>>>
+    export type ResourcesUpdateAdjustmentMutationBody = BodyType<IndividualAdjustmentDto> | undefined
+    export type ResourcesUpdateAdjustmentMutationError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>
+
+    export const useResourcesUpdateAdjustment = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesUpdateAdjustment>>, TError,{id: string;adjustmentId: string;data?: BodyType<IndividualAdjustmentDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resourcesUpdateAdjustment>>,
+        TError,
+        {id: string;adjustmentId: string;data?: BodyType<IndividualAdjustmentDto>},
+        TContext
+      > => {
+      return useMutation(getResourcesUpdateAdjustmentMutationOptions(options), queryClient);
+    }
     export const resourcesRemoveAdjustment = (
     id: string,
     adjustmentId: string,
@@ -739,6 +799,64 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getResourcesAssignRoleMutationOptions(options), queryClient);
+    }
+    export const resourcesAssignCalendar = (
+    id: string,
+    assignCalendarDto?: BodyType<AssignCalendarDto>,
+ options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
+) => {
+
+
+      return apiClient<void>(
+      {url: `/api/resources/${id}/calendar`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: assignCalendarDto, signal
+    },
+      options);
+    }
+
+
+
+export const getResourcesAssignCalendarMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAssignCalendar>>, TError,{id: string;data?: BodyType<AssignCalendarDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof resourcesAssignCalendar>>, TError,{id: string;data?: BodyType<AssignCalendarDto>}, TContext> => {
+
+const mutationKey = ['resourcesAssignCalendar'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resourcesAssignCalendar>>, {id: string;data?: BodyType<AssignCalendarDto>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resourcesAssignCalendar(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResourcesAssignCalendarMutationResult = NonNullable<Awaited<ReturnType<typeof resourcesAssignCalendar>>>
+    export type ResourcesAssignCalendarMutationBody = BodyType<AssignCalendarDto> | undefined
+    export type ResourcesAssignCalendarMutationError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>
+
+    export const useResourcesAssignCalendar = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resourcesAssignCalendar>>, TError,{id: string;data?: BodyType<AssignCalendarDto>}, TContext>, request?: SecondParameter<typeof apiClient>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resourcesAssignCalendar>>,
+        TError,
+        {id: string;data?: BodyType<AssignCalendarDto>},
+        TContext
+      > => {
+      return useMutation(getResourcesAssignCalendarMutationOptions(options), queryClient);
     }
     export const resourcesAddSkill = (
     id: string,

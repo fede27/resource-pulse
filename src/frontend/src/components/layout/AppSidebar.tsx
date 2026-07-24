@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { Layout, Menu } from 'antd';
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router';
 import {
-  AppstoreOutlined,
   ClockCircleOutlined,
   FolderOutlined,
   IdcardOutlined,
@@ -44,21 +43,17 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
         icon: <FolderOutlined />,
         label: <Link to="/projects">{t('nav.projects')}</Link>,
       },
-      { type: 'group' as const, label: t('nav.groupConfiguration'), key: 'g-config' },
+      { type: 'group' as const, label: t('nav.groupManagement'), key: 'g-management' },
       {
-        key: 'people-registry',
+        key: 'roles-teams',
         icon: <IdcardOutlined />,
-        label: <Link to="/people/registry">{t('nav.peopleRegistry')}</Link>,
+        label: <Link to="/roles-teams">{t('nav.rolesTeams')}</Link>,
       },
+      { type: 'group' as const, label: t('nav.groupConfiguration'), key: 'g-config' },
       {
         key: 'time-config',
         icon: <ClockCircleOutlined />,
         label: <Link to="/time-config">{t('nav.timeConfig')}</Link>,
-      },
-      {
-        key: 'teams',
-        icon: <AppstoreOutlined />,
-        label: <Link to="/teams">{t('nav.teams')}</Link>,
       },
       {
         key: 'settings',
@@ -102,10 +97,9 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
 }
 
 function resolveSelectedKey(pathname: string): string {
-  if (pathname.startsWith('/people/registry')) return 'people-registry';
   if (pathname.startsWith('/people')) return 'people';
   if (pathname.startsWith('/projects')) return 'projects';
-  if (pathname.startsWith('/teams')) return 'teams';
+  if (pathname.startsWith('/roles-teams')) return 'roles-teams';
   if (pathname.startsWith('/time-config')) return 'time-config';
   if (pathname.startsWith('/settings')) return 'settings';
   return 'home';

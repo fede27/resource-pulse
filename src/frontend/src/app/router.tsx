@@ -2,10 +2,9 @@ import { createRootRoute, createRoute, createRouter } from '@tanstack/react-rout
 import { AppLayout } from '@/components/layout/AppLayout';
 import { HomePage } from '@/app/routes/index';
 import { PeopleRoutePage } from '@/app/routes/people/index';
-import { PeopleRegistryRoutePage } from '@/app/routes/people/registry';
 import { ProjectsRoutePage } from '@/app/routes/projects/index';
+import { RolesTeamsRoutePage } from '@/app/routes/roles-teams/index';
 import { SettingsRoutePage } from '@/app/routes/settings/index';
-import { TeamListPage } from '@/app/routes/teams/index';
 import { TimeConfigRoutePage } from '@/app/routes/time-config/index';
 
 const rootRoute = createRootRoute({ component: AppLayout });
@@ -16,30 +15,26 @@ const indexRoute = createRoute({
   component: HomePage,
 });
 
-const teamListRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/teams',
-  component: TeamListPage,
-});
-
 const timeConfigRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/time-config',
   component: TimeConfigRoutePage,
 });
 
-// "/people" is the Persone planning board; the registry (anagrafica) moved to
-// "/people/registry" when the board took over the primary route.
+// "/people" is the Persone planning board. The former registry (anagrafica) and
+// the Teams page were consolidated into "/roles-teams" (Ruoli e team).
 const peopleRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/people',
   component: PeopleRoutePage,
 });
 
-const peopleRegistryRoute = createRoute({
+// The consolidated "Ruoli e team" page: anagrafica (ruoli/team/persone) +
+// disponibilità base (calendario assegnato + ferie/straordinari).
+const rolesTeamsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/people/registry',
-  component: PeopleRegistryRoutePage,
+  path: '/roles-teams',
+  component: RolesTeamsRoutePage,
 });
 
 const projectsRoute = createRoute({
@@ -56,10 +51,9 @@ const settingsRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
-  teamListRoute,
   timeConfigRoute,
   peopleRoute,
-  peopleRegistryRoute,
+  rolesTeamsRoute,
   projectsRoute,
   settingsRoute,
 ]);
