@@ -24,6 +24,7 @@ export {
   type WindowedRows,
 } from './boardRowLayout';
 export { useWindowedRows } from './useWindowedRows';
+export { useFrameMaxHeight } from './useFrameMaxHeight';
 export { RowGap } from './RowGap';
 export {
   BoardDateControls,

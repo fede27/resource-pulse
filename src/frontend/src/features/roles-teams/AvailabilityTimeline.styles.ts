@@ -4,6 +4,14 @@ export const LABEL_W = 220;
 export const BUCKET_W = { week: 88, day: 40 } as const;
 export const CELL_H = { week: 42, day: 34 } as const;
 
+// Row heights DERIVED FROM STATE (px, border-box incl. the 1px bottom border) —
+// the single source for both the rendered height and the windowing math
+// (`useWindowedRows` needs exact heights or the gap spacers drift). The person
+// row is avatar-driven (32px avatar + 2×paddingXS) so it is constant across
+// grains; the team row tracks the aggregate-cell height (CELL_H + 6).
+export const PERSON_ROW_H = 49;
+export const teamRowHeight = (grain: 'week' | 'day') => CELL_H[grain] + 7;
+
 export const useStyles = createStyles(({ token, css }) => ({
   toolbar: css`
     display: flex;
@@ -28,14 +36,22 @@ export const useStyles = createStyles(({ token, css }) => ({
     overflow: hidden;
   `,
   scroll: css`
-    overflow-x: auto;
+    overflow: auto;
+    /* Bounded to the viewport-remaining height (measured by useFrameMaxHeight)
+       so rows scroll INSIDE the frame: the sticky header/labels keep a
+       scrollport and the vertical windowing has a bounded viewport to track.
+       Unmeasurable layout (jsdom) → none → document flow, full render. */
+    max-height: var(--board-max-h, none);
+    scrollbar-gutter: stable;
   `,
   headerRow: css`
     display: flex;
     position: sticky;
     top: 0;
     z-index: 5;
-    background: ${token.colorFillQuaternary};
+    /* OPAQUE (colorBgLayout, not the translucent colorFillQuaternary) so the
+       sticky header hides the rows scrolling underneath it. */
+    background: ${token.colorBgLayout};
     border-bottom: 1px solid ${token.colorBorderSecondary};
   `,
   labelHead: css`
@@ -47,7 +63,8 @@ export const useStyles = createStyles(({ token, css }) => ({
     position: sticky;
     left: 0;
     z-index: 6;
-    background: ${token.colorFillQuaternary};
+    /* Opaque sticky corner (top + left) — see headerRow. */
+    background: ${token.colorBgLayout};
     border-right: 1px solid ${token.colorBorderSecondary};
   `,
   headCell: css`
@@ -90,6 +107,7 @@ export const useStyles = createStyles(({ token, css }) => ({
   `,
   teamRow: css`
     display: flex;
+    box-sizing: border-box;
     border-bottom: 1px solid ${token.colorBorderSecondary};
     background: ${token.colorFillQuaternary};
   `,
@@ -102,7 +120,9 @@ export const useStyles = createStyles(({ token, css }) => ({
     position: sticky;
     left: 0;
     z-index: 4;
-    background: ${token.colorFillQuaternary};
+    /* Opaque sticky-left label (see headerRow) so the aggregate cells don't
+       show through it while scrolling horizontally. */
+    background: ${token.colorBgLayout};
     border-right: 1px solid ${token.colorBorderSecondary};
     cursor: pointer;
   `,
@@ -137,6 +157,7 @@ export const useStyles = createStyles(({ token, css }) => ({
   `,
   personRow: css`
     display: flex;
+    box-sizing: border-box;
     border-bottom: 1px solid ${token.colorFillQuaternary};
   `,
   personLabel: css`
