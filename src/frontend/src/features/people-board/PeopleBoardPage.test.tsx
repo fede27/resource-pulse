@@ -17,9 +17,9 @@ describe('<PeopleBoardPage>', () => {
     expect(screen.getByText('Dev senior')).toBeInTheDocument();
     expect(screen.getByText('Senza ruolo')).toBeInTheDocument();
 
-    // KPI header cards are present (bands from config: Healthy@0 / Over@100).
-    expect(screen.getByText('In sovraccarico al picco')).toBeInTheDocument();
-    expect(screen.getByText('Sotto-utilizzati')).toBeInTheDocument();
+    // Header signal strip is present (bands from config: Healthy@0 / Over@100).
+    expect(screen.getByText('in sovraccarico')).toBeInTheDocument();
+    expect(screen.getByText('sotto-utilizzati')).toBeInTheDocument();
 
     // Luca's peak pill: 60% hard → Healthy band.
     await waitFor(() => expect(screen.getByText(/Healthy 60%/)).toBeInTheDocument());

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Segmented, Skeleton } from 'antd';
-import { CheckCircleFilled, WarningFilled } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/domain/PageHeader';
+import { SignalCards, type SignalItem } from '@/components/domain/SignalCards';
 import { AnagraficaView } from './AnagraficaView';
 import { AvailabilityTimeline } from './AvailabilityTimeline';
 import { useAnagraficaData } from './useAnagraficaData';
@@ -13,44 +13,29 @@ type View = 'anagrafica' | 'availability';
 
 export function RolesTeamsPage() {
   const { t } = useTranslation();
-  const { styles, cx } = useStyles();
+  const { styles } = useStyles();
   const [view, setView] = useState<View>('anagrafica');
   const data = useAnagraficaData();
 
   const emptyRoles = emptyCategoryCount(data.roles, data.people, 'role');
   const emptyTeams = emptyCategoryCount(data.teams, data.people, 'team');
 
-  const headerActions =
-    view === 'anagrafica' && !data.isLoading ? (
-      <div className={styles.chipRow}>
-        {emptyRoles === 0 && emptyTeams === 0 ? (
-          <span className={cx(styles.chip, styles.chipOk)}>
-            <CheckCircleFilled /> {t('rolesTeams.allRolesCovered')}
-          </span>
-        ) : (
-          <>
-            {emptyRoles > 0 && (
-              <span className={cx(styles.chip, styles.chipWarn)}>
-                <WarningFilled />
-                <span className={styles.chipCount}>{emptyRoles}</span>{' '}
-                {emptyRoles === 1
-                  ? t('rolesTeams.chip.emptyRolesOne')
-                  : t('rolesTeams.chip.emptyRoles')}
-              </span>
-            )}
-            {emptyTeams > 0 && (
-              <span className={cx(styles.chip, styles.chipWarn)}>
-                <WarningFilled />
-                <span className={styles.chipCount}>{emptyTeams}</span>{' '}
-                {emptyTeams === 1
-                  ? t('rolesTeams.chip.emptyTeamsOne')
-                  : t('rolesTeams.chip.emptyTeams')}
-              </span>
-            )}
-          </>
-        )}
-      </div>
-    ) : undefined;
+  // Always the same two cards, tone-switched — a stable strip beats a chip that
+  // appears and disappears under the title.
+  const signals: SignalItem[] = [
+    {
+      key: 'emptyRoles',
+      label: t('rolesTeams.signal.emptyRoles'),
+      value: emptyRoles,
+      tone: emptyRoles ? 'warning' : 'ok',
+    },
+    {
+      key: 'emptyTeams',
+      label: t('rolesTeams.signal.emptyTeams'),
+      value: emptyTeams,
+      tone: emptyTeams ? 'warning' : 'ok',
+    },
+  ];
 
   return (
     <div>
@@ -61,7 +46,9 @@ export function RolesTeamsPage() {
             ? t('rolesTeams.subtitleAvailability')
             : t('rolesTeams.subtitleAnagrafica')
         }
-        actions={headerActions}
+        signals={
+          view === 'anagrafica' && !data.isLoading ? <SignalCards items={signals} /> : undefined
+        }
       />
 
       <Segmented<View>

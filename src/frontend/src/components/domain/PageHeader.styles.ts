@@ -20,6 +20,15 @@ export const useStyles = createStyles(({ token, css }) => ({
     color: ${token.colorTextTertiary};
     font-size: ${token.fontSize}px;
   `,
+  // Right-hand group: signal strip + actions, wrapping onto one another before
+  // they wrap under the title.
+  aside: css`
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: ${token.marginXS}px ${token.marginLG}px;
+  `,
   actions: css`
     display: flex;
     gap: ${token.marginXS}px;

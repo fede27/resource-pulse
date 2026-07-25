@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Card, Col, Empty, Flex, Row, Skeleton } from 'antd';
+import { App, Button, Card, Empty, Flex, Skeleton } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
@@ -14,7 +14,7 @@ import {
 import type { CompanyClosureReadDto } from '@/api/generated/schemas';
 import { useApiError } from '@/lib/errors';
 import { PageHeader } from '@/components/domain/PageHeader';
-import { StatCard } from '@/components/domain/StatCard';
+import { SignalCards, type SignalItem } from '@/components/domain/SignalCards';
 import { YearSelector } from '@/components/domain/YearSelector';
 import { ClosureInlineForm, type ClosureFormValues } from './ClosureInlineForm';
 import {
@@ -216,11 +216,33 @@ export function ClosuresTab() {
   const isPastYear = year < currentYear;
   const upcomingValue = isPastYear ? 0 : stats.futureCount;
 
+  // Plain counts, no alarm: the closures page states facts, not health.
+  const signals: SignalItem[] = [
+    {
+      key: 'total',
+      label: t('timeConfig.closures.statClosures', { year }),
+      value: stats.total,
+    },
+    {
+      key: 'days',
+      label: t('timeConfig.closures.statDays'),
+      value: stats.days,
+    },
+    {
+      key: 'upcoming',
+      label: isPastYear
+        ? t('timeConfig.closures.statConcluded')
+        : t('timeConfig.closures.statUpcoming'),
+      value: upcomingValue,
+    },
+  ];
+
   return (
     <div>
       <PageHeader
         title={t('timeConfig.closures.sectionTitle')}
         subtitle={t('timeConfig.closures.sectionSubtitle')}
+        signals={<SignalCards items={signals} />}
         actions={
           <Button
             type="primary"
@@ -235,34 +257,6 @@ export function ClosuresTab() {
       <div className={styles.mb}>
         <YearSelector value={year} onChange={setYear} availableYears={availableYears} />
       </div>
-
-      <Row gutter={16} className={styles.mb}>
-        <Col xs={24} md={8}>
-          <StatCard
-            label={t('timeConfig.closures.statTitleClosuresInYear', { year })}
-            value={stats.total}
-            suffix={t('timeConfig.closures.statsTotal', { count: stats.total })}
-          />
-        </Col>
-        <Col xs={24} md={8}>
-          <StatCard
-            label={t('timeConfig.closures.statTitleClosureDays')}
-            value={stats.days}
-            suffix={t('timeConfig.closures.statsDays', { count: stats.days })}
-          />
-        </Col>
-        <Col xs={24} md={8}>
-          <StatCard
-            label={
-              isPastYear
-                ? t('timeConfig.closures.statTitleAllConcluded')
-                : t('timeConfig.closures.statTitleUpcoming')
-            }
-            value={upcomingValue}
-            suffix={t('timeConfig.closures.statsTotal', { count: upcomingValue })}
-          />
-        </Col>
-      </Row>
 
       <Flex vertical gap={16}>
         <ClosureSection

@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import { renderWithProviders } from '@/test/render';
 import { InlineEditableText } from './InlineEditableText';
 import { SegmentedLevelControl } from './SegmentedLevelControl';
-import { StatCard } from './StatCard';
+import { SignalCards } from './SignalCards';
 import { StickyTabStrip } from './StickyTabStrip';
 import { PageHeader } from './PageHeader';
 import { InitialsAvatar } from './InitialsAvatar';
@@ -79,12 +79,34 @@ describe('<SegmentedLevelControl>', () => {
   });
 });
 
-describe('<StatCard>', () => {
-  it('renders label, value and an optional suffix', () => {
-    renderWithProviders(<StatCard label="Carico" value="87%" suffix="medio" />);
+describe('<SignalCards>', () => {
+  it('renders label, value and an optional hint', () => {
+    renderWithProviders(
+      <SignalCards items={[{ key: 'a', label: 'Carico', value: '87%', hint: 'medio' }]} />,
+    );
     expect(screen.getByText('Carico')).toBeInTheDocument();
     expect(screen.getByText('87%')).toBeInTheDocument();
     expect(screen.getByText('medio')).toBeInTheDocument();
+  });
+
+  it('caps the strip at three cards', () => {
+    renderWithProviders(
+      <SignalCards
+        items={[
+          { key: 'a', label: 'A', value: 1 },
+          { key: 'b', label: 'B', value: 2 },
+          { key: 'c', label: 'C', value: 3 },
+          { key: 'd', label: 'D', value: 4 },
+        ]}
+      />,
+    );
+    expect(screen.getByText('C')).toBeInTheDocument();
+    expect(screen.queryByText('D')).not.toBeInTheDocument();
+  });
+
+  it('renders nothing when there are no items', () => {
+    const { container } = renderWithProviders(<SignalCards items={[]} />);
+    expect(container.textContent).toBe('');
   });
 });
 

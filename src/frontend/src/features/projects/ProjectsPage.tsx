@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { Grain } from '@/components/timeline';
 import { PageHeader } from '@/components/domain/PageHeader';
+import { SignalCards, type SignalItem } from '@/components/domain/SignalCards';
 import {
   defaultFilters,
   filterProjects,
@@ -31,7 +32,6 @@ import { useProjectActions } from './useProjectActions';
 import { useLaneActions } from './useLaneActions';
 import { BoardLegend } from './BoardLegend';
 import { BoardToolbar, type Metric } from './BoardToolbar';
-import { HealthCards } from './HealthCards';
 import { ProjectRow } from './ProjectRow';
 import { useStyles } from './ProjectsPage.styles';
 
@@ -141,6 +141,37 @@ export function ProjectsPage() {
 
   const roles = useMemo(() => allRoles(board.projects), [board.projects]);
 
+  // Portfolio health, stated as the app's uniform three-card signal strip.
+  const signals: SignalItem[] = [
+    {
+      key: 'sustainable',
+      label: t('projects.health.sustainable'),
+      value: `${health.sustainable}/${health.total}`,
+      tone: health.sustainable === health.total ? 'ok' : 'warning',
+      hint:
+        health.atRisk > 0 || health.uncovered > 0
+          ? t('projects.health.sustainableHint', {
+              atRisk: health.atRisk,
+              uncovered: health.uncovered,
+            })
+          : t('projects.health.sustainableHintOk'),
+    },
+    {
+      key: 'holes',
+      label: t('projects.health.holes'),
+      value: health.totalHoles,
+      tone: health.totalHoles ? 'warning' : 'ok',
+      hint: health.totalHoles ? t('projects.health.holesHint') : t('projects.health.holesHintOk'),
+    },
+    {
+      key: 'overloaded',
+      label: t('projects.health.overloaded'),
+      value: health.overloadedPeople,
+      tone: health.overloadedPeople ? 'danger' : 'ok',
+      hint: t('projects.health.overloadedHint', { threshold: board.overloadThreshold }),
+    },
+  ];
+
   const onToday = () => {
     if (!(todayISO >= domain.minISO && todayISO <= domain.maxISO)) {
       const y = dayjs(todayISO).year();
@@ -194,15 +225,14 @@ export function ProjectsPage() {
     <div>
       <PageHeader
         title={t('projects.sectionTitle')}
-        subtitle={t('projects.sectionSubtitle', { sustainable: health.sustainable, total: health.total })}
+        subtitle={t('projects.sectionSubtitle')}
+        signals={<SignalCards items={signals} />}
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setPanelOpen(true)}>
             {t('projects.newProject.action')}
           </Button>
         }
       />
-
-      <HealthCards health={health} overloadThreshold={board.overloadThreshold} />
 
       <BoardToolbar
         metric={metric}

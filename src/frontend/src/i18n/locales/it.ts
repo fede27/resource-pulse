@@ -60,13 +60,10 @@ export const it = {
   // Consolidated "Ruoli e team" page: anagrafica (role/team-first) + disponibilità.
   rolesTeams: {
     title: 'Ruoli e team',
-    subtitleAnagrafica:
-      'Le persone del team, il ruolo con cui vengono valutate nel planning e il team di appartenenza.',
-    subtitleAvailability:
-      'Calendario assegnato, chiusure aziendali e ferie/straordinari — la disponibilità effettiva di ciascuno nel tempo.',
+    subtitleAnagrafica: 'Persone, ruolo di planning e team.',
+    subtitleAvailability: 'Calendari, chiusure e rettifiche: la disponibilità effettiva.',
     viewAnagrafica: 'Anagrafica',
     viewAvailability: 'Disponibilità',
-    allRolesCovered: 'Tutti i ruoli coperti',
     // nouns used to build count-dependent strings in code (avoids _one/_other keys)
     roleNoun: 'ruolo',
     teamNoun: 'team',
@@ -74,11 +71,9 @@ export const it = {
     personPlural: 'persone',
     noPeople: 'nessuna persona',
     emptyRolesSuffix: 'senza persone',
-    chip: {
+    signal: {
       emptyRoles: 'ruoli senza persone',
-      emptyRolesOne: 'ruolo senza persone',
       emptyTeams: 'team senza persone',
-      emptyTeamsOne: 'team senza persone',
     },
     pivotRole: 'Per ruolo',
     pivotTeam: 'Per team',
@@ -254,14 +249,13 @@ export const it = {
   },
   peopleBoard: {
     sectionTitle: 'Persone · allocazione',
-    sectionSubtitle:
-      "Come sta la tua gente: chi scoppia e chi è fermo, pari-grado. Qui vive solo l'offerta — i buchi vivono su Progetti.",
+    sectionSubtitle: 'Carico e capacità libera, persona per persona.',
     loadError: 'Impossibile caricare le persone.',
     kpi: {
-      overloaded: 'In sovraccarico al picco',
-      overloadedFoot: 'soglia: ≥{{threshold}}%',
-      underused: 'Sotto-utilizzati',
-      underusedFoot: 'picco sotto la fascia sana',
+      overloaded: 'in sovraccarico',
+      overloadedHint: 'al picco, ≥{{threshold}}%',
+      underused: 'sotto-utilizzati',
+      underusedHint: 'picco sotto la fascia sana',
     },
     toolbar: {
       metricPct: '%',
@@ -526,19 +520,14 @@ export const it = {
     },
     closures: {
       sectionTitle: 'Chiusure aziendali',
-      sectionSubtitle:
-        'Festività, ferie aziendali e chiusure straordinarie. Si applicano a tutte le risorse di tutti i calendari.',
+      sectionSubtitle: 'Festività e chiusure, valide per tutti i calendari.',
       newButton: 'Nuova chiusura',
       year: 'Anno:',
       goToYear: 'Vai a {{year}}',
-      statsTotal_one: 'chiusura',
-      statsTotal_other: 'chiusure',
-      statsDays_one: 'giorno',
-      statsDays_other: 'giorni',
-      statTitleClosuresInYear: 'Chiusure {{year}}',
-      statTitleClosureDays: 'Giorni di chiusura',
-      statTitleAllConcluded: 'Tutte concluse',
-      statTitleUpcoming: 'In arrivo o in corso',
+      statClosures: 'chiusure {{year}}',
+      statDays: 'giorni di chiusura',
+      statConcluded: 'concluse',
+      statUpcoming: 'in arrivo',
       sectionUpcoming: 'In arrivo',
       sectionPast: 'Passate',
       columnPeriod: 'Periodo',
@@ -580,20 +569,19 @@ export const it = {
   },
   projects: {
     sectionTitle: 'Progetti · sostenibilità',
-    sectionSubtitle:
-      'La domanda: questo progetto è sostenibile? — tutti i ruoli coperti e nessuna persona in sovraccarico al picco. Risposta: {{sustainable}} di {{total}} sostenibili.',
+    sectionSubtitle: 'Ruoli coperti e carico al picco, progetto per progetto.',
     loadError: 'Impossibile caricare i progetti.',
     footnote:
       "Scorri la timeline orizzontalmente · clic su un blocco, una persona o un ruolo scoperto per aprire l'ispettore. Superficie di sola lettura.",
     health: {
-      sustainable: 'Progetti sostenibili',
-      holes: 'Ruoli scoperti',
-      overloaded: 'Persone in sovraccarico al picco',
-      sustainableFootIssues: '{{atRisk}} a rischio · {{uncovered}} scoperti',
-      sustainableFootOk: 'nessuna criticità',
-      holesFoot: 'da riassegnare · owner assegnato',
-      holesFootOk: 'tutti i ruoli coperti',
-      overloadedFoot: 'soglia sovraccarico: ≥{{threshold}}%',
+      sustainable: 'sostenibili',
+      holes: 'ruoli scoperti',
+      overloaded: 'in sovraccarico',
+      sustainableHint: '{{atRisk}} a rischio · {{uncovered}} scoperti',
+      sustainableHintOk: 'nessuna criticità',
+      holesHint: 'da riassegnare',
+      holesHintOk: 'tutti i ruoli coperti',
+      overloadedHint: 'al picco, ≥{{threshold}}%',
     },
     verdict: {
       sustainable: 'Sostenibile',

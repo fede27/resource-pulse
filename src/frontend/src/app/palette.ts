@@ -85,10 +85,6 @@ export const text = {
   quaternary: 'rgba(0,0,0,.25)',
 } as const;
 
-// Off-palette accents that are deliberate design choices (not AntD shades).
-/** Steel blue KPI accent (people board "under-used"). */
-export const steelBlue = '#3a6ea5';
-
 /** `#rrggbb` → `rgba(r,g,b,a)` — the one sanctioned way to tint a shade. */
 export function alpha(hex: string, a: number): string {
   const h = hex.length === 4 ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}` : hex;

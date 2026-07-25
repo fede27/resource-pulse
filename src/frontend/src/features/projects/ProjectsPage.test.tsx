@@ -51,12 +51,12 @@ describe('<ProjectsPage>', () => {
 
     expect(await screen.findByText('Portale ACME')).toBeInTheDocument();
 
-    // Health cards reflect the fixture: 1 uncovered project, 1 open role,
-    // 1 person overloaded at peak (Luca @120% ≥ threshold 100).
-    expect(screen.getByText('Progetti sostenibili')).toBeInTheDocument();
-    expect(screen.getByText('0 / 1')).toBeInTheDocument();
-    expect(screen.getByText('Ruoli scoperti')).toBeInTheDocument();
-    expect(screen.getByText('Persone in sovraccarico al picco')).toBeInTheDocument();
+    // The header signal strip reflects the fixture: 1 uncovered project, 1 open
+    // role, 1 person overloaded at peak (Luca @120% ≥ threshold 100).
+    expect(screen.getByText('sostenibili')).toBeInTheDocument();
+    expect(screen.getByText('0/1')).toBeInTheDocument();
+    expect(screen.getByText('ruoli scoperti')).toBeInTheDocument();
+    expect(screen.getByText('in sovraccarico')).toBeInTheDocument();
 
     // The verdict badge on the row (the legend carries the same word — allow both).
     await waitFor(() => expect(screen.getAllByText('Scoperto').length).toBeGreaterThanOrEqual(2));

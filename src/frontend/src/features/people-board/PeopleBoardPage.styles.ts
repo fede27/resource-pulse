@@ -6,21 +6,6 @@ import { LEFT_W } from '@/components/board/BoardTimeline.styles';
 export const GROUP_HEADER_H = 33;
 
 export const useStyles = createStyles(({ token, css }) => ({
-  headerRow: css`
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: ${token.marginLG}px;
-    flex-wrap: wrap;
-  `,
-  kpis: css`
-    display: flex;
-    gap: ${token.marginLG}px;
-    margin-block-end: ${token.margin}px;
-  `,
-  kpi: css`
-    min-width: 180px;
-  `,
   groupHeader: css`
     display: flex;
     align-items: stretch;

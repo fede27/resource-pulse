@@ -72,24 +72,19 @@ export const en: Loose<typeof it> = {
   },
   rolesTeams: {
     title: 'Roles & teams',
-    subtitleAnagrafica:
-      'The team members, the role they are evaluated on in planning, and the team they belong to.',
-    subtitleAvailability:
-      'Assigned calendar, company closures and time off / overtime — each person’s effective availability over time.',
+    subtitleAnagrafica: 'People, planning role and team.',
+    subtitleAvailability: 'Calendars, closures and adjustments: effective availability.',
     viewAnagrafica: 'Registry',
     viewAvailability: 'Availability',
-    allRolesCovered: 'All roles covered',
     roleNoun: 'role',
     teamNoun: 'team',
     personSingular: 'person',
     personPlural: 'people',
     noPeople: 'no people',
     emptyRolesSuffix: 'without people',
-    chip: {
+    signal: {
       emptyRoles: 'roles without people',
-      emptyRolesOne: 'role without people',
       emptyTeams: 'teams without people',
-      emptyTeamsOne: 'team without people',
     },
     pivotRole: 'By role',
     pivotTeam: 'By team',
@@ -263,14 +258,13 @@ export const en: Loose<typeof it> = {
   },
   peopleBoard: {
     sectionTitle: 'People · allocation',
-    sectionSubtitle:
-      'How your people are doing: who is bursting and who is idle, side by side. Only the supply lives here — the holes live on Projects.',
+    sectionSubtitle: 'Load and free capacity, person by person.',
     loadError: 'Could not load people.',
     kpi: {
-      overloaded: 'Overloaded at peak',
-      overloadedFoot: 'threshold: ≥{{threshold}}%',
-      underused: 'Under-used',
-      underusedFoot: 'peak below the healthy band',
+      overloaded: 'overloaded',
+      overloadedHint: 'at peak, ≥{{threshold}}%',
+      underused: 'under-used',
+      underusedHint: 'peak below the healthy band',
     },
     toolbar: {
       metricPct: '%',
@@ -535,19 +529,14 @@ export const en: Loose<typeof it> = {
     },
     closures: {
       sectionTitle: 'Company closures',
-      sectionSubtitle:
-        'Public holidays, company-wide breaks and ad-hoc closures. They apply to every resource on every calendar.',
+      sectionSubtitle: 'Holidays and closures, applied to every calendar.',
       newButton: 'New closure',
       year: 'Year:',
       goToYear: 'Go to {{year}}',
-      statsTotal_one: 'closure',
-      statsTotal_other: 'closures',
-      statsDays_one: 'day',
-      statsDays_other: 'days',
-      statTitleClosuresInYear: 'Closures {{year}}',
-      statTitleClosureDays: 'Closure days',
-      statTitleAllConcluded: 'All concluded',
-      statTitleUpcoming: 'Upcoming or ongoing',
+      statClosures: 'closures in {{year}}',
+      statDays: 'closure days',
+      statConcluded: 'concluded',
+      statUpcoming: 'upcoming',
       sectionUpcoming: 'Upcoming',
       sectionPast: 'Past',
       columnPeriod: 'Period',
@@ -589,20 +578,19 @@ export const en: Loose<typeof it> = {
   },
   projects: {
     sectionTitle: 'Projects · sustainability',
-    sectionSubtitle:
-      'The question: is this project sustainable? — every role covered and nobody overloaded at peak. Answer: {{sustainable}} of {{total}} sustainable.',
+    sectionSubtitle: 'Role coverage and peak load, project by project.',
     loadError: 'Could not load projects.',
     footnote:
       'Scroll the timeline horizontally · click a block, a person or an open role to open the inspector. Read-only surface.',
     health: {
-      sustainable: 'Sustainable projects',
-      holes: 'Open roles',
-      overloaded: 'People overloaded at peak',
-      sustainableFootIssues: '{{atRisk}} at risk · {{uncovered}} uncovered',
-      sustainableFootOk: 'no issues',
-      holesFoot: 'to restaff · owner assigned',
-      holesFootOk: 'every role covered',
-      overloadedFoot: 'overload threshold: ≥{{threshold}}%',
+      sustainable: 'sustainable',
+      holes: 'open roles',
+      overloaded: 'overloaded',
+      sustainableHint: '{{atRisk}} at risk · {{uncovered}} uncovered',
+      sustainableHintOk: 'no issues',
+      holesHint: 'to restaff',
+      holesHintOk: 'every role covered',
+      overloadedHint: 'at peak, ≥{{threshold}}%',
     },
     verdict: {
       sustainable: 'Sustainable',

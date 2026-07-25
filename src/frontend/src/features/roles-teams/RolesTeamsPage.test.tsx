@@ -22,7 +22,7 @@ describe('<RolesTeamsPage> — Anagrafica', () => {
     // Wait for the catalogue to load, then assert the empty-role signals: the
     // default-selected PM role is empty → status chip + no-capacity hint.
     await screen.findByText('Sviluppatore');
-    expect(await screen.findByText('ruolo senza persone')).toBeInTheDocument();
+    expect(await screen.findByText('ruoli senza persone')).toBeInTheDocument();
     expect(screen.getByText(/non contribuisce alla capacità/)).toBeInTheDocument();
 
     // Selecting Sviluppatore reveals its two people.

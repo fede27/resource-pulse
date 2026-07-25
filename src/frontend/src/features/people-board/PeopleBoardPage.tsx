@@ -3,7 +3,6 @@ import { Alert, Button, Empty, Skeleton, Spin } from 'antd';
 import { InfoCircleOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { red, steelBlue } from '@/app/palette';
 import {
   BoardTimeline,
   buildGeo,
@@ -13,7 +12,7 @@ import {
   type BoardDomain,
 } from '@/components/board';
 import { PageHeader } from '@/components/domain/PageHeader';
-import { StatCard } from '@/components/domain/StatCard';
+import { SignalCards, type SignalItem } from '@/components/domain/SignalCards';
 import type { Grain } from '@/components/timeline';
 import { legendStops } from '@/lib/loadBands';
 import {
@@ -240,29 +239,31 @@ export function PeopleBoardPage() {
 
   const stops = legendStops(board.bands);
 
+  const signals: SignalItem[] = [
+    {
+      key: 'overloaded',
+      label: t('peopleBoard.kpi.overloaded'),
+      value: kpis.overloaded,
+      tone: kpis.overloaded ? 'danger' : 'ok',
+      hint: t('peopleBoard.kpi.overloadedHint', { threshold: board.overloadThreshold }),
+    },
+    {
+      key: 'underused',
+      label: t('peopleBoard.kpi.underused'),
+      value: kpis.underused,
+      // Under-use is information, not an alarm — it never turns red.
+      tone: 'neutral',
+      hint: t('peopleBoard.kpi.underusedHint'),
+    },
+  ];
+
   return (
     <div>
-      <div className={styles.headerRow}>
-        <PageHeader title={t('peopleBoard.sectionTitle')} subtitle={t('peopleBoard.sectionSubtitle')} />
-        <div className={styles.kpis}>
-          <div className={styles.kpi}>
-            <StatCard
-              label={t('peopleBoard.kpi.overloaded')}
-              value={kpis.overloaded}
-              suffix={t('peopleBoard.kpi.overloadedFoot', { threshold: board.overloadThreshold })}
-              accentColor={red[6]}
-            />
-          </div>
-          <div className={styles.kpi}>
-            <StatCard
-              label={t('peopleBoard.kpi.underused')}
-              value={kpis.underused}
-              suffix={t('peopleBoard.kpi.underusedFoot')}
-              accentColor={steelBlue}
-            />
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title={t('peopleBoard.sectionTitle')}
+        subtitle={t('peopleBoard.sectionSubtitle')}
+        signals={<SignalCards items={signals} />}
+      />
 
       <PeopleBoardToolbar
         metric={metric}
