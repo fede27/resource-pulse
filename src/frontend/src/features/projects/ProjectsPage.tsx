@@ -21,7 +21,7 @@ import {
   type InspectTarget,
   type Verdict,
 } from './boardModel';
-import { BoardTimeline, buildGeo, RowGap, useWindowedRows } from '@/components/board';
+import { BoardTimeline, buildGeo, clampDomain, RowGap, useWindowedRows } from '@/components/board';
 import { useProjectsBoard, type BoardDomain } from './useProjectsBoard';
 import { BoardInspector } from './BoardInspector';
 import { NewProjectPanel } from './NewProjectPanel';
@@ -36,15 +36,6 @@ import { ProjectRow } from './ProjectRow';
 import { useStyles } from './ProjectsPage.styles';
 
 const ISO = 'YYYY-MM-DD';
-const MAX_DOMAIN_DAYS = 366; // keep the visual domain within the API range cap
-
-function clampDomain(d: BoardDomain): BoardDomain {
-  const min = dayjs(d.minISO);
-  const max = dayjs(d.maxISO);
-  if (max.isBefore(min)) return { minISO: d.minISO, maxISO: d.minISO };
-  if (max.diff(min, 'day') + 1 <= MAX_DOMAIN_DAYS) return d;
-  return { minISO: d.minISO, maxISO: min.add(MAX_DOMAIN_DAYS - 1, 'day').format(ISO) };
-}
 
 // Stable fallback: an inline object would defeat ProjectRow's memo on every render.
 const FALLBACK_VERDICT = { verdict: 'sustainable', reason: null } as const;

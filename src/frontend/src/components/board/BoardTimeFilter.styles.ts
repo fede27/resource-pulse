@@ -1,10 +1,22 @@
 import { createStyles } from 'antd-style';
 
 export const useStyles = createStyles(({ token, css }) => ({
+  // One inline cluster: grain · year stepper · Oggi · Adatta · range. It brings
+  // its own label and divider so a toolbar cannot re-spell the time grammar.
   group: css`
     display: inline-flex;
     align-items: center;
     gap: ${token.marginXS}px;
+    flex-wrap: wrap;
+  `,
+  label: css`
+    font-size: ${token.fontSizeSM}px;
+    color: ${token.colorTextTertiary};
+  `,
+  divider: css`
+    width: 1px;
+    height: 22px;
+    background: ${token.colorSplit};
   `,
   yearStepper: css`
     display: inline-flex;

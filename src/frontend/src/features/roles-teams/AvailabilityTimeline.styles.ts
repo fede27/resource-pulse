@@ -1,8 +1,10 @@
 import { createStyles } from 'antd-style';
 
+import type { Grain } from '@/components/timeline';
+
 export const LABEL_W = 220;
-export const BUCKET_W = { week: 88, day: 40 } as const;
-export const CELL_H = { week: 42, day: 34 } as const;
+export const BUCKET_W: Record<Grain, number> = { day: 40, week: 88, month: 96 };
+export const CELL_H: Record<Grain, number> = { day: 34, week: 42, month: 42 };
 
 // Row heights DERIVED FROM STATE (px, border-box incl. the 1px bottom border) —
 // the single source for both the rendered height and the windowing math
@@ -10,7 +12,7 @@ export const CELL_H = { week: 42, day: 34 } as const;
 // row is avatar-driven (32px avatar + 2×paddingXS) so it is constant across
 // grains; the team row tracks the aggregate-cell height (CELL_H + 6).
 export const PERSON_ROW_H = 49;
-export const teamRowHeight = (grain: 'week' | 'day') => CELL_H[grain] + 7;
+export const teamRowHeight = (grain: Grain) => CELL_H[grain] + 7;
 
 export const useStyles = createStyles(({ token, css }) => ({
   toolbar: css`
@@ -20,9 +22,10 @@ export const useStyles = createStyles(({ token, css }) => ({
     margin-bottom: ${token.marginSM}px;
     flex-wrap: wrap;
   `,
-  navGroup: css`
-    display: flex;
-    gap: ${token.marginXXS}px;
+  // Horizontal windowing spacer: holds the width of the off-screen columns so
+  // the scroll extent and the sticky header stay aligned with the rendered slice.
+  colGap: css`
+    flex-shrink: 0;
   `,
   span: css`
     font-size: ${token.fontSize}px;
@@ -49,22 +52,29 @@ export const useStyles = createStyles(({ token, css }) => ({
     position: sticky;
     top: 0;
     z-index: 5;
-    /* OPAQUE (colorBgLayout, not the translucent colorFillQuaternary) so the
-       sticky header hides the rows scrolling underneath it. */
-    background: ${token.colorBgLayout};
+    /* Same chrome as BoardTimeline's header: container-white, and OPAQUE (not
+       the translucent colorFillQuaternary) so the sticky header hides the rows
+       scrolling underneath it. */
+    background: ${token.colorBgContainer};
     border-bottom: 1px solid ${token.colorBorderSecondary};
   `,
   labelHead: css`
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
     padding: ${token.paddingXS}px ${token.padding}px;
-    font-size: ${token.fontSize}px;
+    /* Mirrors BoardTimeline's headerLeftTitle: the label column's header reads
+       as an axis caption on every timed view, not as a table heading. */
+    font-size: ${token.fontSizeSM}px;
     font-weight: 600;
-    color: ${token.colorTextSecondary};
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: ${token.colorTextTertiary};
     position: sticky;
     left: 0;
     z-index: 6;
     /* Opaque sticky corner (top + left) — see headerRow. */
-    background: ${token.colorBgLayout};
+    background: ${token.colorBgContainer};
     border-right: 1px solid ${token.colorBorderSecondary};
   `,
   headCell: css`
@@ -120,9 +130,11 @@ export const useStyles = createStyles(({ token, css }) => ({
     position: sticky;
     left: 0;
     z-index: 4;
-    /* Opaque sticky-left label (see headerRow) so the aggregate cells don't
-       show through it while scrolling horizontally. */
-    background: ${token.colorBgLayout};
+    /* Keeps the team row's fill tone while staying opaque, the same idiom as the
+       boards' groupHeaderLabel: stack the translucent fill over the container
+       colour instead of substituting a different grey. */
+    background: linear-gradient(${token.colorFillQuaternary}, ${token.colorFillQuaternary}),
+      ${token.colorBgContainer};
     border-right: 1px solid ${token.colorBorderSecondary};
     cursor: pointer;
   `,

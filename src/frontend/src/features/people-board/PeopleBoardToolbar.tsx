@@ -1,7 +1,7 @@
 import { Input, Segmented, Select, Switch } from 'antd';
 import { SearchOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { BoardDateControls, type BoardDomain } from '@/components/board';
+import { BoardTimeFilter, type BoardDomain } from '@/components/board';
 import type { Grain } from '@/components/timeline';
 import { bandStop, type LoadBand } from '@/lib/loadBands';
 import type { GroupBy, PeopleSort } from './peopleBoardModel';
@@ -52,30 +52,9 @@ export function PeopleBoardToolbar(props: PeopleBoardToolbarProps) {
           ]}
         />
         <span className={styles.divider} />
-        <span className={styles.dimLabel}>{t('peopleBoard.toolbar.bucket')}</span>
-        <Segmented<Grain>
-          size="small"
-          value={props.bucket}
-          onChange={props.onBucketChange}
-          options={[
-            { value: 'day', label: t('peopleBoard.toolbar.bucketDay') },
-            { value: 'week', label: t('peopleBoard.toolbar.bucketWeek') },
-            { value: 'month', label: t('peopleBoard.toolbar.bucketMonth') },
-          ]}
-        />
-        <span className={styles.divider} />
-        <span className={styles.dimLabel}>{t('peopleBoard.toolbar.groupBy')}</span>
-        <Segmented<GroupBy>
-          size="small"
-          value={props.groupBy}
-          onChange={props.onGroupByChange}
-          options={[
-            { value: 'role', label: t('peopleBoard.toolbar.groupRole') },
-            { value: 'team', label: t('peopleBoard.toolbar.groupTeam') },
-          ]}
-        />
-        <span className={styles.divider} />
-        <BoardDateControls
+        <BoardTimeFilter
+          grain={props.bucket}
+          onGrainChange={props.onBucketChange}
           domain={props.domain}
           onDomainChange={props.onDomainChange}
           onToday={props.onToday}
@@ -95,6 +74,19 @@ export function PeopleBoardToolbar(props: PeopleBoardToolbarProps) {
       </div>
 
       <div className={styles.secondRow}>
+        {/* Row shaping (how the roster is grouped) belongs with sort/filter, not
+            with the time window — the first row is the time filter's grammar. */}
+        <span className={styles.dimLabel}>{t('peopleBoard.toolbar.groupBy')}</span>
+        <Segmented<GroupBy>
+          size="small"
+          value={props.groupBy}
+          onChange={props.onGroupByChange}
+          options={[
+            { value: 'role', label: t('peopleBoard.toolbar.groupRole') },
+            { value: 'team', label: t('peopleBoard.toolbar.groupTeam') },
+          ]}
+        />
+        <span className={styles.divider} />
         <span className={styles.dimLabel}>{t('peopleBoard.toolbar.bands')}</span>
         {props.bands.map((b, i) => {
           const on = props.bandSelection.has(i);

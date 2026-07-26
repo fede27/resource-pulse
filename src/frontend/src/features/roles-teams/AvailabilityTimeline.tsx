@@ -1,5 +1,12 @@
-import { useCallback, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { Button, Segmented, Skeleton } from 'antd';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
+import { Skeleton } from 'antd';
 import { CaretRightOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -11,15 +18,24 @@ import type {
 import { AdjustmentType } from '@/api/generated/schemas';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
 import { InspectorDrawer } from '@/components/domain/InspectorDrawer';
-import { RowGap, useFrameMaxHeight, useWindowedRows } from '@/components/board';
+import {
+  BoardTimeFilter,
+  clampDomain,
+  RowGap,
+  useFrameMaxHeight,
+  useVisibleXRange,
+  useWindowedRows,
+  type BoardDomain,
+} from '@/components/board';
+import type { Grain } from '@/components/timeline';
 import { useAvailabilityData, EMPTY_CAP } from './useAvailabilityData';
 import {
   addDays,
   bucketAgg,
   buildBuckets,
   closureOn,
+  exceptionsExtent,
   groupByTeam,
-  mondayOf,
   type Bucket,
   type BucketAgg,
   type TeamGroup,
@@ -38,9 +54,7 @@ import {
 } from './AvailabilityTimeline.styles';
 
 const ISO = 'YYYY-MM-DD';
-const N_BUCKETS = { week: 12, day: 35 } as const;
 
-type Grain = 'week' | 'day';
 type Selection = { resource: ResourceReadDto; from: string; to: string };
 type RowData = {
   person: ResourceReadDto;
@@ -61,7 +75,19 @@ export function AvailabilityTimeline() {
 
   const todayISO = dayjs().format(ISO);
   const [grain, setGrain] = useState<Grain>('week');
-  const [startISO, setStartISO] = useState(() => addDays(mondayOf(todayISO), -7));
+  // Same window grammar as the boards: a visual domain the user steers with the
+  // shared time filter, not a fixed count of buckets stepped by ‹ / ›.
+  const initialDomain = useMemo<BoardDomain>(
+    () => ({
+      minISO: dayjs(todayISO).subtract(1, 'week').format(ISO),
+      maxISO: dayjs(todayISO).add(11, 'week').format(ISO),
+    }),
+    [todayISO],
+  );
+  const [pickedDomain, setPickedDomain] = useState<BoardDomain | null>(null);
+  const domain = pickedDomain ?? initialDomain;
+  const setDomain = (d: BoardDomain) => setPickedDomain(clampDomain(d));
+
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [sel, setSel] = useState<Selection | null>(null);
   const [adjEditor, setAdjEditor] = useState<{
@@ -70,25 +96,25 @@ export function AvailabilityTimeline() {
   } | null>(null);
   const [calPicker, setCalPicker] = useState<ResourceReadDto | null>(null);
 
-  // Board scroller (vertical windowing tracks this viewport) + frame height bound.
+  // Board scroller (both windowings track this viewport) + frame height bound.
   const frameRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const maxHeight = useFrameMaxHeight(frameRef);
+  const [scrollNonce, setScrollNonce] = useState(0);
   // dynamic: viewport-remaining height measured at runtime, applied via CSS var.
   const frameStyle = {
     '--board-max-h': maxHeight === null ? 'none' : `${maxHeight}px`,
   } as CSSProperties;
 
-  const nBuckets = N_BUCKETS[grain];
   const bucketW = BUCKET_W[grain];
   const cellH = CELL_H[grain];
 
   const buckets = useMemo<Bucket[]>(
-    () => buildBuckets(startISO, grain, nBuckets),
-    [startISO, grain, nBuckets],
+    () => buildBuckets(domain.minISO, domain.maxISO, grain),
+    [domain.minISO, domain.maxISO, grain],
   );
-  const fromISO = buckets[0]?.from ?? startISO;
-  const toISO = buckets[buckets.length - 1]?.to ?? startISO;
+  const fromISO = buckets[0]?.from ?? domain.minISO;
+  const toISO = buckets[buckets.length - 1]?.to ?? domain.maxISO;
 
   const data = useAvailabilityData(fromISO, toISO);
   const { resources, calendarsById, calendars, closures, teamNameById, capacityByResource } = data;
@@ -130,6 +156,25 @@ export function AvailabilityTimeline() {
     [buckets, closures],
   );
 
+  // Horizontal windowing: at day grain a year is 365 columns × every person, so
+  // rows render the visible slice only, with spacers holding the off-screen
+  // width. Presentation only — `aggs` above is computed on every bucket.
+  const xRange = useVisibleXRange(scrollRef);
+  const [firstIdx, lastIdx] = useMemo(() => {
+    const n = buckets.length;
+    if (n === 0) return [0, -1] as const;
+    const first = Math.max(0, Math.floor((xRange.minX - LABEL_W) / bucketW));
+    const last = Math.min(n - 1, Math.ceil((xRange.maxX - LABEL_W) / bucketW));
+    return last < first ? ([0, -1] as const) : ([first, last] as const);
+  }, [xRange, buckets.length, bucketW]);
+
+  const visibleBuckets = useMemo(
+    () => buckets.slice(firstIdx, lastIdx + 1),
+    [buckets, firstIdx, lastIdx],
+  );
+  const leadW = firstIdx * bucketW;
+  const tailW = (buckets.length - 1 - lastIdx) * bucketW;
+
   // Flatten groups → team headers + (unless collapsed) person rows, into the
   // positional sequence the windowing walks. Presentation only — every
   // aggregate above (aggs, team totals) is computed on the full roster.
@@ -150,10 +195,30 @@ export function AvailabilityTimeline() {
 
   const { segments } = useWindowedRows(scrollRef, rowItems);
 
-  const goToday = () =>
-    setStartISO(grain === 'week' ? addDays(mondayOf(todayISO), -7) : addDays(todayISO, -7));
-  const goPrev = () => setStartISO(addDays(startISO, grain === 'week' ? -28 : -7));
-  const goNext = () => setStartISO(addDays(startISO, grain === 'week' ? 28 : 7));
+  const todayIdx = useMemo(() => todayFlags.findIndex(Boolean), [todayFlags]);
+
+  // Re-centre on today when asked (and after a grain change re-scales the axis).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || todayIdx < 0) return;
+    el.scrollLeft = Math.max(0, todayIdx * bucketW - 160);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run on explicit nonce bumps and grain changes only
+  }, [scrollNonce, grain]);
+
+  const onToday = () => {
+    if (!(todayISO >= domain.minISO && todayISO <= domain.maxISO)) setDomain(initialDomain);
+    setScrollNonce((n) => n + 1);
+  };
+
+  // "Adatta" frames what this board actually has to show. Capacity exists every
+  // day, so fitting to "the content" would be a no-op; the exceptions — ferie,
+  // straordinari, chiusure — are the extent worth framing. No exceptions, no move.
+  const onFit = () => {
+    const ext = exceptionsExtent(resources, closures);
+    if (!ext) return;
+    setDomain({ minISO: addDays(ext.minISO, -7), maxISO: addDays(ext.maxISO, 7) });
+    if (scrollRef.current) scrollRef.current.scrollLeft = 0;
+  };
 
   const openCell = useCallback(
     (resource: ResourceReadDto, bucket: Bucket) =>
@@ -167,7 +232,7 @@ export function AvailabilityTimeline() {
   );
 
   const spanLabel = `${dayjs(fromISO).format('D MMM')} – ${dayjs(toISO).format('D MMM')}`;
-  const minWidth = LABEL_W + nBuckets * bucketW;
+  const minWidth = LABEL_W + buckets.length * bucketW;
 
   const header = useMemo(
     () => (
@@ -175,7 +240,10 @@ export function AvailabilityTimeline() {
         <div className={styles.labelHead} style={{ width: LABEL_W }}>
           {t('rolesTeams.avail.person')}
         </div>
-        {buckets.map((b, i) => {
+        {/* dynamic: off-screen column width from the horizontal window. */}
+        <div className={styles.colGap} style={{ width: leadW }} />
+        {visibleBuckets.map((b, k) => {
+          const i = firstIdx + k;
           const d = dayjs(b.from);
           const isToday = todayFlags[i];
           const isWeekend = d.day() === 0 || d.day() === 6;
@@ -186,14 +254,7 @@ export function AvailabilityTimeline() {
               // dynamic: bucket column width from grain.
               style={{ width: bucketW }}
             >
-              {grain === 'week' ? (
-                <>
-                  <div className={cx(styles.headDate, isToday && styles.headDateToday)}>
-                    {d.format('D MMM')}
-                  </div>
-                  <div className={styles.headWeekTag}>{t('rolesTeams.avail.week')}</div>
-                </>
-              ) : (
+              {grain === 'day' ? (
                 <>
                   <div className={cx(styles.headDow, isWeekend && styles.headDowWeekend)}>
                     {d.format('dd')}
@@ -202,14 +263,37 @@ export function AvailabilityTimeline() {
                     {d.format('D')}
                   </div>
                 </>
+              ) : (
+                <>
+                  <div className={cx(styles.headDate, isToday && styles.headDateToday)}>
+                    {grain === 'month' ? d.format('MMM') : d.format('D MMM')}
+                  </div>
+                  <div className={styles.headWeekTag}>
+                    {grain === 'month' ? d.format('YYYY') : t('rolesTeams.avail.week')}
+                  </div>
+                </>
               )}
               {closureFlags[i] && <div className={styles.closureMark} />}
             </div>
           );
         })}
+        {/* dynamic: off-screen column width from the horizontal window. */}
+        <div className={styles.colGap} style={{ width: tailW }} />
       </div>
     ),
-    [buckets, grain, bucketW, todayFlags, closureFlags, styles, cx, t],
+    [
+      visibleBuckets,
+      firstIdx,
+      leadW,
+      tailW,
+      grain,
+      bucketW,
+      todayFlags,
+      closureFlags,
+      styles,
+      cx,
+      t,
+    ],
   );
 
   // Windowed body rows (gap spacers + team headers + person rows). Deps exclude
@@ -236,7 +320,10 @@ export function AvailabilityTimeline() {
                 <span className={styles.teamName}>{group.teamName}</span>
                 <span className={styles.teamCount}>· {group.members.length}</span>
               </div>
-              {buckets.map((b, i) => {
+              {/* dynamic: off-screen column width from the horizontal window. */}
+              <div className={styles.colGap} style={{ width: leadW }} />
+              {visibleBuckets.map((b, k) => {
+                const i = firstIdx + k;
                 const total = group.members.reduce((sum, m) => sum + m.aggs[i]!.hours, 0);
                 return (
                   <div
@@ -249,6 +336,8 @@ export function AvailabilityTimeline() {
                   </div>
                 );
               })}
+              {/* dynamic: off-screen column width from the horizontal window. */}
+              <div className={styles.colGap} style={{ width: tailW }} />
             </div>
           );
         }
@@ -269,8 +358,10 @@ export function AvailabilityTimeline() {
                 </div>
               </div>
             </div>
-            {buckets.map((b, i) => {
-              const agg = row.aggs[i]!;
+            {/* dynamic: off-screen column width from the horizontal window. */}
+            <div className={styles.colGap} style={{ width: leadW }} />
+            {visibleBuckets.map((b, k) => {
+              const agg = row.aggs[firstIdx + k]!;
               const colors = STATE_COLORS[agg.state];
               return (
                 <div
@@ -294,7 +385,7 @@ export function AvailabilityTimeline() {
                     <span
                       className={styles.chipHours}
                       // dynamic: state colour + grain-dependent size.
-                      style={{ color: colors.fg, fontSize: grain === 'week' ? 13 : 11 }}
+                      style={{ color: colors.fg, fontSize: grain === 'day' ? 11 : 13 }}
                     >
                       {agg.hours === 0 ? '–' : `${agg.hours}h`}
                     </span>
@@ -320,13 +411,18 @@ export function AvailabilityTimeline() {
                 </div>
               );
             })}
+            {/* dynamic: off-screen column width from the horizontal window. */}
+            <div className={styles.colGap} style={{ width: tailW }} />
           </div>
         );
       }),
     [
       segments,
       collapsed,
-      buckets,
+      visibleBuckets,
+      firstIdx,
+      leadW,
+      tailW,
       grain,
       bucketW,
       cellH,
@@ -355,25 +451,14 @@ export function AvailabilityTimeline() {
   return (
     <div>
       <div className={styles.toolbar}>
-        <Segmented<Grain>
-          value={grain}
-          onChange={(g) => setGrain(g)}
-          options={[
-            { label: t('rolesTeams.avail.grainWeek'), value: 'week' },
-            { label: t('rolesTeams.avail.grainDay'), value: 'day' },
-          ]}
+        <BoardTimeFilter
+          grain={grain}
+          onGrainChange={setGrain}
+          domain={domain}
+          onDomainChange={setDomain}
+          onToday={onToday}
+          onFit={onFit}
         />
-        <div className={styles.navGroup}>
-          <Button size="small" onClick={goPrev}>
-            ‹
-          </Button>
-          <Button size="small" onClick={goToday}>
-            {t('rolesTeams.avail.today')}
-          </Button>
-          <Button size="small" onClick={goNext}>
-            ›
-          </Button>
-        </div>
         <span className={styles.span}>{spanLabel}</span>
       </div>
 

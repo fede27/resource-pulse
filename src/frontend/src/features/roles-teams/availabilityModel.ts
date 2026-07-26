@@ -20,6 +20,7 @@ import {
   type ResourceReadDto,
   type WorkWindowDto,
 } from '@/api/generated/schemas';
+import type { Grain as TimelineGrain } from '@/components/timeline';
 import { parseDurationHours } from '@/lib/duration';
 
 const ISO = 'YYYY-MM-DD';
@@ -161,7 +162,10 @@ export function dayInfo(
 
 // ── Bucketing ──────────────────────────────────────────────────────────────
 
-export type Grain = 'week' | 'day';
+// Same three grains as the boards (`@/components/timeline`) — the availability
+// grid reads the domain through the shared time filter, so its bucket unit must
+// be the same vocabulary.
+export type Grain = TimelineGrain;
 
 export type Bucket = { from: string; to: string };
 
@@ -175,18 +179,54 @@ export function addDays(iso: string, n: number): string {
   return dayjs(iso).add(n, 'day').format(ISO);
 }
 
-export function buildBuckets(startISO: string, grain: Grain, count: number): Bucket[] {
+// Aligned buckets covering the inclusive domain [fromISO, toISO]: single days,
+// ISO weeks (Monday-anchored) or calendar months. The first and last bucket may
+// extend past the domain edges — a half week is not a unit anyone reads, so the
+// bucket wins over the edge.
+export function buildBuckets(fromISO: string, toISO: string, grain: Grain): Bucket[] {
   const out: Bucket[] = [];
-  for (let i = 0; i < count; i += 1) {
-    if (grain === 'week') {
-      const from = addDays(startISO, i * 7);
-      out.push({ from, to: addDays(from, 6) });
-    } else {
-      const from = addDays(startISO, i);
+  const end = dayjs(toISO);
+  if (end.isBefore(dayjs(fromISO))) return out;
+
+  if (grain === 'day') {
+    for (let d = dayjs(fromISO); !d.isAfter(end); d = d.add(1, 'day')) {
+      const from = d.format(ISO);
       out.push({ from, to: from });
     }
+    return out;
+  }
+
+  if (grain === 'month') {
+    for (let d = dayjs(fromISO).startOf('month'); !d.isAfter(end); d = d.add(1, 'month')) {
+      out.push({ from: d.format(ISO), to: d.endOf('month').format(ISO) });
+    }
+    return out;
+  }
+
+  for (let d = dayjs(mondayOf(fromISO)); !d.isAfter(end); d = d.add(7, 'day')) {
+    const from = d.format(ISO);
+    out.push({ from, to: addDays(from, 6) });
   }
   return out;
+}
+
+// The extent of what this board actually has to show. Capacity is defined every
+// day, so "fit to the content" would be a no-op; what carries information is the
+// exceptions — ferie, straordinari, chiusure. Null when there are none.
+export function exceptionsExtent(
+  resources: ResourceReadDto[],
+  closures: CompanyClosureReadDto[],
+): { minISO: string; maxISO: string } | null {
+  let min: string | null = null;
+  let max: string | null = null;
+  const widen = (from: string | null | undefined, to: string | null | undefined) => {
+    if (!from || !to) return;
+    if (min === null || from < min) min = from;
+    if (max === null || to > max) max = to;
+  };
+  for (const r of resources) for (const a of r.adjustments ?? []) widen(a.dateFrom, a.dateTo);
+  for (const c of closures) widen(c.dateFrom, c.dateTo);
+  return min !== null && max !== null ? { minISO: min, maxISO: max } : null;
 }
 
 export function bucketDays(bucket: Bucket): string[] {

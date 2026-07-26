@@ -4,7 +4,7 @@ import { FilterOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { green, neutral } from '@/app/palette';
-import { BoardDateControls } from '@/components/board';
+import { BoardTimeFilter } from '@/components/board';
 import type { Grain } from '@/components/timeline';
 import {
   activeFilterCount,
@@ -176,19 +176,9 @@ export function BoardToolbar(props: BoardToolbarProps) {
           ]}
         />
         <span className={styles.divider} />
-        <span className={styles.dimLabel}>{t('projects.toolbar.bucket')}</span>
-        <Segmented<Grain>
-          size="small"
-          value={props.bucket}
-          onChange={props.onBucketChange}
-          options={[
-            { value: 'day', label: t('projects.toolbar.bucketDay') },
-            { value: 'week', label: t('projects.toolbar.bucketWeek') },
-            { value: 'month', label: t('projects.toolbar.bucketMonth') },
-          ]}
-        />
-        <span className={styles.divider} />
-        <BoardDateControls
+        <BoardTimeFilter
+          grain={props.bucket}
+          onGrainChange={props.onBucketChange}
           domain={props.domain}
           onDomainChange={props.onDomainChange}
           onToday={props.onToday}

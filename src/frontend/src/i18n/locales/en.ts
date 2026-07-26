@@ -165,9 +165,6 @@ export const en: Loose<typeof it> = {
       adjDeleted: 'Exception deleted',
     },
     avail: {
-      grainWeek: 'Weeks',
-      grainDay: 'Days',
-      today: 'Today',
       person: 'Person',
       week: 'wk',
       noTeam: 'No team',
@@ -249,7 +246,12 @@ export const en: Loose<typeof it> = {
       slushy: 'Slushy',
       liquid: 'Liquid',
     },
-    controls: {
+    // The one time filter — grain + window — shared by every timed view.
+    time: {
+      grain: 'Grain',
+      day: 'Day',
+      week: 'Week',
+      month: 'Month',
       prevYear: 'Previous year',
       nextYear: 'Next year',
       today: 'Today',
@@ -269,10 +271,6 @@ export const en: Loose<typeof it> = {
     toolbar: {
       metricPct: '%',
       metricHours: 'Hours',
-      bucket: 'Grain',
-      bucketDay: 'Day',
-      bucketWeek: 'Week',
-      bucketMonth: 'Month',
       groupBy: 'Group by',
       groupRole: 'Role',
       groupTeam: 'Team',
@@ -669,14 +667,6 @@ export const en: Loose<typeof it> = {
     toolbar: {
       metricPct: '%',
       metricHours: 'Hours',
-      bucket: 'Bucket',
-      bucketDay: 'Day',
-      bucketWeek: 'Week',
-      bucketMonth: 'Month',
-      prevYear: 'Previous year',
-      nextYear: 'Next year',
-      today: 'Today',
-      fit: 'Fit',
       filters: 'Filters',
       resetDefaults: 'Reset defaults',
       clear: 'Clear',

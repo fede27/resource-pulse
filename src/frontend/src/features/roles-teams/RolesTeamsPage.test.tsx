@@ -101,15 +101,32 @@ describe('<RolesTeamsPage> — Disponibilità', () => {
     expect(within(dialog).getByText('Assegna')).toBeInTheDocument();
   });
 
-  it('toggles the grain to days', async () => {
+  it('switches grain through the shared time filter', async () => {
     seedRolesTeams();
     const user = userEvent.setup();
     renderWithProviders(<RolesTeamsPage />);
 
     await openView(user, 'Disponibilità');
     await screen.findByText('Cy Byte');
-    await user.click(screen.getByText('Giorni'));
 
+    // Same three grains as the boards — this page used to offer only two.
+    await user.click(screen.getByText('Giorno'));
     await waitFor(() => expect(screen.getByText('Ada Lovelace')).toBeInTheDocument());
+
+    await user.click(screen.getByText('Mese'));
+    await waitFor(() => expect(screen.getByText('Ada Lovelace')).toBeInTheDocument());
+  });
+
+  it('offers the shared window controls (year · oggi · adatta)', async () => {
+    seedRolesTeams();
+    const user = userEvent.setup();
+    renderWithProviders(<RolesTeamsPage />);
+
+    await openView(user, 'Disponibilità');
+    await screen.findByText('Cy Byte');
+
+    expect(screen.getByRole('button', { name: /Anno precedente/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Oggi/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Adatta/ })).toBeInTheDocument();
   });
 });

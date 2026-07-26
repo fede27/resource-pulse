@@ -1,7 +1,7 @@
 // Shared board-timeline building blocks (bounded-domain gantt): pixel geometry,
 // the scrollable timeline shell (fence zones + today indicator + axis), the
-// date-navigation controls and the fence palette. Used by the Progetti and
-// Persone boards — do not re-implement these per feature.
+// time filter (grain + window) and the fence palette. Used by every timed view
+// — Progetti, Persone, Disponibilità — do not re-implement these per feature.
 
 export {
   BUCKET_DAYPX,
@@ -26,11 +26,8 @@ export {
 export { useWindowedRows } from './useWindowedRows';
 export { useFrameMaxHeight } from './useFrameMaxHeight';
 export { RowGap } from './RowGap';
-export {
-  BoardDateControls,
-  type BoardDateControlsProps,
-  type BoardDomain,
-} from './BoardDateControls';
+export { BoardTimeFilter, type BoardTimeFilterProps } from './BoardTimeFilter';
+export { clampDomain, MAX_DOMAIN_DAYS, type BoardDomain } from './boardDomain';
 export {
   ENVELOPE_H,
   HEADER_FENCE_H,

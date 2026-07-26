@@ -13,6 +13,7 @@ import {
   buildBuckets,
   bucketAgg,
   dayInfo,
+  exceptionsExtent,
   groupByTeam,
   hoursToWire,
   patternFor,
@@ -133,21 +134,58 @@ describe('dayInfo', () => {
 });
 
 describe('buckets', () => {
-  it('builds inclusive weekly buckets from a Monday', () => {
-    const buckets = buildBuckets(MON, 'week', 2);
+  it('builds inclusive weekly buckets covering the domain', () => {
+    const buckets = buildBuckets(MON, '2026-07-19', 'week');
     expect(buckets).toEqual([
       { from: '2026-07-06', to: '2026-07-12' },
       { from: '2026-07-13', to: '2026-07-19' },
     ]);
   });
 
+  it('anchors weekly buckets on the Monday before the domain start', () => {
+    // Domain starts on a Wednesday → the first bucket still starts on Monday:
+    // a half week is not a unit anyone reads.
+    const buckets = buildBuckets('2026-07-08', '2026-07-12', 'week');
+    expect(buckets).toEqual([{ from: '2026-07-06', to: '2026-07-12' }]);
+  });
+
   it('builds single-day buckets', () => {
-    const buckets = buildBuckets(MON, 'day', 3);
+    const buckets = buildBuckets(MON, '2026-07-08', 'day');
     expect(buckets).toEqual([
       { from: '2026-07-06', to: '2026-07-06' },
       { from: '2026-07-07', to: '2026-07-07' },
       { from: '2026-07-08', to: '2026-07-08' },
     ]);
+  });
+
+  it('builds calendar-month buckets, aligned and inclusive of the last month', () => {
+    const buckets = buildBuckets('2026-07-15', '2026-09-02', 'month');
+    expect(buckets).toEqual([
+      { from: '2026-07-01', to: '2026-07-31' },
+      { from: '2026-08-01', to: '2026-08-31' },
+      { from: '2026-09-01', to: '2026-09-30' },
+    ]);
+  });
+
+  it('returns nothing for an inverted domain', () => {
+    expect(buildBuckets('2026-07-10', '2026-07-01', 'week')).toEqual([]);
+  });
+});
+
+describe('exceptionsExtent', () => {
+  it('spans adjustments and closures together', () => {
+    const p = person({
+      adjustments: [adj(AdjustmentType.Absence, '2026-07-08', '2026-07-10', null)],
+    });
+    const closure: CompanyClosureReadDto = { dateFrom: '2026-08-14', dateTo: '2026-08-18' };
+    expect(exceptionsExtent([p], [closure])).toEqual({
+      minISO: '2026-07-08',
+      maxISO: '2026-08-18',
+    });
+  });
+
+  it('is null when there is nothing to frame', () => {
+    expect(exceptionsExtent([person()], [])).toBeNull();
   });
 });
 

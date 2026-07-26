@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import {
   BoardTimeline,
   buildGeo,
+  clampDomain,
   RowGap,
   useVisibleXRange,
   useWindowedRows,
@@ -43,15 +44,6 @@ type PeopleRowItem =
   | { kind: 'person'; key: string; height: number; data: PersonData; alt: boolean };
 
 const ISO = 'YYYY-MM-DD';
-const MAX_DOMAIN_DAYS = 366; // keep the visual domain within the API range cap
-
-function clampDomain(d: BoardDomain): BoardDomain {
-  const min = dayjs(d.minISO);
-  const max = dayjs(d.maxISO);
-  if (max.isBefore(min)) return { minISO: d.minISO, maxISO: d.minISO };
-  if (max.diff(min, 'day') + 1 <= MAX_DOMAIN_DAYS) return d;
-  return { minISO: d.minISO, maxISO: min.add(MAX_DOMAIN_DAYS - 1, 'day').format(ISO) };
-}
 
 // La pagina PERSONE: il pivot persone della timeline di copertura. Righe =
 // persone (heatmap della media di bucket), corsie = i loro progetti, drag

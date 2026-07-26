@@ -155,9 +155,6 @@ export const it = {
       adjDeleted: 'Eccezione eliminata',
     },
     avail: {
-      grainWeek: 'Settimane',
-      grainDay: 'Giorni',
-      today: 'Oggi',
       person: 'Persona',
       week: 'sett',
       noTeam: 'Senza team',
@@ -240,7 +237,12 @@ export const it = {
       slushy: 'Slushy',
       liquid: 'Liquid',
     },
-    controls: {
+    // The one time filter — grain + window — shared by every timed view.
+    time: {
+      grain: 'Grana',
+      day: 'Giorno',
+      week: 'Settimana',
+      month: 'Mese',
       prevYear: 'Anno precedente',
       nextYear: 'Anno successivo',
       today: 'Oggi',
@@ -260,10 +262,6 @@ export const it = {
     toolbar: {
       metricPct: '%',
       metricHours: 'Ore',
-      bucket: 'Grana',
-      bucketDay: 'Giorno',
-      bucketWeek: 'Settimana',
-      bucketMonth: 'Mese',
       groupBy: 'Raggruppa',
       groupRole: 'Ruolo',
       groupTeam: 'Team',
@@ -660,14 +658,6 @@ export const it = {
     toolbar: {
       metricPct: '%',
       metricHours: 'Ore',
-      bucket: 'Bucket',
-      bucketDay: 'Giorno',
-      bucketWeek: 'Settimana',
-      bucketMonth: 'Mese',
-      prevYear: 'Anno precedente',
-      nextYear: 'Anno successivo',
-      today: 'Oggi',
-      fit: 'Adatta',
       filters: 'Filtri',
       resetDefaults: 'Ripristina default',
       clear: 'Azzera',
