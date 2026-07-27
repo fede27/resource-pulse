@@ -1,4 +1,5 @@
 import { useEffect, useState, type RefObject } from 'react';
+import { useRefNode } from './useRefNode';
 
 const MIN_HEIGHT = 240;
 
@@ -18,9 +19,12 @@ export function useFrameMaxHeight(
   bottomGapPx = 16,
 ): number | null {
   const [maxHeight, setMaxHeight] = useState<number | null>(null);
+  // Depend on the NODE, not the ref: the frame mounts on a later render than this
+  // hook's first effect (the page renders a loading skeleton first), and a
+  // ref-keyed effect would never re-run — leaving the frame unbounded forever.
+  const el = useRefNode(frameRef);
 
   useEffect(() => {
-    const el = frameRef.current;
     if (!el) return;
     let raf = 0;
 
@@ -50,7 +54,7 @@ export function useFrameMaxHeight(
       ro.disconnect();
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [frameRef, bottomGapPx]);
+  }, [el, bottomGapPx]);
 
   return maxHeight;
 }

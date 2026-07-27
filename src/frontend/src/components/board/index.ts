@@ -25,6 +25,7 @@ export {
 } from './boardRowLayout';
 export { useWindowedRows } from './useWindowedRows';
 export { useFrameMaxHeight } from './useFrameMaxHeight';
+export { useRefNode } from './useRefNode';
 export { RowGap } from './RowGap';
 export { BoardTimeFilter, type BoardTimeFilterProps } from './BoardTimeFilter';
 export { clampDomain, MAX_DOMAIN_DAYS, type BoardDomain } from './boardDomain';

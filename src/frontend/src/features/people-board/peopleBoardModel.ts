@@ -133,10 +133,16 @@ export function weeklyCapacity(capacityByDay: ReadonlyMap<string, number>, from:
 
 export function bucketsFromGeo(geo: BoardGeo): BoardBucket[] {
   const ticks = geo.unitTicks;
+  // `maxISO` is the domain's LAST DAY (inclusive — same as the range picker and
+  // the fetch `to`), while `toExcl` is exclusive: the tail is maxISO + 1. Using
+  // maxISO itself dropped that day from the last bucket — a week short by one
+  // day, and at day grain the final column's bucket collapsed to zero width and
+  // was filtered out, leaving the last day with no cell at all.
+  const tailExcl = dayjs(geo.maxISO).add(1, 'day').format(ISO);
   return ticks
     .map((t, i) => ({
       from: t.iso < geo.minISO ? geo.minISO : t.iso,
-      toExcl: ticks[i + 1]?.iso ?? geo.maxISO,
+      toExcl: ticks[i + 1]?.iso ?? tailExcl,
       x: t.x,
       w: t.w,
       label: t.label,

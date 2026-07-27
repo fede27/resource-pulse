@@ -22,7 +22,7 @@ import {
   type ResourceReadDto,
   type TeamReadDto,
 } from '@/api/generated/schemas';
-import { capacityMapFromSegments } from '@/lib/capacity';
+import { capacityMapFromSegments, splitRange } from '@/lib/capacity';
 
 export type AvailabilityData = {
   isLoading: boolean;
@@ -41,7 +41,20 @@ export function useAvailabilityData(fromISO: string, toISO: string): Availabilit
   const calendarsQ = useBusinessCalendarsGetAll();
   const closuresQ = useCompanyClosuresGetAll();
   const teamsQ = useTeamsGetAll();
-  const capacitiesQ = useResourcesGetCapacities({ from: fromISO, to: toISO });
+
+  // The requested span is the ALIGNED BUCKET span, not the domain, so it can
+  // exceed the read's 366-day cap by a few days (see `splitRange`). Two chunks
+  // always suffice: the domain is clamped to the cap and bucket alignment adds
+  // at most a month on each side. A single call would 400 and every cell would
+  // silently read 0h.
+  const chunks = splitRange(fromISO, toISO);
+  const head = chunks[0] ?? { from: fromISO, to: toISO };
+  const tail = chunks[1];
+  const capacitiesQ = useResourcesGetCapacities({ from: head.from, to: head.to });
+  const capacitiesTailQ = useResourcesGetCapacities(
+    { from: tail?.from ?? head.from, to: tail?.to ?? head.to },
+    { query: { enabled: !!tail } },
+  );
 
   const resources = useMemo(() => {
     const rows = ((resourcesQ.data as LoadResult | undefined)?.data ?? []) as ResourceReadDto[];
@@ -75,13 +88,18 @@ export function useAvailabilityData(fromISO: string, toISO: string): Availabilit
     return map;
   }, [teamsQ.data]);
 
+  // Chunks are contiguous and disjoint, so merging is a plain union per resource.
   const capacityByResource = useMemo(() => {
-    const map = new Map<string, ReadonlyMap<string, number>>();
-    for (const rc of capacitiesQ.data ?? []) {
-      if (rc.resourceId) map.set(rc.resourceId, capacityMapFromSegments(rc.segments ?? []));
+    const map = new Map<string, Map<string, number>>();
+    for (const rc of [...(capacitiesQ.data ?? []), ...(capacitiesTailQ.data ?? [])]) {
+      if (!rc.resourceId) continue;
+      const days = capacityMapFromSegments(rc.segments ?? []);
+      const existing = map.get(rc.resourceId);
+      if (existing) for (const [iso, hours] of days) existing.set(iso, hours);
+      else map.set(rc.resourceId, days);
     }
-    return map;
-  }, [capacitiesQ.data]);
+    return map as Map<string, ReadonlyMap<string, number>>;
+  }, [capacitiesQ.data, capacitiesTailQ.data]);
 
   return {
     isLoading: resourcesQ.isPending || calendarsQ.isPending || closuresQ.isPending,

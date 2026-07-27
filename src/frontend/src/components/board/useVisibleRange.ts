@@ -1,4 +1,5 @@
 import { useEffect, useState, type RefObject } from 'react';
+import { useRefNode } from './useRefNode';
 
 // Axis-generic visible window of the board's scroll viewport, in content-space
 // pixels. One mechanism for both axes: `useVisibleXRange` and `useVisibleYRange`
@@ -23,9 +24,11 @@ export function useVisibleRange(
   stepPx: number,
 ): VisibleRange {
   const [range, setRange] = useState<VisibleRange>(UNBOUNDED_RANGE);
+  // Depend on the NODE, not the ref: pages mount the scroller on a later render
+  // (loading skeleton first), and an effect keyed on the ref would never re-run.
+  const el = useRefNode(scrollRef);
 
   useEffect(() => {
-    const el = scrollRef.current;
     if (!el) return;
     let raf = 0;
 
@@ -55,7 +58,7 @@ export function useVisibleRange(
       ro.disconnect();
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [scrollRef, axis, overscanPx, stepPx]);
+  }, [el, axis, overscanPx, stepPx]);
 
   return range;
 }

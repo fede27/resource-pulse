@@ -81,13 +81,14 @@ function person(id: string, blocks: PersonBlock[], overrides?: Partial<PersonDat
   };
 }
 
-// 2026-06-01 is a Monday; four full weeks to 2026-06-29 (exclusive edge).
+// 2026-06-01 is a Monday; four full weeks then Mon 2026-06-29, the domain's last
+// day (maxISO is INCLUSIVE) — so the axis ends on a one-day tail bucket.
 const geo = buildGeo('2026-06-01', '2026-06-29', 'week', FENCE);
 
 describe('bucketsFromGeo', () => {
   it('maps unit ticks to clamped date buckets', () => {
     const buckets = bucketsFromGeo(geo);
-    expect(buckets).toHaveLength(4);
+    expect(buckets).toHaveLength(5);
     expect(buckets[0]).toMatchObject({ from: '2026-06-01', toExcl: '2026-06-08' });
     expect(buckets[3]).toMatchObject({ from: '2026-06-22', toExcl: '2026-06-29' });
   });
@@ -96,6 +97,26 @@ describe('bucketsFromGeo', () => {
     const g = buildGeo('2026-06-03', '2026-06-15', 'week', FENCE);
     const buckets = bucketsFromGeo(g);
     expect(buckets[0]?.from).toBe('2026-06-03'); // not the Monday before the domain
+  });
+
+  // maxISO is the last day, `toExcl` is exclusive: the tail must be maxISO + 1.
+  // With maxISO itself the domain's final day fell outside every bucket.
+  it('includes the domain’s last day in the final bucket', () => {
+    const g = buildGeo('2026-06-01', '2026-06-25', 'week', FENCE);
+    const buckets = bucketsFromGeo(g);
+    expect(buckets[buckets.length - 1]).toMatchObject({
+      from: '2026-06-22',
+      toExcl: '2026-06-26', // covers Mon 22 … Thu 25 inclusive
+    });
+  });
+
+  it('keeps a bucket for the last day at day grain', () => {
+    const g = buildGeo('2026-06-01', '2026-06-03', 'day', FENCE);
+    const buckets = bucketsFromGeo(g);
+    // Three days ⇒ three cells. The last one used to collapse to zero width
+    // (from === toExcl) and be filtered out, so the final column had no cell.
+    expect(buckets).toHaveLength(3);
+    expect(buckets[2]).toMatchObject({ from: '2026-06-03', toExcl: '2026-06-04' });
   });
 });
 

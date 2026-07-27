@@ -373,8 +373,17 @@ function CoverageFace({
   const { t } = useTranslation();
   const { styles } = useStyles();
 
+  // Whole visible window as one bucket. `toExcl` is exclusive and `maxISO` is
+  // the last day, so the tail is maxISO + 1 — otherwise the hours face silently
+  // omitted the final day of the window.
   const range: BoardBucket = useMemo(
-    () => ({ from: geo.minISO, toExcl: geo.maxISO, x: 0, w: 0, label: '' }),
+    () => ({
+      from: geo.minISO,
+      toExcl: dayjs(geo.maxISO).add(1, 'day').format(ISO),
+      x: 0,
+      w: 0,
+      label: '',
+    }),
     [geo.minISO, geo.maxISO],
   );
   // Hours face always includes tentative rows (annotated) — hiding proposed
