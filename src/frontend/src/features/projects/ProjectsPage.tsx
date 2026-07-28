@@ -31,7 +31,7 @@ import { useCreateProject } from './useCreateProject';
 import { useProjectActions } from './useProjectActions';
 import { useLaneActions } from './useLaneActions';
 import { BoardLegend } from './BoardLegend';
-import { BoardToolbar, type Metric } from './BoardToolbar';
+import { ProjectsBoardToolbar, type Metric } from './ProjectsBoardToolbar';
 import { ProjectRow } from './ProjectRow';
 import { useStyles } from './ProjectsPage.styles';
 
@@ -225,7 +225,7 @@ export function ProjectsPage() {
         }
       />
 
-      <BoardToolbar
+      <ProjectsBoardToolbar
         metric={metric}
         onMetricChange={setMetric}
         bucket={bucket}

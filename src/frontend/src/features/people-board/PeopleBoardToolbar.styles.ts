@@ -1,44 +1,15 @@
 import { createStyles } from 'antd-style';
 
+// Only what is specific to THIS toolbar's content. The card, its rows, the
+// dividers, the labels, the right-hand spacer and the result count come from the
+// shared `BoardToolbar` — do not re-declare them here.
 export const useStyles = createStyles(({ token, css }) => ({
-  toolbar: css`
-    background: ${token.colorBgContainer};
-    border: 1px solid ${token.colorBorderSecondary};
-    border-radius: ${token.borderRadiusLG}px;
-    margin-block-end: ${token.margin}px;
-  `,
-  controls: css`
-    display: flex;
-    align-items: center;
-    gap: ${token.marginXS}px;
-    padding: ${token.paddingXS}px ${token.paddingSM}px;
-    flex-wrap: wrap;
-    border-block-end: 1px solid ${token.colorSplit};
-  `,
-  secondRow: css`
-    display: flex;
-    align-items: center;
-    gap: ${token.marginXS}px;
-    padding: ${token.paddingXS}px ${token.paddingSM}px;
-    flex-wrap: wrap;
-  `,
-  divider: css`
-    width: 1px;
-    height: 22px;
-    background: ${token.colorSplit};
-  `,
-  dimLabel: css`
+  dimIcon: css`
     font-size: ${token.fontSizeSM}px;
     color: ${token.colorTextTertiary};
   `,
   search: css`
     width: 200px;
-  `,
-  spacer: css`
-    margin-inline-start: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: ${token.marginXS}px;
   `,
   bandButton: css`
     display: inline-flex;
@@ -66,14 +37,5 @@ export const useStyles = createStyles(({ token, css }) => ({
     height: 10px;
     border-radius: 2px;
     flex-shrink: 0;
-  `,
-  resultCount: css`
-    font-size: ${token.fontSizeSM}px;
-    color: ${token.colorTextTertiary};
-    font-variant-numeric: tabular-nums;
-
-    strong {
-      color: ${token.colorTextSecondary};
-    }
   `,
 }));

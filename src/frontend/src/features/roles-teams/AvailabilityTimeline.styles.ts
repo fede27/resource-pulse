@@ -15,22 +15,10 @@ export const PERSON_ROW_H = 49;
 export const teamRowHeight = (grain: Grain) => CELL_H[grain] + 7;
 
 export const useStyles = createStyles(({ token, css }) => ({
-  toolbar: css`
-    display: flex;
-    align-items: center;
-    gap: ${token.margin}px;
-    margin-bottom: ${token.marginSM}px;
-    flex-wrap: wrap;
-  `,
   // Horizontal windowing spacer: holds the width of the off-screen columns so
   // the scroll extent and the sticky header stay aligned with the rendered slice.
   colGap: css`
     flex-shrink: 0;
-  `,
-  span: css`
-    font-size: ${token.fontSize}px;
-    color: ${token.colorTextTertiary};
-    font-variant-numeric: tabular-nums;
   `,
   frame: css`
     background: ${token.colorBgContainer};

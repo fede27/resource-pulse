@@ -3,9 +3,9 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test/render';
 import { defaultFilters, type BoardFilters } from './boardModel';
-import { BoardToolbar, type BoardToolbarProps } from './BoardToolbar';
+import { ProjectsBoardToolbar, type ProjectsBoardToolbarProps } from './ProjectsBoardToolbar';
 
-function makeProps(filters?: Partial<BoardFilters>): BoardToolbarProps {
+function makeProps(filters?: Partial<BoardFilters>): ProjectsBoardToolbarProps {
   return {
     metric: 'pct',
     onMetricChange: vi.fn(),
@@ -27,9 +27,9 @@ function makeProps(filters?: Partial<BoardFilters>): BoardToolbarProps {
   };
 }
 
-describe('<BoardToolbar>', () => {
+describe('<ProjectsBoardToolbar>', () => {
   it('shows the result count against the total and the default-lifecycle chip', () => {
-    renderWithProviders(<BoardToolbar {...makeProps()} />);
+    renderWithProviders(<ProjectsBoardToolbar {...makeProps()} />);
 
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText(/progetti/)).toBeInTheDocument();
@@ -49,7 +49,7 @@ describe('<BoardToolbar>', () => {
       sustain: new Set(['uncovered'] as const),
     });
     const user = userEvent.setup();
-    renderWithProviders(<BoardToolbar {...props} />);
+    renderWithProviders(<ProjectsBoardToolbar {...props} />);
 
     expect(screen.getByText('Di cui sono owner')).toBeInTheDocument();
     expect(screen.getByText('Miei ruoli scoperti')).toBeInTheDocument();
@@ -70,7 +70,7 @@ describe('<BoardToolbar>', () => {
   it('opens the filter panel and toggles a facet checkbox', async () => {
     const props = makeProps();
     const user = userEvent.setup();
-    renderWithProviders(<BoardToolbar {...props} />);
+    renderWithProviders(<ProjectsBoardToolbar {...props} />);
 
     await user.click(screen.getByRole('button', { name: /Filtri/ }));
     expect(await screen.findByText('Ciclo di vita')).toBeInTheDocument();
@@ -84,7 +84,7 @@ describe('<BoardToolbar>', () => {
   it('steps the year and triggers today/fit', async () => {
     const props = makeProps();
     const user = userEvent.setup();
-    renderWithProviders(<BoardToolbar {...props} />);
+    renderWithProviders(<ProjectsBoardToolbar {...props} />);
 
     await user.click(screen.getByRole('button', { name: /Anno successivo/ }));
     expect(props.onDomainChange).toHaveBeenCalledWith({ minISO: '2027-01-01', maxISO: '2027-12-31' });
@@ -99,7 +99,7 @@ describe('<BoardToolbar>', () => {
   it('resets to defaults from the clear link', async () => {
     const props = makeProps({ mineOwner: true });
     const user = userEvent.setup();
-    renderWithProviders(<BoardToolbar {...props} />);
+    renderWithProviders(<ProjectsBoardToolbar {...props} />);
 
     await user.click(screen.getByRole('button', { name: /Azzera/ }));
     expect(props.onFiltersChange).toHaveBeenCalledWith(defaultFilters());

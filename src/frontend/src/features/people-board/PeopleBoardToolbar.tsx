@@ -1,7 +1,7 @@
 import { Input, Segmented, Select, Switch } from 'antd';
 import { SearchOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { BoardTimeFilter, type BoardDomain } from '@/components/board';
+import { BoardTimeFilter, BoardToolbar, type BoardDomain } from '@/components/board';
 import type { Grain } from '@/components/timeline';
 import { bandStop, type LoadBand } from '@/lib/loadBands';
 import type { GroupBy, PeopleSort } from './peopleBoardModel';
@@ -40,8 +40,8 @@ export function PeopleBoardToolbar(props: PeopleBoardToolbarProps) {
   const { styles, cx } = useStyles();
 
   return (
-    <div className={styles.toolbar}>
-      <div className={styles.controls}>
+    <BoardToolbar>
+      <BoardToolbar.Row>
         <Segmented<Metric>
           size="small"
           value={props.metric}
@@ -51,7 +51,7 @@ export function PeopleBoardToolbar(props: PeopleBoardToolbarProps) {
             { value: 'hours', label: t('peopleBoard.toolbar.metricHours') },
           ]}
         />
-        <span className={styles.divider} />
+        <BoardToolbar.Divider />
         <BoardTimeFilter
           grain={props.bucket}
           onGrainChange={props.onBucketChange}
@@ -60,7 +60,7 @@ export function PeopleBoardToolbar(props: PeopleBoardToolbarProps) {
           onToday={props.onToday}
           onFit={props.onFit}
         />
-        <span className={styles.spacer}>
+        <BoardToolbar.Spacer>
           <Input
             allowClear
             size="small"
@@ -70,13 +70,13 @@ export function PeopleBoardToolbar(props: PeopleBoardToolbarProps) {
             value={props.query}
             onChange={(e) => props.onQueryChange(e.target.value)}
           />
-        </span>
-      </div>
+        </BoardToolbar.Spacer>
+      </BoardToolbar.Row>
 
-      <div className={styles.secondRow}>
+      <BoardToolbar.Row>
         {/* Row shaping (how the roster is grouped) belongs with sort/filter, not
             with the time window — the first row is the time filter's grammar. */}
-        <span className={styles.dimLabel}>{t('peopleBoard.toolbar.groupBy')}</span>
+        <BoardToolbar.Label>{t('peopleBoard.toolbar.groupBy')}</BoardToolbar.Label>
         <Segmented<GroupBy>
           size="small"
           value={props.groupBy}
@@ -86,8 +86,8 @@ export function PeopleBoardToolbar(props: PeopleBoardToolbarProps) {
             { value: 'team', label: t('peopleBoard.toolbar.groupTeam') },
           ]}
         />
-        <span className={styles.divider} />
-        <span className={styles.dimLabel}>{t('peopleBoard.toolbar.bands')}</span>
+        <BoardToolbar.Divider />
+        <BoardToolbar.Label>{t('peopleBoard.toolbar.bands')}</BoardToolbar.Label>
         {props.bands.map((b, i) => {
           const on = props.bandSelection.has(i);
           const stop = bandStop(i, props.bands.length);
@@ -106,24 +106,24 @@ export function PeopleBoardToolbar(props: PeopleBoardToolbarProps) {
             </button>
           );
         })}
-        <span className={styles.divider} />
-        <label className={styles.dimLabel} title={t('peopleBoard.toolbar.countTentativeHint')}>
+        <BoardToolbar.Divider />
+        <BoardToolbar.Label as="label" title={t('peopleBoard.toolbar.countTentativeHint')}>
           <Switch
             size="small"
             checked={props.countTentative}
             onChange={props.onCountTentativeChange}
           />{' '}
           {t('peopleBoard.toolbar.countTentative')}
-        </label>
-        <span className={styles.spacer}>
-          <span className={styles.resultCount}>
+        </BoardToolbar.Label>
+        <BoardToolbar.Spacer>
+          <BoardToolbar.Count>
             <strong>{props.resultCount}</strong>{' '}
             {t(props.resultCount === 1 ? 'peopleBoard.toolbar.resultOne' : 'peopleBoard.toolbar.resultMany')}
             {props.resultCount !== props.totalCount
               ? ` ${t('peopleBoard.toolbar.ofTotal', { total: props.totalCount })}`
               : ''}
-          </span>
-          <SortAscendingOutlined className={styles.dimLabel} />
+          </BoardToolbar.Count>
+          <SortAscendingOutlined className={styles.dimIcon} />
           <Select
             size="small"
             value={props.sort}
@@ -131,8 +131,8 @@ export function PeopleBoardToolbar(props: PeopleBoardToolbarProps) {
             options={SORTS.map((s) => ({ value: s, label: t(`peopleBoard.sort.${s}`) }))}
             popupMatchSelectWidth={false}
           />
-        </span>
-      </div>
-    </div>
+        </BoardToolbar.Spacer>
+      </BoardToolbar.Row>
+    </BoardToolbar>
   );
 }

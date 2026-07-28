@@ -20,6 +20,7 @@ import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
 import { InspectorDrawer } from '@/components/domain/InspectorDrawer';
 import {
   BoardTimeFilter,
+  BoardToolbar,
   clampDomain,
   RowGap,
   useFrameMaxHeight,
@@ -450,17 +451,23 @@ export function AvailabilityTimeline() {
 
   return (
     <div>
-      <div className={styles.toolbar}>
-        <BoardTimeFilter
-          grain={grain}
-          onGrainChange={setGrain}
-          domain={domain}
-          onDomainChange={setDomain}
-          onToday={onToday}
-          onFit={onFit}
-        />
-        <span className={styles.span}>{spanLabel}</span>
-      </div>
+      <BoardToolbar>
+        <BoardToolbar.Row>
+          <BoardTimeFilter
+            grain={grain}
+            onGrainChange={setGrain}
+            domain={domain}
+            onDomainChange={setDomain}
+            onToday={onToday}
+            onFit={onFit}
+          />
+          {/* The picked domain and the RENDERED span differ once buckets align
+              to weeks/months — show what the grid actually covers. */}
+          <BoardToolbar.Spacer>
+            <BoardToolbar.Count>{spanLabel}</BoardToolbar.Count>
+          </BoardToolbar.Spacer>
+        </BoardToolbar.Row>
+      </BoardToolbar>
 
       <div ref={frameRef} className={styles.frame} style={frameStyle}>
         <div ref={scrollRef} className={styles.scroll}>

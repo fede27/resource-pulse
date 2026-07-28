@@ -4,7 +4,7 @@ import { FilterOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { green, neutral } from '@/app/palette';
-import { BoardTimeFilter } from '@/components/board';
+import { BoardTimeFilter, BoardToolbar } from '@/components/board';
 import type { Grain } from '@/components/timeline';
 import {
   activeFilterCount,
@@ -18,7 +18,7 @@ import {
 import { VERDICT_COLORS } from './boardColors';
 import type { PersonPoolEntry } from './useProjectsBoard';
 import type { BoardDomain } from './useProjectsBoard';
-import { useStyles } from './BoardToolbar.styles';
+import { useStyles } from './ProjectsBoardToolbar.styles';
 
 const LIFECYCLES: Lifecycle[] = ['future', 'active', 'closed'];
 const PROVENANCES: Provenance[] = ['committed', 'proposed'];
@@ -32,7 +32,7 @@ const LIFECYCLE_DOTS: Record<Lifecycle, string> = {
 
 export type Metric = 'pct' | 'hours';
 
-export type BoardToolbarProps = {
+export type ProjectsBoardToolbarProps = {
   metric: Metric;
   onMetricChange: (m: Metric) => void;
   bucket: Grain;
@@ -56,7 +56,7 @@ function toggleInSet<T>(set: Set<T>, key: T): Set<T> {
   return next;
 }
 
-export function BoardToolbar(props: BoardToolbarProps) {
+export function ProjectsBoardToolbar(props: ProjectsBoardToolbarProps) {
   const { t } = useTranslation();
   const { styles } = useStyles();
   const { filters, onFiltersChange } = props;
@@ -164,8 +164,8 @@ export function BoardToolbar(props: BoardToolbarProps) {
   );
 
   return (
-    <div className={styles.toolbar}>
-      <div className={styles.controls}>
+    <BoardToolbar>
+      <BoardToolbar.Row>
         <Segmented<Metric>
           size="small"
           value={props.metric}
@@ -175,7 +175,7 @@ export function BoardToolbar(props: BoardToolbarProps) {
             { value: 'hours', label: t('projects.toolbar.metricHours') },
           ]}
         />
-        <span className={styles.divider} />
+        <BoardToolbar.Divider />
         <BoardTimeFilter
           grain={props.bucket}
           onGrainChange={props.onBucketChange}
@@ -184,8 +184,8 @@ export function BoardToolbar(props: BoardToolbarProps) {
           onToday={props.onToday}
           onFit={props.onFit}
         />
-        <div className={styles.spacer}>
-          <SortAscendingOutlined className={styles.dimLabel} />
+        <BoardToolbar.Spacer>
+          <SortAscendingOutlined className={styles.dimIcon} />
           <Select
             size="small"
             value={filters.sort}
@@ -199,11 +199,11 @@ export function BoardToolbar(props: BoardToolbarProps) {
               {count > 0 ? ` (${count})` : ''}
             </Button>
           </Popover>
-        </div>
-      </div>
+        </BoardToolbar.Spacer>
+      </BoardToolbar.Row>
 
-      <div className={styles.chipsRow}>
-        <span className={styles.resultCount}>
+      <BoardToolbar.Row>
+        <BoardToolbar.Count>
           <strong>{props.resultCount}</strong>{' '}
           {t(
             props.resultCount === 1
@@ -213,16 +213,16 @@ export function BoardToolbar(props: BoardToolbarProps) {
           {props.resultCount !== props.totalCount
             ? ` ${t('projects.toolbar.ofTotal', { total: props.totalCount })}`
             : ''}
-        </span>
-        <span className={styles.divider} />
+        </BoardToolbar.Count>
+        <BoardToolbar.Divider />
         {chips.length ? chips : <span className={styles.noFilters}>{t('projects.toolbar.noFilters')}</span>}
         {dirty && (
           <Button type="link" size="small" onClick={() => onFiltersChange(defaultFilters())}>
             {t('projects.toolbar.clear')}
           </Button>
         )}
-      </div>
-    </div>
+      </BoardToolbar.Row>
+    </BoardToolbar>
   );
 }
 

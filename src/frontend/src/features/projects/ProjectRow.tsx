@@ -34,7 +34,7 @@ import {
   VERDICT_COLORS,
 } from './boardColors';
 import type { BoardGeo } from '@/components/board';
-import type { Metric } from './BoardToolbar';
+import type { Metric } from './ProjectsBoardToolbar';
 import { PROPOSED_HATCH, TENTATIVE_HATCH, useStyles } from './ProjectRow.styles';
 
 export type ProjectRowProps = {
