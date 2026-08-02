@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
+using ResourcePulse.Common.Tenancy;
 using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Calendars;
 using ResourcePulse.Domain.Configuration;
@@ -9,6 +12,7 @@ using ResourcePulse.Domain.Roles;
 using ResourcePulse.Domain.Skills;
 using ResourcePulse.Domain.Tags;
 using ResourcePulse.Domain.Teams;
+using ResourcePulse.Persistence.Tenancy;
 
 namespace ResourcePulse.Persistence;
 
@@ -33,6 +37,33 @@ public class ResourcePulseDbContext(DbContextOptions<ResourcePulseDbContext> opt
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ResourcePulseDbContext).Assembly);
+        // Control-plane configurations live in this same assembly but belong to a
+        // different context; excluding them by namespace keeps the two models
+        // (and their migration histories) from bleeding into each other.
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(ResourcePulseDbContext).Assembly,
+            t => t.Namespace != typeof(ControlPlane.ControlPlaneDbContext).Namespace + ".Configurations");
+
+        // Tenant isolation (ADR-0029). The context is pooled, so it cannot take
+        // ITenantContext as a constructor dependency; it is read from the
+        // application service provider instead. The registration is a singleton
+        // that reads the ambient request at call time, so capturing it once while
+        // the model is built is correct.
+        var tenantContext = this.GetService<IDbContextOptions>()
+            .FindExtension<CoreOptionsExtension>()?
+            .ApplicationServiceProvider?
+            .GetService<ITenantContext>();
+
+        if (tenantContext is not null)
+        {
+            modelBuilder.ApplyTenantIsolation(tenantContext);
+        }
+        else
+        {
+            // Design time (migrations) and provider-agnostic unit tests: the
+            // columns and indexes must still exist — only the runtime filter is
+            // absent, and with no application host there is no request to scope.
+            modelBuilder.ApplyTenantColumnsOnly();
+        }
     }
 }

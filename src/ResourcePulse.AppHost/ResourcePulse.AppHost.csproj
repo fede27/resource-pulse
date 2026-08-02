@@ -1,8 +1,10 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.3.2">
+<Project Sdk="Aspire.AppHost.Sdk/13.4.6">
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
     <PackageReference Include="Aspire.Hosting.NodeJs" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Zitadel" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.MailPit" />
     <!-- Security pin (see Directory.Packages.props): overrides the vulnerable
          transitive MessagePack pulled in by the Aspire hosting packages. -->
     <PackageReference Include="MessagePack" />
@@ -10,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ResourcePulse.Hosting\ResourcePulse.Hosting.csproj" />
+    <ProjectReference Include="..\ResourcePulse.DevBootstrap\ResourcePulse.DevBootstrap.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

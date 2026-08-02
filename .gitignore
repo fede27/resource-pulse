@@ -89,6 +89,12 @@ appsettings.*.local.json
 appsettings.Local.json
 secrets/
 
+# Generated identity configuration (ADR-0029). Written by
+# ResourcePulse.DevBootstrap on every AppHost run; machine-specific, and the
+# machine key is a live credential.
+src/ResourcePulse.Hosting/zitadel-dev.json
+src/ResourcePulse.AppHost/zitadel-machinekey/
+
 # Misc
 *.cache
 *.tmp

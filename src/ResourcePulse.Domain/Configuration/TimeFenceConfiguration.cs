@@ -17,8 +17,7 @@ public sealed record FenceBoundaries(DateOnly FrozenUntil, DateOnly SlushyUntil)
 // disruptive plan operations (their home is the command envelope); see ADR-0020.
 public sealed class TimeFenceConfiguration : Entity<Guid>, IAuditable
 {
-    public static readonly Guid SingletonId = new("a1b1c1d1-0000-0000-0000-000000000002");
-
+    // One row per tenant, enforced by a unique index on tenant_id (ADR-0029).
     public Duration FrozenHorizon { get; private set; } = null!;
     public Duration SlushyHorizon { get; private set; } = null!;
 
@@ -31,7 +30,7 @@ public sealed class TimeFenceConfiguration : Entity<Guid>, IAuditable
 
     // Opinionated default: frozen = 2 weeks, slushy = 2 months.
     public static TimeFenceConfiguration CreateDefault() =>
-        Create(SingletonId, Duration.Of(2, DurationUnit.Weeks), Duration.Of(2, DurationUnit.Months));
+        Create(Guid.NewGuid(), Duration.Of(2, DurationUnit.Weeks), Duration.Of(2, DurationUnit.Months));
 
     public static TimeFenceConfiguration Create(Guid id, Duration frozenHorizon, Duration slushyHorizon)
     {

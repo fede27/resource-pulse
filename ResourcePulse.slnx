@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/ResourcePulse.AppHost/ResourcePulse.AppHost.csproj" />
     <Project Path="src/ResourcePulse.Common/ResourcePulse.Common.csproj" />
+    <Project Path="src/ResourcePulse.DevBootstrap/ResourcePulse.DevBootstrap.csproj" />
     <Project Path="src/ResourcePulse.Domain/ResourcePulse.Domain.csproj" />
     <Project Path="src/ResourcePulse.Hosting/ResourcePulse.Hosting.csproj" />
     <Project Path="src/ResourcePulse.Http/ResourcePulse.Http.csproj" />

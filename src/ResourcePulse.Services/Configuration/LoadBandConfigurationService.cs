@@ -1,12 +1,19 @@
+using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Common.Domain;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
 using ResourcePulse.Domain.Configuration;
+using ResourcePulse.Persistence;
 
 namespace ResourcePulse.Services.Configuration;
 
+// Direct DbContext injection (per the repository convention) because the
+// get-or-seed is a *filtered* single-row load: since ADR-0029 the row is
+// identified by the ambient tenant via the global query filter, not by a
+// well-known id.
 public sealed class LoadBandConfigurationService(
-    IRepository<LoadBandConfiguration, Guid> repository) : ILoadBandConfigurationService
+    IRepository<LoadBandConfiguration, Guid> repository,
+    ResourcePulseDbContext db) : ILoadBandConfigurationService
 {
     public async Task<ServiceResult<LoadBandConfigurationDto>> GetAsync(CancellationToken ct = default)
     {
@@ -35,11 +42,12 @@ public sealed class LoadBandConfigurationService(
         return ServiceResult<LoadBandConfigurationDto>.Success(ToDto(config));
     }
 
-    // Singleton get-or-seed: the migration seeds the default row, but this keeps
-    // GET/PUT robust against a missing row (fresh/test databases).
+    // Per-tenant singleton get-or-seed. The tenant query filter reduces the table
+    // to this tenant's single row; a missing row (a freshly provisioned tenant)
+    // seeds the opinionated default on first read.
     private async Task<LoadBandConfiguration> GetOrSeedAsync(CancellationToken ct)
     {
-        var config = await repository.GetByIdAsync(LoadBandConfiguration.SingletonId, ct);
+        var config = await db.LoadBandConfigurations.FirstOrDefaultAsync(ct);
         if (config is null)
         {
             config = LoadBandConfiguration.CreateDefault();

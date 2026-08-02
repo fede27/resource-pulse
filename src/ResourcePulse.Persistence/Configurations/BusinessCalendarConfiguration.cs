@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using ResourcePulse.Domain.Calendars;
+using ResourcePulse.Persistence.Tenancy;
 
 namespace ResourcePulse.Persistence.Configurations;
 
@@ -11,13 +12,14 @@ public sealed class BusinessCalendarConfiguration : IEntityTypeConfiguration<Bus
     {
         builder.ToTable("business_calendars");
         builder.HasKey(c => c.Id);
+        builder.HasTenantId();
 
         builder.Property(c => c.Name).HasMaxLength(200).IsRequired();
         builder.Property(c => c.CreatedBy).HasMaxLength(256).IsRequired();
         builder.Property(c => c.UpdatedBy).HasMaxLength(256);
 
-        // Partial unique index — at most one default calendar at any time.
-        builder.HasIndex(c => c.IsDefault)
+        // Partial unique index — at most one default calendar per tenant.
+        builder.HasIndex(TenantModel.TenantIdProperty, nameof(BusinessCalendar.IsDefault))
             .IsUnique()
             .HasFilter("is_default = TRUE")
             .HasDatabaseName("ix_business_calendars_is_default_unique");

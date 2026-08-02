@@ -5,6 +5,7 @@ using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Resources;
 using ResourcePulse.Domain.Skills;
 using ResourcePulse.Domain.Tags;
+using ResourcePulse.Persistence.Tenancy;
 
 namespace ResourcePulse.Persistence.Configurations;
 
@@ -14,6 +15,7 @@ public sealed class ProjectNodeConfiguration : IEntityTypeConfiguration<ProjectN
     {
         builder.ToTable("project_nodes");
         builder.HasKey(p => p.Id);
+        builder.HasTenantId();
 
         // ── Tree ────────────────────────────────────────────────────────────
         builder.Property(p => p.NodeType).HasConversion<string>().HasMaxLength(20).IsRequired();
@@ -69,14 +71,17 @@ public sealed class ProjectNodeConfiguration : IEntityTypeConfiguration<ProjectN
         builder.HasIndex(p => p.ParentId).HasDatabaseName("ix_project_nodes_parent_id");
         builder.HasIndex(p => new { p.NodeType, p.Status }).HasDatabaseName("ix_project_nodes_node_type_status");
 
-        // Non-root siblings: unique code among children of the same parent.
-        builder.HasIndex(p => new { p.ParentId, p.Code })
+        // Non-root siblings: unique code among children of the same parent. The
+        // parent already pins the tenant, but tenant_id leads the index so it
+        // stays usable under the RLS predicate.
+        builder.HasIndex(TenantModel.TenantIdProperty, nameof(ProjectNode.ParentId), nameof(ProjectNode.Code))
             .IsUnique()
             .HasFilter("parent_id IS NOT NULL AND code IS NOT NULL")
             .HasDatabaseName("ux_project_nodes_parent_code");
 
-        // Roots: globally unique code (since Postgres treats NULL parents as non-conflicting).
-        builder.HasIndex(p => p.Code)
+        // Roots: unique code within the tenant (Postgres treats NULL parents as
+        // non-conflicting, so roots need their own rule).
+        builder.HasIndex(TenantModel.TenantIdProperty, nameof(ProjectNode.Code))
             .IsUnique()
             .HasFilter("parent_id IS NULL AND code IS NOT NULL")
             .HasDatabaseName("ux_project_nodes_root_code");

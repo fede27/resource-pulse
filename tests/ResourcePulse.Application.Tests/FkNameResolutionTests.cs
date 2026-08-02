@@ -119,7 +119,8 @@ public class FkNameResolutionTests
     {
         var config = new TypeAdapterConfig();
         new ProjectNodeMappingRegister().Register(config);
-        var policy = new CommitmentPolicyService(new Repository<CommitmentPolicyConfiguration, Guid>(db));
+        var policy = new CommitmentPolicyService(
+            new Repository<CommitmentPolicyConfiguration, Guid>(db), db);
         return new ProjectNodeService(new Repository<ProjectNode, Guid>(db), db, new Mapper(config), policy);
     }
 

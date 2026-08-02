@@ -75,6 +75,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("status");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -89,6 +93,9 @@ namespace ResourcePulse.Persistence.Migrations
 
                     b.HasIndex("DemandId")
                         .HasDatabaseName("ix_allocations_demand_id");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_allocations_tenant_id");
 
                     b.HasIndex("ProjectNodeId", "PeriodStart", "PeriodEnd")
                         .HasDatabaseName("ix_allocations_project_node_id_period");
@@ -126,6 +133,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -138,7 +149,10 @@ namespace ResourcePulse.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_business_calendars");
 
-                    b.HasIndex("IsDefault")
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_business_calendars_tenant_id");
+
+                    b.HasIndex("TenantId", "IsDefault")
                         .IsUnique()
                         .HasDatabaseName("ix_business_calendars_is_default_unique")
                         .HasFilter("is_default = TRUE");
@@ -177,6 +191,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("reason");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -188,6 +206,9 @@ namespace ResourcePulse.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_company_closures");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_company_closures_tenant_id");
 
                     b.HasIndex("DateFrom", "DateTo")
                         .HasDatabaseName("ix_company_closures_date_from_date_to");
@@ -224,6 +245,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("secondary_grain");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -235,6 +260,10 @@ namespace ResourcePulse.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_bucketing_defaults");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_bucketing_defaults_tenant");
 
                     b.ToTable("bucketing_defaults", (string)null);
                 });
@@ -256,6 +285,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("created_by");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -273,6 +306,10 @@ namespace ResourcePulse.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_commitment_policies");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_commitment_policies_tenant");
 
                     b.ToTable("commitment_policies", (string)null);
                 });
@@ -294,6 +331,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("created_by");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -305,6 +346,10 @@ namespace ResourcePulse.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_load_band_configurations");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_load_band_configurations_tenant");
 
                     b.ToTable("load_band_configurations", (string)null);
                 });
@@ -326,6 +371,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("character varying(256)")
                         .HasColumnName("created_by");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -337,6 +386,10 @@ namespace ResourcePulse.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_time_fence_configurations");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_time_fence_configurations_tenant");
 
                     b.ToTable("time_fence_configurations", (string)null);
                 });
@@ -385,6 +438,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("role_id");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -405,6 +462,9 @@ namespace ResourcePulse.Persistence.Migrations
 
                     b.HasIndex("RoleId")
                         .HasDatabaseName("ix_demands_role_id");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_demands_tenant_id");
 
                     b.ToTable("demands", null, t =>
                         {
@@ -516,6 +576,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("status");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<string>("Type")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
@@ -533,11 +597,6 @@ namespace ResourcePulse.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_project_nodes");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ux_project_nodes_root_code")
-                        .HasFilter("parent_id IS NULL AND code IS NOT NULL");
-
                     b.HasIndex("LeadResourceId")
                         .HasDatabaseName("ix_project_nodes_lead_resource_id");
 
@@ -549,10 +608,18 @@ namespace ResourcePulse.Persistence.Migrations
 
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Path"), new[] { "text_pattern_ops" });
 
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_project_nodes_tenant_id");
+
                     b.HasIndex("NodeType", "Status")
                         .HasDatabaseName("ix_project_nodes_node_type_status");
 
-                    b.HasIndex("ParentId", "Code")
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_project_nodes_root_code")
+                        .HasFilter("parent_id IS NULL AND code IS NOT NULL");
+
+                    b.HasIndex("TenantId", "ParentId", "Code")
                         .IsUnique()
                         .HasDatabaseName("ux_project_nodes_parent_code")
                         .HasFilter("parent_id IS NOT NULL AND code IS NOT NULL");
@@ -603,6 +670,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("team_id");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -623,18 +694,21 @@ namespace ResourcePulse.Persistence.Migrations
                     b.HasIndex("BusinessCalendarId")
                         .HasDatabaseName("ix_resources_business_calendar_id");
 
-                    b.HasIndex("Email")
-                        .IsUnique()
-                        .HasDatabaseName("ux_resources_email")
-                        .HasFilter("email IS NOT NULL");
-
                     b.HasIndex("RoleId")
                         .HasDatabaseName("ix_resources_role_id");
 
                     b.HasIndex("TeamId")
                         .HasDatabaseName("ix_resources_team_id");
 
-                    b.HasIndex("UserSub")
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_resources_tenant_id");
+
+                    b.HasIndex("TenantId", "Email")
+                        .IsUnique()
+                        .HasDatabaseName("ux_resources_email")
+                        .HasFilter("email IS NOT NULL");
+
+                    b.HasIndex("TenantId", "UserSub")
                         .IsUnique()
                         .HasDatabaseName("ux_resources_user_sub")
                         .HasFilter("user_sub IS NOT NULL");
@@ -664,6 +738,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("citext")
                         .HasColumnName("name");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -676,7 +754,10 @@ namespace ResourcePulse.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_roles");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_roles_tenant_id");
+
+                    b.HasIndex("TenantId", "Name")
                         .IsUnique()
                         .HasDatabaseName("ux_roles_name");
 
@@ -710,6 +791,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("citext")
                         .HasColumnName("name");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -722,7 +807,10 @@ namespace ResourcePulse.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_skills");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_skills_tenant_id");
+
+                    b.HasIndex("TenantId", "Name")
                         .IsUnique()
                         .HasDatabaseName("ux_skills_name");
 
@@ -752,6 +840,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -764,7 +856,10 @@ namespace ResourcePulse.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_tags");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_tags_tenant_id");
+
+                    b.HasIndex("TenantId", "Name")
                         .IsUnique()
                         .HasDatabaseName("ux_tags_name");
 
@@ -797,6 +892,10 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("citext")
                         .HasColumnName("name");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -809,7 +908,10 @@ namespace ResourcePulse.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_teams");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_teams_tenant_id");
+
+                    b.HasIndex("TenantId", "Name")
                         .IsUnique()
                         .HasDatabaseName("ux_teams_name");
 
@@ -865,6 +967,10 @@ namespace ResourcePulse.Persistence.Migrations
                                 .HasColumnType("time without time zone")
                                 .HasColumnName("start_time");
 
+                            b1.Property<Guid>("TenantId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("tenant_id");
+
                             b1.Property<DateOnly>("ValidFrom")
                                 .HasColumnType("date")
                                 .HasColumnName("valid_from");
@@ -874,6 +980,9 @@ namespace ResourcePulse.Persistence.Migrations
                                 .HasColumnName("valid_to");
 
                             b1.HasKey("Id");
+
+                            b1.HasIndex("TenantId")
+                                .HasDatabaseName("ix_business_calendar_work_windows_tenant_id");
 
                             b1.HasIndex("BusinessCalendarId", "ValidFrom", "ValidTo")
                                 .HasDatabaseName("ix_business_calendar_work_windows_business_calendar_id_valid_f");
@@ -906,8 +1015,15 @@ namespace ResourcePulse.Persistence.Migrations
                                 .HasColumnType("character varying(100)")
                                 .HasColumnName("label");
 
+                            b1.Property<Guid>("TenantId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("tenant_id");
+
                             b1.HasKey("LoadBandConfigurationId", "LowerBound")
                                 .HasName("pk_load_bands");
+
+                            b1.HasIndex("TenantId")
+                                .HasDatabaseName("ix_load_bands_tenant_id");
 
                             b1.ToTable("load_bands", (string)null);
 
@@ -1025,11 +1141,18 @@ namespace ResourcePulse.Persistence.Migrations
                                 .HasColumnType("uuid")
                                 .HasColumnName("tag_id");
 
+                            b1.Property<Guid>("TenantId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("tenant_id");
+
                             b1.HasKey("ProjectNodeId", "TagId")
                                 .HasName("pk_project_node_tags");
 
                             b1.HasIndex("TagId")
                                 .HasDatabaseName("ix_project_node_tags_tag_id");
+
+                            b1.HasIndex("TenantId")
+                                .HasDatabaseName("ix_project_node_tags_tenant_id");
 
                             b1.ToTable("project_node_tags", (string)null);
 
@@ -1071,6 +1194,10 @@ namespace ResourcePulse.Persistence.Migrations
                                 .HasColumnType("character varying(20)")
                                 .HasColumnName("min_level");
 
+                            b1.Property<Guid>("TenantId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("tenant_id");
+
                             b1.Property<DateTime?>("UpdatedAt")
                                 .HasColumnType("timestamp with time zone")
                                 .HasColumnName("updated_at");
@@ -1085,6 +1212,9 @@ namespace ResourcePulse.Persistence.Migrations
 
                             b1.HasIndex("SkillId")
                                 .HasDatabaseName("ix_project_skill_requirements_skill_id");
+
+                            b1.HasIndex("TenantId")
+                                .HasDatabaseName("ix_project_skill_requirements_tenant_id");
 
                             b1.ToTable("project_skill_requirements", (string)null);
 
@@ -1160,6 +1290,10 @@ namespace ResourcePulse.Persistence.Migrations
                                 .HasColumnType("uuid")
                                 .HasColumnName("resource_id");
 
+                            b1.Property<Guid>("TenantId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("tenant_id");
+
                             b1.Property<string>("Type")
                                 .IsRequired()
                                 .HasMaxLength(20)
@@ -1168,6 +1302,9 @@ namespace ResourcePulse.Persistence.Migrations
 
                             b1.HasKey("Id")
                                 .HasName("pk_resource_adjustments");
+
+                            b1.HasIndex("TenantId")
+                                .HasDatabaseName("ix_resource_adjustments_tenant_id");
 
                             b1.HasIndex("ResourceId", "DateFrom", "DateTo")
                                 .HasDatabaseName("ix_resource_adjustments_resource_id_date_from_date_to");
@@ -1202,6 +1339,10 @@ namespace ResourcePulse.Persistence.Migrations
                                 .HasColumnType("time without time zone")
                                 .HasColumnName("start_time");
 
+                            b1.Property<Guid>("TenantId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("tenant_id");
+
                             b1.Property<DateOnly>("ValidFrom")
                                 .HasColumnType("date")
                                 .HasColumnName("valid_from");
@@ -1212,6 +1353,9 @@ namespace ResourcePulse.Persistence.Migrations
 
                             b1.HasKey("Id")
                                 .HasName("pk_resource_work_windows");
+
+                            b1.HasIndex("TenantId")
+                                .HasDatabaseName("ix_resource_work_windows_tenant_id");
 
                             b1.HasIndex("ResourceId", "ValidFrom", "ValidTo")
                                 .HasDatabaseName("ix_resource_work_windows_resource_id_valid_from_valid_to");
@@ -1263,6 +1407,10 @@ namespace ResourcePulse.Persistence.Migrations
                                 .HasColumnType("uuid")
                                 .HasColumnName("reviewed_by_resource_id");
 
+                            b1.Property<Guid>("TenantId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("tenant_id");
+
                             b1.Property<DateTime?>("UpdatedAt")
                                 .HasColumnType("timestamp with time zone")
                                 .HasColumnName("updated_at");
@@ -1280,6 +1428,9 @@ namespace ResourcePulse.Persistence.Migrations
 
                             b1.HasIndex("SkillId")
                                 .HasDatabaseName("ix_resource_skills_skill_id");
+
+                            b1.HasIndex("TenantId")
+                                .HasDatabaseName("ix_resource_skills_tenant_id");
 
                             b1.ToTable("resource_skills", (string)null);
 
@@ -1311,11 +1462,18 @@ namespace ResourcePulse.Persistence.Migrations
                                 .HasColumnType("uuid")
                                 .HasColumnName("tag_id");
 
+                            b1.Property<Guid>("TenantId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("tenant_id");
+
                             b1.HasKey("ResourceId", "TagId")
                                 .HasName("pk_resource_tags");
 
                             b1.HasIndex("TagId")
                                 .HasDatabaseName("ix_resource_tags_tag_id");
+
+                            b1.HasIndex("TenantId")
+                                .HasDatabaseName("ix_resource_tags_tenant_id");
 
                             b1.ToTable("resource_tags", (string)null);
 

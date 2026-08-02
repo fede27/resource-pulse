@@ -7,8 +7,7 @@ namespace ResourcePulse.Domain.Configuration;
 // grain each defaults to. CONSTANT: the {day, week, month} enum itself.
 public sealed class BucketingDefaults : Entity<Guid>, IAuditable
 {
-    public static readonly Guid SingletonId = new("a1b1c1d1-0000-0000-0000-000000000003");
-
+    // One row per tenant, enforced by a unique index on tenant_id (ADR-0029).
     public BucketGrain PrimaryGrain { get; private set; }
     public BucketGrain SecondaryGrain { get; private set; }
 
@@ -21,7 +20,7 @@ public sealed class BucketingDefaults : Entity<Guid>, IAuditable
 
     // Opinionated default: primary = week, secondary = month.
     public static BucketingDefaults CreateDefault() =>
-        Create(SingletonId, BucketGrain.Week, BucketGrain.Month);
+        Create(Guid.NewGuid(), BucketGrain.Week, BucketGrain.Month);
 
     public static BucketingDefaults Create(Guid id, BucketGrain primaryGrain, BucketGrain secondaryGrain)
     {

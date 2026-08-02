@@ -29,7 +29,7 @@ public class ProjectNodeProvenanceAndClientTests
         var mapper = new Mapper(config);
 
         var policy = new CommitmentPolicyService(
-            new Repository<CommitmentPolicyConfiguration, Guid>(db));
+            new Repository<CommitmentPolicyConfiguration, Guid>(db), db);
 
         var svc = new ProjectNodeService(
             new Repository<ProjectNode, Guid>(db), db, mapper, policy);
@@ -121,7 +121,7 @@ public class ProjectNodeProvenanceAndClientTests
     {
         var (svc, db) = Build();
         var policy = new CommitmentPolicyService(
-            new Repository<CommitmentPolicyConfiguration, Guid>(db));
+            new Repository<CommitmentPolicyConfiguration, Guid>(db), db);
 
         var created = await svc.CreateAsync(NewProject(CommitmentLevel.Committed));
 

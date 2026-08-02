@@ -40,7 +40,7 @@ internal sealed class PlanCommandHarness
         // Real CommitmentPolicyService over the same InMemory db so the I6 hard
         // gate reads the (get-or-seeded) threshold from config (ADR-0020).
         CommitmentPolicy = new CommitmentPolicyService(
-            new Repository<CommitmentPolicyConfiguration, Guid>(db));
+            new Repository<CommitmentPolicyConfiguration, Guid>(db), db);
         Service = new PlanCommandService(db, new FixedCapacity(capacityPerDay), CommitmentPolicy);
     }
 

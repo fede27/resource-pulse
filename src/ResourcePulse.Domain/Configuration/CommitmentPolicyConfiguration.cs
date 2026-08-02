@@ -15,8 +15,7 @@ namespace ResourcePulse.Domain.Configuration;
 // internal representation parsed/formatted here.
 public sealed class CommitmentPolicyConfiguration : Entity<Guid>, IAuditable
 {
-    public static readonly Guid SingletonId = new("a1b1c1d1-0000-0000-0000-000000000004");
-
+    // One row per tenant, enforced by a unique index on tenant_id (ADR-0029).
     private string _hardCommitLevels = string.Empty;
 
     public IReadOnlyCollection<CommitmentLevel> HardCommitLevels => Parse(_hardCommitLevels);
@@ -30,7 +29,7 @@ public sealed class CommitmentPolicyConfiguration : Entity<Guid>, IAuditable
 
     // Opinionated default {Committed, Critical} — the value previously cabled.
     public static CommitmentPolicyConfiguration CreateDefault() =>
-        Create(SingletonId, [CommitmentLevel.Committed, CommitmentLevel.Critical]);
+        Create(Guid.NewGuid(), [CommitmentLevel.Committed, CommitmentLevel.Critical]);
 
     public static CommitmentPolicyConfiguration Create(Guid id, IReadOnlyCollection<CommitmentLevel> hardCommitLevels)
     {

@@ -24,7 +24,10 @@ public sealed class FakeAuthenticationHandler(
         {
             new(ClaimTypes.NameIdentifier, opts.Sub),
             new(ClaimTypes.Email, opts.Email),
-            new(ClaimTypes.Name, opts.Name)
+            new(ClaimTypes.Name, opts.Name),
+            // Same claim type Zitadel projects, so tenant resolution is identical
+            // on both paths.
+            new(ResourcePulse.Services.Tenancy.TenantResolver.ZitadelOrgIdClaim, opts.OrganizationId)
         };
 
         foreach (var (type, value) in opts.Claims)

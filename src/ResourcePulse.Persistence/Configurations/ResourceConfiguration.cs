@@ -7,6 +7,7 @@ using ResourcePulse.Domain.Roles;
 using ResourcePulse.Domain.Skills;
 using ResourcePulse.Domain.Tags;
 using ResourcePulse.Domain.Teams;
+using ResourcePulse.Persistence.Tenancy;
 
 namespace ResourcePulse.Persistence.Configurations;
 
@@ -16,6 +17,7 @@ public sealed class ResourceConfiguration : IEntityTypeConfiguration<Resource>
     {
         builder.ToTable("resources");
         builder.HasKey(r => r.Id);
+        builder.HasTenantId();
 
         builder.Property(r => r.Name).HasMaxLength(200).IsRequired();
         builder.Property(r => r.IsActive).IsRequired();
@@ -26,12 +28,15 @@ public sealed class ResourceConfiguration : IEntityTypeConfiguration<Resource>
         builder.Property(r => r.CreatedBy).HasMaxLength(256).IsRequired();
         builder.Property(r => r.UpdatedBy).HasMaxLength(256);
 
-        builder.HasIndex(r => r.UserSub)
+        // Both uniqueness rules are scoped to the tenant: the same identity
+        // subject (and the same address) may legitimately appear as a Resource in
+        // two different tenants.
+        builder.HasIndex(TenantModel.TenantIdProperty, nameof(Resource.UserSub))
             .IsUnique()
             .HasFilter("user_sub IS NOT NULL")
             .HasDatabaseName("ux_resources_user_sub");
 
-        builder.HasIndex(r => r.Email)
+        builder.HasIndex(TenantModel.TenantIdProperty, nameof(Resource.Email))
             .IsUnique()
             .HasFilter("email IS NOT NULL")
             .HasDatabaseName("ux_resources_email");

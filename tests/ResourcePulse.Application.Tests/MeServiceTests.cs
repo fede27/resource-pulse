@@ -11,10 +11,15 @@ namespace ResourcePulse.Application.Tests;
 // resource + role + a derived staffing-manager flag.
 public class MeServiceTests
 {
-    private sealed class StubCurrentUser(bool authenticated, CurrentUser user) : ICurrentUserAccessor
+    // Defaults to the FakeAuth scheme: role claims are honoured only there
+    // (ADR-0029), so the existing staffing-manager expectations still hold while
+    // a real IdP scheme fails closed.
+    private sealed class StubCurrentUser(bool authenticated, CurrentUser user, string? scheme = "FakeAuth")
+        : ICurrentUserAccessor
     {
         public bool IsAuthenticated { get; } = authenticated;
         public CurrentUser User { get; } = user;
+        public string? AuthenticationScheme { get; } = authenticated ? scheme : null;
     }
 
     private static CurrentUser User(string sub, string name = "Claim Name", string email = "u@x", params (string, string)[] claims) =>

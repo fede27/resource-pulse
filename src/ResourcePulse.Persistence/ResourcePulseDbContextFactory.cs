@@ -22,5 +22,6 @@ public sealed class ResourcePulseDbContextFactory : IDesignTimeDbContextFactory<
     {
         public CurrentUser User => CurrentUser.Anonymous;
         public bool IsAuthenticated => false;
+        public string? AuthenticationScheme => null;
     }
 }

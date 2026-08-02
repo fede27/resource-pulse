@@ -10,6 +10,9 @@ public sealed class HttpContextCurrentUserAccessor(IHttpContextAccessor httpCont
 
     public CurrentUser User => IsAuthenticated ? MapUser() : CurrentUser.Anonymous;
 
+    public string? AuthenticationScheme =>
+        IsAuthenticated ? httpContextAccessor.HttpContext!.User.Identity!.AuthenticationType : null;
+
     private CurrentUser MapUser()
     {
         var principal = httpContextAccessor.HttpContext!.User;

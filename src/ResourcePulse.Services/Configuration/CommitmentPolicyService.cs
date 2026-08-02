@@ -1,12 +1,16 @@
+using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Common.Domain;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
 using ResourcePulse.Domain.Configuration;
+using ResourcePulse.Persistence;
 
 namespace ResourcePulse.Services.Configuration;
 
+// See LoadBandConfigurationService for why the DbContext is injected directly.
 public sealed class CommitmentPolicyService(
-    IRepository<CommitmentPolicyConfiguration, Guid> repository) : ICommitmentPolicyService
+    IRepository<CommitmentPolicyConfiguration, Guid> repository,
+    ResourcePulseDbContext db) : ICommitmentPolicyService
 {
     public async Task<ServiceResult<CommitmentPolicyDto>> GetAsync(CancellationToken ct = default)
     {
@@ -37,7 +41,8 @@ public sealed class CommitmentPolicyService(
 
     public async Task<CommitmentPolicyConfiguration> GetConfigurationAsync(CancellationToken ct = default)
     {
-        var config = await repository.GetByIdAsync(CommitmentPolicyConfiguration.SingletonId, ct);
+        // Per-tenant singleton get-or-seed (ADR-0029).
+        var config = await db.CommitmentPolicies.FirstOrDefaultAsync(ct);
         if (config is null)
         {
             config = CommitmentPolicyConfiguration.CreateDefault();

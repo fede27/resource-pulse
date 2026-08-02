@@ -9,8 +9,9 @@ namespace ResourcePulse.Domain.Configuration;
 // not by raw figure (§1 spiegabilità, §6 fasce).
 public sealed class LoadBandConfiguration : Entity<Guid>, IAuditable
 {
-    // Single well-known row per org. The service get-or-seeds it by this id.
-    public static readonly Guid SingletonId = new("a1b1c1d1-0000-0000-0000-000000000001");
+    // One row per tenant, enforced by a unique index on tenant_id (ADR-0029).
+    // There is deliberately no well-known singleton id any more: under
+    // multi-tenancy a fixed id would collide across tenants.
 
     private readonly List<LoadBand> _bands = new();
 
@@ -27,7 +28,7 @@ public sealed class LoadBandConfiguration : Entity<Guid>, IAuditable
 
     // Opinionated default: Under(0) · Healthy(85) · Full(100) · Overloaded(110).
     public static LoadBandConfiguration CreateDefault() =>
-        Create(SingletonId,
+        Create(Guid.NewGuid(),
         [
             ("Under", 0m),
             ("Healthy", 85m),

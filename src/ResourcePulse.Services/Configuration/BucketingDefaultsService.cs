@@ -1,12 +1,16 @@
+using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Common.Domain;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
 using ResourcePulse.Domain.Configuration;
+using ResourcePulse.Persistence;
 
 namespace ResourcePulse.Services.Configuration;
 
+// See LoadBandConfigurationService for why the DbContext is injected directly.
 public sealed class BucketingDefaultsService(
-    IRepository<BucketingDefaults, Guid> repository) : IBucketingDefaultsService
+    IRepository<BucketingDefaults, Guid> repository,
+    ResourcePulseDbContext db) : IBucketingDefaultsService
 {
     public async Task<ServiceResult<BucketingDefaultsDto>> GetAsync(CancellationToken ct = default)
     {
@@ -35,9 +39,10 @@ public sealed class BucketingDefaultsService(
         return ServiceResult<BucketingDefaultsDto>.Success(ToDto(config));
     }
 
+    // Per-tenant singleton get-or-seed (ADR-0029).
     private async Task<BucketingDefaults> GetOrSeedAsync(CancellationToken ct)
     {
-        var config = await repository.GetByIdAsync(BucketingDefaults.SingletonId, ct);
+        var config = await db.BucketingDefaults.FirstOrDefaultAsync(ct);
         if (config is null)
         {
             config = BucketingDefaults.CreateDefault();

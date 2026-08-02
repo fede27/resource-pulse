@@ -1,4 +1,10 @@
 export const it = {
+  auth: {
+    signingIn: 'Accesso in corso…',
+    errorTitle: 'Accesso non riuscito',
+    retry: 'Riprova',
+    completingSignIn: 'Completamento accesso…',
+  },
   common: {
     save: 'Salva',
     cancel: 'Annulla',

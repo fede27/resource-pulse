@@ -12,6 +12,12 @@ type Loose<T> = T extends string
 // English mirror of `it`. Keep the shape identical — type augmentation in
 // src/i18n/types.ts uses `it` as the source of truth for key names.
 export const en: Loose<typeof it> = {
+  auth: {
+    signingIn: 'Signing in…',
+    errorTitle: 'Sign-in failed',
+    retry: 'Retry',
+    completingSignIn: 'Completing sign-in…',
+  },
   common: {
     save: 'Save',
     cancel: 'Cancel',

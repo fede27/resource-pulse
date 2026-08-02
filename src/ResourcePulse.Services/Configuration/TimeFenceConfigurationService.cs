@@ -1,12 +1,16 @@
+using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Common.Domain;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
 using ResourcePulse.Domain.Configuration;
+using ResourcePulse.Persistence;
 
 namespace ResourcePulse.Services.Configuration;
 
+// See LoadBandConfigurationService for why the DbContext is injected directly.
 public sealed class TimeFenceConfigurationService(
-    IRepository<TimeFenceConfiguration, Guid> repository) : ITimeFenceConfigurationService
+    IRepository<TimeFenceConfiguration, Guid> repository,
+    ResourcePulseDbContext db) : ITimeFenceConfigurationService
 {
     public async Task<ServiceResult<TimeFenceConfigurationDto>> GetAsync(CancellationToken ct = default)
     {
@@ -37,9 +41,10 @@ public sealed class TimeFenceConfigurationService(
         return ServiceResult<TimeFenceConfigurationDto>.Success(ToDto(config));
     }
 
+    // Per-tenant singleton get-or-seed (ADR-0029).
     private async Task<TimeFenceConfiguration> GetOrSeedAsync(CancellationToken ct)
     {
-        var config = await repository.GetByIdAsync(TimeFenceConfiguration.SingletonId, ct);
+        var config = await db.TimeFenceConfigurations.FirstOrDefaultAsync(ct);
         if (config is null)
         {
             config = TimeFenceConfiguration.CreateDefault();
