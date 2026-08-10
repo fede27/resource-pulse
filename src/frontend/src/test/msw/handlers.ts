@@ -12,6 +12,7 @@ import { getBusinessCalendarsMock } from '@/api/generated/business-calendars/bus
 import { getCommitmentPolicyMock } from '@/api/generated/commitment-policy/commitment-policy.msw';
 import { getCompanyClosuresMock } from '@/api/generated/company-closures/company-closures.msw';
 import { getDemandsMock } from '@/api/generated/demands/demands.msw';
+import { getDevAccessMock } from '@/api/generated/dev-access/dev-access.msw';
 import { getLoadMock } from '@/api/generated/load/load.msw';
 import { getLoadBandsMock } from '@/api/generated/load-bands/load-bands.msw';
 import { getMeMock } from '@/api/generated/me/me.msw';
@@ -32,6 +33,7 @@ export const handlers: RequestHandler[] = [
   ...getCommitmentPolicyMock(),
   ...getCompanyClosuresMock(),
   ...getDemandsMock(),
+  ...getDevAccessMock(),
   ...getLoadMock(),
   ...getLoadBandsMock(),
   ...getMeMock(),

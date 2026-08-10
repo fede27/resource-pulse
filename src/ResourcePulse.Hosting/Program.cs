@@ -2,6 +2,7 @@ using FluentValidation;
 using Mapster;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Npgsql;
@@ -16,6 +17,7 @@ using ResourcePulse.Persistence;
 using ResourcePulse.Persistence.ControlPlane;
 using ResourcePulse.Persistence.Tenancy;
 using ResourcePulse.Services;
+using ResourcePulse.Services.Access;
 using ResourcePulse.Services.Allocations;
 using ResourcePulse.Services.BusinessCalendars;
 using ResourcePulse.Services.Capacity;
@@ -55,8 +57,13 @@ if (builder.Environment.IsDevelopment())
 // Development default so the zero-friction dev loop is unchanged.
 builder.AddResourcePulseAuthentication();
 
-builder.Services.AddAuthorization(opts =>
-    opts.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+// Application roles (ADR-0030): three hierarchical policies backed by OUR
+// membership store. Registers ICurrentAccess and the requirement handler.
+builder.AddResourcePulseAuthorization();
+
+// Gives a failed role policy a ProblemDetails body with a distinct `type`, so the
+// client can tell "not a member of this tenant" from "insufficient role".
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, AccessDeniedResultHandler>();
 
 builder.Services.AddHttpContextAccessor();
 // Singleton required: Aspire's AddNpgsqlDbContext uses AddDbContextPool.
@@ -163,6 +170,12 @@ builder.Services.AddScoped<ILoadQueryService, LiveLoadQueryService>();
 builder.Services.AddScoped<IMeService, MeService>();
 builder.Services.AddScoped<ITenantResolver, TenantResolver>();
 
+// Access control (ADR-0030): membership resolution + administration.
+builder.Services.AddScoped<IAccessResolver, AccessResolver>();
+builder.Services.AddScoped<IMembershipService, MembershipService>();
+if (builder.Environment.IsDevelopment())
+    builder.Services.AddScoped<IDevAccessService, DevAccessService>();
+
 // Org-level configuration singletons (ADR-0020): boundaries & thresholds.
 builder.Services.AddScoped<ILoadBandConfigurationService, LoadBandConfigurationService>();
 builder.Services.AddScoped<ITimeFenceConfigurationService, TimeFenceConfigurationService>();
@@ -170,7 +183,12 @@ builder.Services.AddScoped<IBucketingDefaultsService, BucketingDefaultsService>(
 builder.Services.AddScoped<ICommitmentPolicyService, CommitmentPolicyService>();
 
 // MVC + global validation filter
-builder.Services.AddControllers(opts => opts.Filters.Add<DtoValidationFilter>());
+builder.Services
+    .AddControllers(opts => opts.Filters.Add<DtoValidationFilter>())
+    // [DevelopmentOnly] controllers are removed from the application parts outside
+    // Development: the route then does not exist, rather than existing and saying no.
+    .ConfigureApplicationPartManager(apm => apm.FeatureProviders.Add(
+        new DevelopmentOnlyControllerFeatureProvider(builder.Environment.IsDevelopment())));
 
 if (builder.Environment.IsDevelopment())
 {
@@ -248,6 +266,9 @@ app.UseAuthentication();
 // After authentication (it reads the validated principal), before authorization
 // and before any handler touches the tenant-scoped store.
 app.UseTenantResolution();
+// After the tenant (the membership table is tenant-scoped and RLS-protected —
+// resolving access first would make everyone a non-member), before authorization.
+app.UseAccessResolution();
 app.UseAuthorization();
 
 app.MapControllers();

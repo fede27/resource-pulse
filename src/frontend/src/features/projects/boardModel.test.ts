@@ -258,17 +258,17 @@ describe('lifecycle & filters', () => {
 
   it('holeIsMine: owner match, or ownerless + staffing manager', () => {
     const hole = toDemandRow(coverage({ coveredHours: 'PT0S', ownerResourceId: 'anna' }), []);
-    expect(holeIsMine(hole, { resourceId: 'anna', isStaffingManager: false })).toBe(true);
-    expect(holeIsMine(hole, { resourceId: 'luca', isStaffingManager: true })).toBe(false);
+    expect(holeIsMine(hole, { resourceId: 'anna', canPlan: false })).toBe(true);
+    expect(holeIsMine(hole, { resourceId: 'luca', canPlan: true })).toBe(false);
     const orphan = toDemandRow(coverage({ coveredHours: 'PT0S', ownerResourceId: null, ownerResourceName: null }), []);
-    expect(holeIsMine(orphan, { resourceId: null, isStaffingManager: true })).toBe(true);
+    expect(holeIsMine(orphan, { resourceId: null, canPlan: true })).toBe(true);
   });
 
   it('filters by verdict, person, role and lifecycle', () => {
     const p = makeProject({});
     const ctx = {
       verdictOf: () => 'sustainable' as const,
-      me: { resourceId: null, isStaffingManager: false },
+      me: { resourceId: null, canPlan: false },
       todayISO: today,
       domain: { minISO: '2026-05-01', maxISO: '2026-10-01' },
     };

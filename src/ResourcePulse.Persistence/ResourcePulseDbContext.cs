@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using ResourcePulse.Common.Tenancy;
+using ResourcePulse.Domain.Access;
 using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Calendars;
 using ResourcePulse.Domain.Configuration;
@@ -28,6 +29,10 @@ public class ResourcePulseDbContext(DbContextOptions<ResourcePulseDbContext> opt
     public DbSet<ProjectNode> ProjectNodes => Set<ProjectNode>();
     public DbSet<Demand> Demands => Set<Demand>();
     public DbSet<Allocation> Allocations => Set<Allocation>();
+
+    // Who may act in this tenant, and at what level (ADR-0030). Tenant data like
+    // any other — the authorization store is ours, and RLS protects it too.
+    public DbSet<Membership> Memberships => Set<Membership>();
 
     // Org-level configuration singletons (ADR-0020).
     public DbSet<LoadBandConfiguration> LoadBandConfigurations => Set<LoadBandConfiguration>();

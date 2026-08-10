@@ -1,19 +1,18 @@
 using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Common.Auth;
+using ResourcePulse.Domain.Access;
 using ResourcePulse.Domain.Resources;
 using ResourcePulse.Domain.Roles;
 using ResourcePulse.Persistence;
+using ResourcePulse.Services.Access;
 using ResourcePulse.Services.Identity;
 
 namespace ResourcePulse.Application.Tests;
 
-// GET /api/me (gap #8 / ADR-0024): resolves the caller's identity + linked
-// resource + role + a derived staffing-manager flag.
+// GET /api/me (gap #8 / ADR-0024): the caller's identity + linked resource + job
+// role, plus the application role held in this tenant (ADR-0030).
 public class MeServiceTests
 {
-    // Defaults to the FakeAuth scheme: role claims are honoured only there
-    // (ADR-0029), so the existing staffing-manager expectations still hold while
-    // a real IdP scheme fails closed.
     private sealed class StubCurrentUser(bool authenticated, CurrentUser user, string? scheme = "FakeAuth")
         : ICurrentUserAccessor
     {
@@ -22,8 +21,15 @@ public class MeServiceTests
         public string? AuthenticationScheme { get; } = authenticated ? scheme : null;
     }
 
-    private static CurrentUser User(string sub, string name = "Claim Name", string email = "u@x", params (string, string)[] claims) =>
-        new(sub, email, name, claims.ToDictionary(c => c.Item1, c => c.Item2));
+    private sealed class StubAccess(AppRole? role) : ICurrentAccess
+    {
+        public AppRole? Role { get; } = role;
+        public bool IsMember => Role is not null;
+        public bool Has(AppRole required) => Role is { } r && r >= required;
+    }
+
+    private static CurrentUser User(string sub, string name = "Claim Name", string email = "u@x") =>
+        new(sub, email, name, new Dictionary<string, string>());
 
     private static ResourcePulseDbContext NewDb() =>
         new(new DbContextOptionsBuilder<ResourcePulseDbContext>()
@@ -43,7 +49,10 @@ public class MeServiceTests
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
 
-        var svc = new MeService(new StubCurrentUser(true, User("sub-123", name: "Ignored Claim")), db);
+        var svc = new MeService(
+            new StubCurrentUser(true, User("sub-123", name: "Ignored Claim")),
+            new StubAccess(AppRole.Planner),
+            db);
         var me = (await svc.GetAsync()).Value;
 
         me.IsAuthenticated.Should().BeTrue();
@@ -58,7 +67,10 @@ public class MeServiceTests
     public async Task NoLinkedResource_FallsBackToClaimName_NullResource()
     {
         var db = NewDb();
-        var svc = new MeService(new StubCurrentUser(true, User("unknown-sub", name: "Dev User")), db);
+        var svc = new MeService(
+            new StubCurrentUser(true, User("unknown-sub", name: "Dev User")),
+            new StubAccess(AppRole.Viewer),
+            db);
 
         var me = (await svc.GetAsync()).Value;
 
@@ -70,39 +82,49 @@ public class MeServiceTests
     }
 
     [Theory]
-    [InlineData("Admin", true)]
-    [InlineData("StaffingManager", true)]
-    [InlineData("admin", true)]        // case-insensitive
-    [InlineData("Viewer", false)]
-    public async Task IsStaffingManager_DerivedFromRoleClaim(string roleClaim, bool expected)
+    [InlineData(AppRole.Viewer)]
+    [InlineData(AppRole.Planner)]
+    [InlineData(AppRole.Owner)]
+    public async Task AccessRole_ComesFromTheMembershipStore(AppRole role)
     {
         var db = NewDb();
-        var svc = new MeService(
-            new StubCurrentUser(true, User("sub-x", claims: ("role", roleClaim))), db);
+        var svc = new MeService(new StubCurrentUser(true, User("sub-x")), new StubAccess(role), db);
 
         var me = (await svc.GetAsync()).Value;
 
-        me.IsStaffingManager.Should().Be(expected);
+        me.IsMember.Should().BeTrue();
+        me.AccessRole.Should().Be(role);
     }
 
+    // The endpoint is deliberately exempt from the membership requirement: it must
+    // answer for a non-member so the client can render "you have no access" rather
+    // than a blank screen (ADR-0030).
     [Fact]
-    public async Task NoRoleClaim_IsNotStaffingManager()
+    public async Task AuthenticatedNonMember_IsAuthenticatedButNotAMember()
     {
         var db = NewDb();
-        var svc = new MeService(new StubCurrentUser(true, User("sub-x")), db);
+        var svc = new MeService(new StubCurrentUser(true, User("stranger")), new StubAccess(null), db);
 
-        (await svc.GetAsync()).Value.IsStaffingManager.Should().BeFalse();
+        var me = (await svc.GetAsync()).Value;
+
+        me.IsAuthenticated.Should().BeTrue();
+        me.IsMember.Should().BeFalse();
+        me.AccessRole.Should().BeNull();
     }
 
     [Fact]
     public async Task Unauthenticated_ReturnsNotAuthenticated()
     {
         var db = NewDb();
-        var svc = new MeService(new StubCurrentUser(false, CurrentUser.Anonymous), db);
+        var svc = new MeService(
+            new StubCurrentUser(false, CurrentUser.Anonymous),
+            new StubAccess(null),
+            db);
 
         var me = (await svc.GetAsync()).Value;
 
         me.IsAuthenticated.Should().BeFalse();
         me.ResourceId.Should().BeNull();
+        me.IsMember.Should().BeFalse();
     }
 }

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using ResourcePulse.Domain.Access;
 using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Calendars;
 using ResourcePulse.Domain.Projects;
@@ -93,6 +94,8 @@ public static class DevSeeder
         {
             var db = sp.GetRequiredService<ResourcePulseDbContext>();
 
+            await EnsureMembershipsAsync(db, sp.GetRequiredService<IConfiguration>(), logger);
+
             var calendarId = await EnsureDefaultCalendarAsync(db);
             await EnsureSkillsAsync(db);
             await EnsureTagsAsync(db);
@@ -108,6 +111,58 @@ public static class DevSeeder
         {
             httpContextAccessor.HttpContext = null;
         }
+    }
+
+    /// <summary>
+    /// Grants tenant ownership to the development identities (ADR-0030).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Access is fail-close: an authenticated user with no membership is refused.
+    /// Somebody therefore has to be the first owner, and in development that is
+    /// seeded here rather than typed into the database by hand.
+    /// </para>
+    /// <para>
+    /// The two providers need different treatment. <b>FakeAuth</b>'s subject is
+    /// configuration, so its grant is created already claimed. <b>Zitadel</b>'s is
+    /// not knowable in advance — the identity provider mints it at first login —
+    /// so the admin gets a <i>pending</i> invite keyed by email, which the access
+    /// resolver claims the first time they sign in. Without that, the very first
+    /// real login on the Zitadel path would be a 403 with no way out.
+    /// </para>
+    /// </remarks>
+    private static async Task EnsureMembershipsAsync(
+        ResourcePulseDbContext db,
+        IConfiguration configuration,
+        ILogger logger)
+    {
+        var fakeSub = configuration["FakeAuth:Sub"] ?? DevUserSub;
+        var fakeEmail = configuration["FakeAuth:Email"] ?? "dev@resourcepulse.local";
+
+        // Matches ZITADEL_FIRSTINSTANCE_ORG_HUMAN_EMAIL_ADDRESS in the AppHost.
+        var zitadelAdminEmail = configuration["Zitadel:AdminEmail"] ?? "admin@resourcepulse.local";
+
+        var granted = new List<string>();
+
+        if (!await db.Memberships.AnyAsync(m => m.Email == fakeEmail))
+        {
+            var fake = Membership.Invite(fakeEmail, AppRole.Owner, "seeder");
+            fake.ClaimBy(fakeSub, "Dev User");
+            db.Memberships.Add(fake);
+            granted.Add(fakeEmail);
+        }
+
+        if (!string.Equals(zitadelAdminEmail, fakeEmail, StringComparison.OrdinalIgnoreCase) &&
+            !await db.Memberships.AnyAsync(m => m.Email == zitadelAdminEmail))
+        {
+            db.Memberships.Add(Membership.Invite(zitadelAdminEmail, AppRole.Owner, "seeder"));
+            granted.Add(zitadelAdminEmail);
+        }
+
+        if (granted.Count == 0) return;
+
+        await db.SaveChangesAsync();
+        logger.LogInformation("Seeded owner membership(s) for {Emails}.", string.Join(", ", granted));
     }
 
     private static async Task<Guid> EnsureDefaultCalendarAsync(ResourcePulseDbContext db)

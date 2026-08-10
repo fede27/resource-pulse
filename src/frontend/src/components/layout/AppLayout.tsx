@@ -9,6 +9,8 @@ import {
 import { Outlet, useRouterState } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
+import { AccessGate } from '@/auth/AccessGate';
+import { DevRoleSwitcher } from '@/auth/DevRoleSwitcher';
 import { AppSidebar } from './AppSidebar';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { useStyles } from './AppLayout.styles';
@@ -16,6 +18,17 @@ import { useStyles } from './AppLayout.styles';
 const { Header, Content } = Layout;
 
 export function AppLayout() {
+  return (
+    // The gate wraps the WHOLE shell, not just the content: rendering navigation
+    // and page chrome around a "you have no access" panel would advertise an
+    // application the visitor cannot reach.
+    <AccessGate>
+      <AppShell />
+    </AccessGate>
+  );
+}
+
+function AppShell() {
   const { t } = useTranslation();
   const { styles } = useStyles();
   const { location } = useRouterState();
@@ -40,6 +53,7 @@ export function AppLayout() {
             />
           </Space>
           <Space size={12} align="center">
+            <DevRoleSwitcher />
             <LanguageSwitcher />
             <span className={styles.divider} />
             <Badge count={0} size="small">

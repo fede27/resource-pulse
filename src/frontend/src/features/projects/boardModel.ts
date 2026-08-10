@@ -352,13 +352,18 @@ export const defaultFilters = (): BoardFilters => ({
   sort: 'sustain',
 });
 
-export type CurrentUser = { resourceId: string | null; isStaffingManager: boolean };
+export type CurrentUser = { resourceId: string | null; canPlan: boolean };
 
-// An uncovered demand "is mine" when I own it, or when it has no owner and I am
-// the staffing manager (the ball defaults to staffing).
+// An uncovered demand "is mine" when I own it, or when it has no owner and I can
+// plan (the ball defaults to whoever staffs).
+//
+// `canPlan` replaces the former `isStaffingManager`, which came from a role claim
+// the identity provider had no business asserting (ADR-0029 §6, closed by
+// ADR-0030). The capability is now "Planner or better", read from our own
+// membership store.
 export function holeIsMine(d: DemandRow, me: CurrentUser): boolean {
   if (me.resourceId && d.ownerResourceId === me.resourceId) return true;
-  return d.ownerResourceId === null && me.isStaffingManager;
+  return d.ownerResourceId === null && me.canPlan;
 }
 
 export type BoardContext = {

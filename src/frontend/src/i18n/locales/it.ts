@@ -5,6 +5,18 @@ export const it = {
     retry: 'Riprova',
     completingSignIn: 'Completamento accesso…',
   },
+  access: {
+    noAccessTitle: 'Non hai accesso a questo spazio',
+    noAccessBody:
+      'Il tuo account è autenticato, ma nessuno ti ha ancora assegnato un ruolo. Chiedi a un owner di invitarti con questo indirizzo.',
+    recheck: 'Ricontrolla',
+    insufficientRole: 'Il tuo ruolo non consente questa operazione.',
+    roleViewer: 'Viewer',
+    rolePlanner: 'Planner',
+    roleOwner: 'Owner',
+    devRoleChanged: 'Ruolo aggiornato',
+    devRoleHint: 'Solo in sviluppo: cambia il tuo ruolo applicativo',
+  },
   common: {
     save: 'Salva',
     cancel: 'Annulla',

@@ -18,6 +18,18 @@ export const en: Loose<typeof it> = {
     retry: 'Retry',
     completingSignIn: 'Completing sign-in…',
   },
+  access: {
+    noAccessTitle: 'You do not have access to this workspace',
+    noAccessBody:
+      'Your account is authenticated, but nobody has granted you a role yet. Ask an owner to invite this address.',
+    recheck: 'Check again',
+    insufficientRole: 'Your role does not allow this action.',
+    roleViewer: 'Viewer',
+    rolePlanner: 'Planner',
+    roleOwner: 'Owner',
+    devRoleChanged: 'Role updated',
+    devRoleHint: 'Development only: change your application role',
+  },
   common: {
     save: 'Save',
     cancel: 'Cancel',

@@ -9,3 +9,10 @@ export const useAuthStyles = createStyles(({ token, css }) => ({
     text-align: center;
   `,
 }));
+
+export const useDevRoleSwitcherStyles = createStyles(({ token, css }) => ({
+  // Dev-only chrome: readable, but visibly not part of the product surface.
+  switcher: css`
+    font-size: ${token.fontSizeSM}px;
+  `,
+}));

@@ -26,6 +26,7 @@ import {
 } from '@/api/generated/load/load';
 import { useLoadBandsGet } from '@/api/generated/load-bands/load-bands';
 import { useMeGet } from '@/api/generated/me/me';
+import { useAccess } from '@/auth/access';
 import { useProjectNodesGetAll } from '@/api/generated/project-nodes/project-nodes';
 import { useProjectsGetActiveInRange } from '@/api/generated/projects/projects';
 import {
@@ -107,6 +108,7 @@ export function useProjectsBoard(domain: BoardDomain): ProjectsBoard {
   const fenceQ = useTimeFenceGet();
   const bucketingQ = useBucketingGet();
   const meQ = useMeGet();
+  const access = useAccess();
   const resourcesQ = useResourcesGetAll();
   const rolesQ = useRolesGetAll();
   const projectsQ = useProjectsGetActiveInRange({
@@ -275,9 +277,9 @@ export function useProjectsBoard(domain: BoardDomain): ProjectsBoard {
   const me = useMemo<CurrentUser>(
     () => ({
       resourceId: meQ.data?.resourceId ?? null,
-      isStaffingManager: meQ.data?.isStaffingManager ?? false,
+      canPlan: access.can('plan'),
     }),
-    [meQ.data],
+    [meQ.data, access],
   );
 
   const detailPending =

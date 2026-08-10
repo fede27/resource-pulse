@@ -1,7 +1,10 @@
+using ResourcePulse.Domain.Access;
+
 namespace ResourcePulse.Services.Identity;
 
-// Identity of the calling user (gap #8 / ADR-0024). Lets the frontend implement
-// "my projects" / "my open roles" filters without inventing identity from claims.
+// Identity of the calling user (gap #8 / ADR-0024), plus what they may do
+// (ADR-0030). Lets the frontend implement "my projects" / "my open roles" filters
+// and gate write gestures without inventing either from claims.
 public sealed class MeDto
 {
     public bool IsAuthenticated { get; init; }
@@ -17,7 +20,29 @@ public sealed class MeDto
     public Guid? RoleId { get; init; }
     public string? RoleName { get; init; }
 
-    // Whether the user may act as a staffing manager. Derived server-side from the
-    // principal's role claim(s) so the client shares one rule (see MeService).
-    public bool IsStaffingManager { get; init; }
+    /// <summary>
+    /// Whether a membership grants this user access to the current tenant. False
+    /// is a legitimate, fully-rendered state — the client shows "no access" rather
+    /// than an empty application (ADR-0030).
+    /// </summary>
+    public bool IsMember { get; init; }
+
+    /// <summary>
+    /// The user's application role in this tenant, or null when not a member.
+    /// Read from OUR membership store; never from a token claim.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Named <c>AccessRole</c>, not <c>Role</c>, because <c>RoleId</c>/
+    /// <c>RoleName</c> above are the person's <i>job</i> role from the domain
+    /// catalogue (Developer, PM). The two are unrelated and collapsing the word
+    /// would fuse "what this person does" with "what this account may do".
+    /// </para>
+    /// <para>
+    /// This replaces <c>IsStaffingManager</c>, which read a role claim and was
+    /// carried as declared debt in ADR-0029 §6. The capability it stood for is
+    /// now "<c>Planner</c> or better".
+    /// </para>
+    /// </remarks>
+    public AppRole? AccessRole { get; init; }
 }

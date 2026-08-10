@@ -5,6 +5,7 @@
  * ResourcePulse.Hosting
  * OpenAPI spec version: 1.0
  */
+import type { AppRole } from './appRole';
 
 export interface MeDto {
   isAuthenticated?: boolean;
@@ -20,5 +21,6 @@ export interface MeDto {
   roleId?: string | null;
   /** @nullable */
   roleName?: string | null;
-  isStaffingManager?: boolean;
+  isMember?: boolean;
+  accessRole?: AppRole;
 }

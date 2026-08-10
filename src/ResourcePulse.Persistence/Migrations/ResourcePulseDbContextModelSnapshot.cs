@@ -23,6 +23,69 @@ namespace ResourcePulse.Persistence.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "citext");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("ResourcePulse.Domain.Access.Membership", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("citext")
+                        .HasColumnName("email");
+
+                    b.Property<string>("GrantedByUserSub")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("granted_by_user_sub");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("role");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserSub")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("user_sub");
+
+                    b.HasKey("Id")
+                        .HasName("pk_memberships");
+
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_memberships_tenant_id");
+
+                    b.HasIndex("TenantId", "Email")
+                        .IsUnique()
+                        .HasDatabaseName("ux_memberships_email");
+
+                    b.HasIndex("TenantId", "UserSub")
+                        .IsUnique()
+                        .HasDatabaseName("ux_memberships_user_sub")
+                        .HasFilter("user_sub IS NOT NULL");
+
+                    b.ToTable("memberships", (string)null);
+                });
+
             modelBuilder.Entity("ResourcePulse.Domain.Allocations.Allocation", b =>
                 {
                     b.Property<Guid>("Id")

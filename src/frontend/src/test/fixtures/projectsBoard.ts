@@ -14,6 +14,7 @@ import {
 import { getRolesGetAllMockHandler } from '@/api/generated/roles/roles.msw';
 import {
   AllocationStatus,
+  AppRole,
   DemandProvenance,
   ProjectNodeType,
   type AllocationReadDto,
@@ -152,7 +153,8 @@ export function seedProjectsBoard(overrides?: { projects?: ProjectNodeReadDto[] 
       sub: 'dev',
       name: 'Elena M.',
       resourceId: 'r-elena',
-      isStaffingManager: true,
+      isMember: true,
+      accessRole: AppRole.Owner,
     }),
     getResourcesGetAllMockHandler({
       data: [

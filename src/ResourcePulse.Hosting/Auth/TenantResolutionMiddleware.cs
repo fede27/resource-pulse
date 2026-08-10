@@ -42,14 +42,15 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next, ILogger<Ten
                 "Tenant resolution failed ({Outcome}) for organization {OrganizationId}; rejecting request to {Path}.",
                 resolution.Outcome, resolution.OrganizationId ?? "<none>", context.Request.Path);
 
+            // A distinct `type` so the client can tell this apart from the other
+            // 403 it will meet — "you lack the role" (see AuthProblems).
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            await context.Response.WriteAsJsonAsync(new
-            {
-                type = "https://tools.ietf.org/html/rfc9110#section-15.5.4",
-                title = "Tenant not resolved",
-                status = StatusCodes.Status403Forbidden,
-                detail = "The authenticated organization is not mapped to an active tenant."
-            });
+            context.Response.ContentType = "application/problem+json";
+            await context.Response.WriteAsJsonAsync(
+                AuthProblems.Create(
+                    AuthProblems.TenantNotResolved,
+                    "Tenant not resolved",
+                    "The authenticated organization is not mapped to an active tenant."));
             return;
         }
 
