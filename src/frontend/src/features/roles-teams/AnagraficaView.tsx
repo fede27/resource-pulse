@@ -32,6 +32,7 @@ import {
   useTeamsUpdate,
 } from '@/api/generated/teams/teams';
 import type { ResourceReadDto } from '@/api/generated/schemas';
+import { useAccess } from '@/auth/access';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
 import { InlineEditableText } from '@/components/domain/InlineEditableText';
 import { InspectorDrawer } from '@/components/domain/InspectorDrawer';
@@ -57,6 +58,10 @@ export function AnagraficaView({ data }: AnagraficaViewProps) {
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const showApiError = useApiError();
+
+  // Registry maintenance is Planner-level: a planner who cannot add the person
+  // they are about to staff is crippled (ADR-0030).
+  const canPlan = useAccess().can('plan');
 
   const [pivot, setPivot] = useState<Pivot>('role');
   const [pickedCatId, setPickedCatId] = useState<string | null>(null);
@@ -246,7 +251,7 @@ export function AnagraficaView({ data }: AnagraficaViewProps) {
             <div className={styles.panelTitle}>
               {isRole ? t('rolesTeams.catalogRoles') : t('rolesTeams.catalogTeams')}
             </div>
-            {!addingCat && (
+            {canPlan && !addingCat && (
               <Button
                 size="small"
                 type="primary"
@@ -315,29 +320,35 @@ export function AnagraficaView({ data }: AnagraficaViewProps) {
             <div className={styles.detailCard}>
               <div className={styles.detailHead}>
                 <div className={styles.grow}>
+                  {/* Disabled rather than hidden: the name IS the heading, and
+                      removing it would leave the card unreadable. This is the
+                      documented exception to hide-don't-disable (ADR-0030). */}
                   <InlineEditableText
                     value={selectedCat.name}
                     fontSize={20}
                     fontWeight={600}
+                    disabled={!canPlan}
                     onSave={(v) => renameCat(selectedCat.id, v)}
                   />
                   <span className={styles.nounLabel}>{noun}</span>
                 </div>
-                <Dropdown
-                  placement="bottomRight"
-                  menu={{
-                    items: [
-                      {
-                        key: 'delete',
-                        danger: true,
-                        label: t('common.delete'),
-                        onClick: deleteCat,
-                      },
-                    ],
-                  }}
-                >
-                  <Button icon={<MoreOutlined />} />
-                </Dropdown>
+                {canPlan && (
+                  <Dropdown
+                    placement="bottomRight"
+                    menu={{
+                      items: [
+                        {
+                          key: 'delete',
+                          danger: true,
+                          label: t('common.delete'),
+                          onClick: deleteCat,
+                        },
+                      ],
+                    }}
+                  >
+                    <Button icon={<MoreOutlined />} />
+                  </Dropdown>
+                )}
               </div>
               <div className={styles.metrics}>
                 <span>
@@ -362,7 +373,7 @@ export function AnagraficaView({ data }: AnagraficaViewProps) {
                 <div className={styles.panelTitle}>
                   {isRole ? t('rolesTeams.peopleInRole') : t('rolesTeams.peopleInTeam')}
                 </div>
-                {!addingPerson && (
+                {canPlan && !addingPerson && (
                   <Button
                     size="small"
                     icon={<PlusOutlined />}

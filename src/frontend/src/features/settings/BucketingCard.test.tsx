@@ -7,15 +7,15 @@ import { BucketingCard } from './BucketingCard';
 const valid = { primaryGrain: BucketGrain.Week, secondaryGrain: BucketGrain.Month };
 
 describe('<BucketingCard>', () => {
-  it('starts clean: Salva is disabled and no error is shown', () => {
+  it('starts clean: Salva is disabled and no error is shown', async () => {
     renderWithProviders(<BucketingCard committed={valid} />);
-    expect(screen.getByRole('button', { name: 'Salva' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Salva' })).toBeDisabled();
     expect(
       screen.queryByText('Primaria e secondaria devono essere diverse.'),
     ).not.toBeInTheDocument();
   });
 
-  it('flags primary === secondary as invalid', () => {
+  it('flags primary === secondary as invalid', async () => {
     renderWithProviders(
       <BucketingCard
         committed={{ primaryGrain: BucketGrain.Week, secondaryGrain: BucketGrain.Week }}
@@ -24,7 +24,7 @@ describe('<BucketingCard>', () => {
     expect(
       screen.getByText('Primaria e secondaria devono essere diverse.'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Salva' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Salva' })).toBeDisabled();
   });
 
   it('becomes dirty + saveable after changing a grain, then saves', async () => {
@@ -35,7 +35,7 @@ describe('<BucketingCard>', () => {
     await user.click(within(primary).getByText('Giorno'));
 
     expect(screen.getByText('Modifiche non salvate')).toBeInTheDocument();
-    const save = screen.getByRole('button', { name: 'Salva' });
+    const save = await screen.findByRole('button', { name: 'Salva' });
     expect(save).toBeEnabled();
 
     await user.click(save);

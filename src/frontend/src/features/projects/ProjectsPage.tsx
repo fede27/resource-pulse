@@ -4,6 +4,7 @@ import { InfoCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { Grain } from '@/components/timeline';
+import { useAccess } from '@/auth/access';
 import { PageHeader } from '@/components/domain/PageHeader';
 import { SignalCards, type SignalItem } from '@/components/domain/SignalCards';
 import {
@@ -67,6 +68,10 @@ export function ProjectsPage() {
   const setDomain = (d: BoardDomain) => setPickedDomain(clampDomain(d));
 
   const board = useProjectsBoard(domain);
+
+  // One decision for the whole page: every write gesture below is hidden without
+  // it. The server refuses regardless — this only stops offering what it refuses.
+  const canPlan = useAccess().can('plan');
 
   const [pickedBucket, setPickedBucket] = useState<Grain | null>(null);
   const bucket = pickedBucket ?? board.primaryGrain;
@@ -219,9 +224,13 @@ export function ProjectsPage() {
         subtitle={t('projects.sectionSubtitle')}
         signals={<SignalCards items={signals} />}
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setPanelOpen(true)}>
-            {t('projects.newProject.action')}
-          </Button>
+          // Hidden, not disabled: a greyed-out button describes an application a
+          // viewer will never have (ADR-0030).
+          canPlan ? (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setPanelOpen(true)}>
+              {t('projects.newProject.action')}
+            </Button>
+          ) : null
         }
       />
 
@@ -279,8 +288,8 @@ export function ProjectsPage() {
               alt={s.item.alt}
               onToggle={toggleExpand}
               onInspect={setInspect}
-              onAction={actions.run}
-              onLaneAction={laneActions.run}
+              onAction={canPlan ? actions.run : null}
+              onLaneAction={canPlan ? laneActions.run : null}
               peakByPerson={board.peakByPerson}
               overloadThreshold={board.overloadThreshold}
               blockHoursOf={board.blockHoursOf}
@@ -302,7 +311,7 @@ export function ProjectsPage() {
       <BoardInspector
         target={inspect}
         onClose={() => setInspect(null)}
-        onAction={actions.run}
+        onAction={canPlan ? actions.run : null}
         projects={board.projects}
         bands={board.bands}
         overloadThreshold={board.overloadThreshold}

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button } from 'antd';
 import { useTranslation } from 'react-i18next';
+import { useAccess } from '@/auth/access';
 import { useStyles } from './ConfigCard.styles';
 
 export type ConfigCardProps = {
@@ -17,6 +18,11 @@ export type ConfigCardProps = {
 
 // Shell for one org-level config aggregate: header + dirty badge + body +
 // footer with independent save/reset (each aggregate has its own lifecycle).
+//
+// It is also the single choke point for the Owner gate (ADR-0030): tenant
+// configuration is Owner-only, and all four cards commit through this footer, so
+// hiding it here covers every one of them — and any card added later, which is
+// why the check lives in the shell rather than in each card.
 export function ConfigCard({
   title,
   subtitle,
@@ -30,6 +36,7 @@ export function ConfigCard({
 }: ConfigCardProps) {
   const { t } = useTranslation();
   const { styles } = useStyles();
+  const canAdminister = useAccess().can('administer');
 
   return (
     <div className={styles.root}>
@@ -50,22 +57,28 @@ export function ConfigCard({
 
       <div className={styles.footer}>
         <span className={styles.footerNote}>
-          {savedAt ? t('settings.savedAt', { time: savedAt }) : t('settings.aggregateFootnote')}
+          {canAdminister
+            ? savedAt
+              ? t('settings.savedAt', { time: savedAt })
+              : t('settings.aggregateFootnote')
+            : t('access.readOnlyConfig')}
         </span>
-        <div className={styles.footerActions}>
-          <Button size="small" onClick={onReset} disabled={!dirty || !!saving}>
-            {t('common.cancel')}
-          </Button>
-          <Button
-            size="small"
-            type="primary"
-            onClick={onSave}
-            loading={!!saving}
-            disabled={!dirty || !valid}
-          >
-            {t('common.save')}
-          </Button>
-        </div>
+        {canAdminister && (
+          <div className={styles.footerActions}>
+            <Button size="small" onClick={onReset} disabled={!dirty || !!saving}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              size="small"
+              type="primary"
+              onClick={onSave}
+              loading={!!saving}
+              disabled={!dirty || !valid}
+            >
+              {t('common.save')}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

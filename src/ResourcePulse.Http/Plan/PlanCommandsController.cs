@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ResourcePulse.Http.Auth;
 using ResourcePulse.Services.Plan;
 
 namespace ResourcePulse.Http.Plan;
@@ -15,6 +16,7 @@ namespace ResourcePulse.Http.Plan;
 [ApiController]
 public sealed class PlanCommandsController(IPlanCommandService service) : ControllerFoundation
 {
+    [RequirePlanner]
     [HttpPost("commands")]
     [ProducesResponseType<PlanCommandResult>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]

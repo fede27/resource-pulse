@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResourcePulse.Http.Auth;
@@ -18,7 +17,7 @@ namespace ResourcePulse.Http.Access;
 /// </remarks>
 [Route("api/memberships")]
 [ApiController]
-[Authorize(Policy = AccessPolicies.Owner)]
+[RequireOwner]
 public sealed class MembershipsController(IMembershipService service) : ControllerFoundation
 {
     [HttpGet]

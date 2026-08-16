@@ -17,7 +17,7 @@ describe('<RolesTeamsPage> — Anagrafica interactions', () => {
     renderWithProviders(<RolesTeamsPage />);
 
     await screen.findByText('Sviluppatore');
-    await user.click(screen.getByRole('button', { name: /Nuovo/ }));
+    await user.click(await screen.findByRole('button', { name: /Nuovo/ }));
     expect(screen.getByPlaceholderText('Nome ruolo')).toBeInTheDocument();
   });
 

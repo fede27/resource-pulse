@@ -48,6 +48,10 @@ export type PersonBoardRowProps = {
   // windowed-out unmount would silently kill it. Stable, id-keyed.
   onPinChange?: (personId: string, pinned: boolean) => void;
   rootProjects: RootProjectOption[];
+  // The free-capacity lane is the page's one write gesture (drag → cover an open
+  // demand), so it disappears entirely without the capability rather than
+  // dragging into a popover that can only fail (ADR-0030).
+  canPlan: boolean;
 };
 
 const fmtPeak = (n: number) => `${Math.round(n)}%`;
@@ -145,16 +149,23 @@ export const PersonBoardRow = memo(function PersonBoardRow(props: PersonBoardRow
               </div>
             );
           })}
-          <div className={styles.lane}>
-            <div className={styles.laneLabel}>
-              <span className={styles.laneGhostDot} />
-              <span className={styles.laneFreeName}>{t('peopleBoard.row.freeLane')}</span>
+          {props.canPlan && (
+            <div className={styles.lane}>
+              <div className={styles.laneLabel}>
+                <span className={styles.laneGhostDot} />
+                <span className={styles.laneFreeName}>{t('peopleBoard.row.freeLane')}</span>
+              </div>
+              {/* dynamic: axis width computed from the domain. */}
+              <div className={styles.axisCell} style={{ width: geo.contentW }}>
+                <FreeLane
+                  data={data}
+                  geo={geo}
+                  rootProjects={props.rootProjects}
+                  onPinChange={props.onPinChange}
+                />
+              </div>
             </div>
-            {/* dynamic: axis width computed from the domain. */}
-            <div className={styles.axisCell} style={{ width: geo.contentW }}>
-              <FreeLane data={data} geo={geo} rootProjects={props.rootProjects} onPinChange={props.onPinChange} />
-            </div>
-          </div>
+          )}
         </div>
       )}
     </div>

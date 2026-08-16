@@ -21,17 +21,17 @@ const calendar: BusinessCalendarReadDto = {
 };
 
 describe('<CalendarDetail>', () => {
-  it('renders the calendar header with a set-as-default action for a non-default calendar', () => {
+  it('renders the calendar header with a set-as-default action for a non-default calendar', async () => {
     renderWithProviders(<CalendarDetail calendar={calendar} onDeleted={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Standard' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Imposta come default/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Imposta come default/ })).toBeInTheDocument();
   });
 
   it('renames the calendar', async () => {
     const { user } = renderWithProviders(
       <CalendarDetail calendar={calendar} onDeleted={vi.fn()} />,
     );
-    await user.click(screen.getByRole('button', { name: 'Rinomina' }));
+    await user.click(await screen.findByRole('button', { name: 'Rinomina' }));
     const input = screen.getByDisplayValue('Standard');
     await user.clear(input);
     await user.type(input, 'Custom');

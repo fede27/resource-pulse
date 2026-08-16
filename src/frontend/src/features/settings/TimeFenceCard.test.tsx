@@ -10,9 +10,9 @@ const committed: TimeFenceConfigurationDto = {
 };
 
 describe('<TimeFenceCard>', () => {
-  it('renders a valid fence and starts clean', () => {
+  it('renders a valid fence and starts clean', async () => {
     renderWithProviders(<TimeFenceCard committed={committed} />);
-    expect(screen.getByRole('button', { name: 'Salva' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Salva' })).toBeDisabled();
     expect(screen.queryByText('frozen deve essere < slushy')).not.toBeInTheDocument();
   });
 
@@ -24,7 +24,7 @@ describe('<TimeFenceCard>', () => {
     await user.type(frozenValue, '20'); // 20 weeks = 140d > 60d
 
     expect(screen.getByText('frozen deve essere < slushy')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Salva' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Salva' })).toBeDisabled();
   });
 
   it('becomes saveable after a valid edit, then saves', async () => {
@@ -33,7 +33,7 @@ describe('<TimeFenceCard>', () => {
     await user.clear(frozenValue);
     await user.type(frozenValue, '3'); // 3 weeks = 21d < 60d → valid + dirty
 
-    const save = screen.getByRole('button', { name: 'Salva' });
+    const save = await screen.findByRole('button', { name: 'Salva' });
     expect(save).toBeEnabled();
     await user.click(save);
     expect(await screen.findByText('Time fence salvato')).toBeInTheDocument();

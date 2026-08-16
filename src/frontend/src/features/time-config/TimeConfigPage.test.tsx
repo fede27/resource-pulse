@@ -69,7 +69,7 @@ describe('<TimeConfigPage>', () => {
     const { user } = renderWithProviders(<TimeConfigPage />);
     await screen.findAllByText('Standard');
 
-    await user.click(screen.getByRole('button', { name: /Nuovo/ }));
+    await user.click(await screen.findByRole('button', { name: /Nuovo/ }));
     expect(screen.getByPlaceholderText('Nome del calendario')).toBeInTheDocument();
   });
 });

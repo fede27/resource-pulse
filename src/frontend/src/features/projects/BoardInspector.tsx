@@ -31,7 +31,8 @@ const fmtShort = (iso: string) => dayjs(iso).format('D MMM');
 export type BoardInspectorProps = {
   target: InspectTarget | null;
   onClose: () => void;
-  onAction: (project: BoardProject, action: ProjectAction) => void;
+  // Null when the viewer cannot plan — same rule as the row kebab (ADR-0030).
+  onAction: ((project: BoardProject, action: ProjectAction) => void) | null;
   projects: BoardProject[];
   bands: LoadBand[];
   overloadThreshold: number;
@@ -68,7 +69,7 @@ export function BoardInspector(props: BoardInspectorProps) {
       open={!!target}
       onClose={props.onClose}
       title={t('projects.inspector.title')}
-      {...(target?.kind === 'project'
+      {...(target?.kind === 'project' && props.onAction
         ? { extra: <ProjectActionsMenu project={target.project} onAction={props.onAction} /> }
         : {})}
     >

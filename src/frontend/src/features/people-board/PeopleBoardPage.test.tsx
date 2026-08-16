@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test/render';
+import { server } from '@/test/msw/server';
+import { getMeGetMockHandler } from '@/api/generated/me/me.msw';
+import { AppRole } from '@/api/generated/schemas/appRole';
 import { seedPeopleBoard } from '@/test/fixtures/peopleBoard';
 import { PeopleBoardPage } from './PeopleBoardPage';
 
@@ -139,5 +142,33 @@ describe('<PeopleBoardPage>', () => {
     expect(await screen.findByText('Nessuna persona nel filtro')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Azzera filtri' }));
     expect(await screen.findByText('Luca Ferri')).toBeInTheDocument();
+  });
+
+  // The free-capacity lane is this page's only write gesture (drag → cover an
+  // open demand), so without the capability it is absent rather than draggable
+  // into a popover that could only fail (ADR-0030).
+  it('gives a viewer no free-capacity lane, but still the coverage lanes', async () => {
+    seedPeopleBoard();
+    server.use(
+      getMeGetMockHandler({
+        isAuthenticated: true,
+        sub: 'dev',
+        email: 'viewer@resourcepulse.local',
+        name: 'Viewer',
+        isMember: true,
+        accessRole: AppRole.Viewer,
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<PeopleBoardPage />);
+
+    await screen.findByText('Luca Ferri');
+    const toggles = await screen.findAllByRole('button', { name: /Espandi\/chiudi/ });
+    await user.click(toggles[0]!);
+
+    expect(await screen.findByText('Portale ACME')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText('Capacità libera')).not.toBeInTheDocument(),
+    );
   });
 });

@@ -22,6 +22,8 @@
     <ProjectReference Include="..\..\src\ResourcePulse.Common\ResourcePulse.Common.csproj" />
     <ProjectReference Include="..\..\src\ResourcePulse.Persistence\ResourcePulse.Persistence.csproj" />
     <ProjectReference Include="..\..\src\ResourcePulse.Services\ResourcePulse.Services.csproj" />
+    <!-- EndpointAuthorizationTests audits the controller surface by reflection. -->
+    <ProjectReference Include="..\..\src\ResourcePulse.Http\ResourcePulse.Http.csproj" />
   </ItemGroup>
 
 </Project>

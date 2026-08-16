@@ -2,6 +2,7 @@ using DevExtreme.AspNet.Data;
 using DevExtreme.AspNet.Data.ResponseModel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ResourcePulse.Http.Auth;
 using ResourcePulse.Services.BusinessCalendars;
 using ResourcePulse.Services.Shared;
 
@@ -22,6 +23,7 @@ public sealed class BusinessCalendarsController(IBusinessCalendarService service
     public override async Task<IActionResult> GetByIdAsync(Guid id, CancellationToken ct) =>
         FromResult(await service.GetByIdAsync(id, ct));
 
+    [RequireOwner]
     [HttpPost]
     [ProducesResponseType<BusinessCalendarReadDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -29,6 +31,7 @@ public sealed class BusinessCalendarsController(IBusinessCalendarService service
     public override async Task<IActionResult> CreateAsync([FromBody] CreateBusinessCalendarDto dto, CancellationToken ct) =>
         FromCreateResult(await service.CreateAsync(dto, ct), x => x.Id);
 
+    [RequireOwner]
     [HttpPut("{id}")]
     [ProducesResponseType<BusinessCalendarReadDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -36,6 +39,7 @@ public sealed class BusinessCalendarsController(IBusinessCalendarService service
     public override async Task<IActionResult> UpdateAsync(Guid id, [FromBody] UpdateBusinessCalendarDto dto, CancellationToken ct) =>
         FromResult(await service.UpdateAsync(id, dto, ct));
 
+    [RequireOwner]
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
@@ -43,6 +47,7 @@ public sealed class BusinessCalendarsController(IBusinessCalendarService service
     public override async Task<IActionResult> DeleteAsync(Guid id, CancellationToken ct) =>
         FromResult(await service.DeleteAsync(id, ct));
 
+    [RequireOwner]
     [HttpPost("{id}/work-windows")]
     [ProducesResponseType<WorkWindowDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -51,12 +56,14 @@ public sealed class BusinessCalendarsController(IBusinessCalendarService service
     public async Task<IActionResult> AddWorkWindowAsync(Guid id, [FromBody] WorkWindowDto dto, CancellationToken ct) =>
         FromCreateResult(await service.AddWorkWindowAsync(id, dto, ct), x => x.Id);
 
+    [RequireOwner]
     [HttpDelete("{id}/work-windows/{windowId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RemoveWorkWindowAsync(Guid id, Guid windowId, CancellationToken ct) =>
         FromResult(await service.RemoveWorkWindowAsync(id, windowId, ct));
 
+    [RequireOwner]
     [HttpPost("{id}/mark-default")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]

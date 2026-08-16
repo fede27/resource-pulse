@@ -59,14 +59,16 @@ public static class AuthorizationSetup
                 .RequireAuthenticatedUser()
                 .AddRequirements(new MinimumRoleRequirement(AppRole.Owner)));
 
-            // STEP 1 of ADR-0030 deliberately stops here: the fallback still only
-            // requires authentication, so no existing endpoint changes behaviour
-            // and this whole slice is observable but inert. Step 2 raises it to
-            // the Viewer policy, at which point membership becomes mandatory
-            // everywhere except the endpoints explicitly exempted.
-            opts.FallbackPolicy = new AuthorizationPolicyBuilder()
-                .RequireAuthenticatedUser()
-                .Build();
+            // The floor for the whole API: every endpoint without its own
+            // authorization metadata requires a MEMBERSHIP, not merely a valid
+            // token. Authentication alone used to be the fallback, which meant an
+            // authenticated stranger with a resolved tenant could write — the
+            // fail-close only ever bound where a policy happened to be attached.
+            //
+            // Consequence to keep in mind when adding an endpoint: reads need no
+            // attribute (they are Viewer by falling through here), writes must be
+            // annotated. An un-annotated write is a Viewer-writable endpoint.
+            opts.FallbackPolicy = opts.GetPolicy(AccessPolicies.Viewer);
         });
     }
 }

@@ -1,0 +1,195 @@
+using System.Reflection;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
+using ResourcePulse.Http;
+using ResourcePulse.Http.Auth;
+
+namespace ResourcePulse.Application.Tests;
+
+/// <summary>
+/// Audits the whole controller surface against the role mapping (ADR-0030).
+/// </summary>
+/// <remarks>
+/// <para>
+/// This is a <b>static</b> audit by reflection rather than a set of HTTP round
+/// trips, and that is the point: the failure this guards against is not "the
+/// policy evaluates wrongly" — one handler decides that for everyone, and its
+/// hierarchy is tested elsewhere — but "somebody added a write endpoint and
+/// forgot to annotate it". A per-endpoint integration test would need a database
+/// and would still only cover the endpoints somebody remembered to list.
+/// </para>
+/// <para>
+/// The expected mapping below is an explicit inventory, in the same spirit as the
+/// RLS table list in the tenancy migration: a new controller has to be added here
+/// deliberately, and until it is, <see cref="EveryControllerIsMapped"/> fails.
+/// </para>
+/// </remarks>
+public class EndpointAuthorizationTests
+{
+    private static readonly string[] WriteVerbs = ["POST", "PUT", "DELETE", "PATCH"];
+
+    /// <summary>Controller name → the policy its WRITE actions must require.</summary>
+    private static readonly Dictionary<string, string> WritePolicyByController = new()
+    {
+        // Planning
+        ["PlanCommandsController"] = AccessPolicies.Planner,
+        ["ProjectsController"] = AccessPolicies.Planner,
+        ["ProjectNodesController"] = AccessPolicies.Planner,
+        // Operational registry — a planner who cannot add the person they are
+        // about to staff is crippled.
+        ["ResourcesController"] = AccessPolicies.Planner,
+        ["TeamsController"] = AccessPolicies.Planner,
+        ["RolesController"] = AccessPolicies.Planner,
+        ["SkillsController"] = AccessPolicies.Planner,
+        ["TagsController"] = AccessPolicies.Planner,
+        // Tenant configuration — a calendar changes everyone's capacity.
+        ["BusinessCalendarsController"] = AccessPolicies.Owner,
+        ["CompanyClosuresController"] = AccessPolicies.Owner,
+        ["LoadBandsController"] = AccessPolicies.Owner,
+        ["TimeFenceController"] = AccessPolicies.Owner,
+        ["BucketingController"] = AccessPolicies.Owner,
+        ["CommitmentPolicyController"] = AccessPolicies.Owner,
+        // The authorization store itself.
+        ["MembershipsController"] = AccessPolicies.Owner,
+        // Development-only role switch: deliberately Viewer, so the way back stays
+        // open after self-demotion (see DevAccessService).
+        ["DevAccessController"] = AccessPolicies.Viewer,
+    };
+
+    /// <summary>
+    /// Controllers with no write action at all. Listed so that adding a write to
+    /// one of them trips <see cref="EveryControllerIsMapped"/> instead of shipping
+    /// unguarded.
+    /// </summary>
+    private static readonly string[] ReadOnlyControllers =
+        ["AllocationsController", "DemandsController", "LoadController", "MeController"];
+
+    private static IEnumerable<Type> Controllers() =>
+        typeof(ControllerFoundation).Assembly
+            .GetTypes()
+            .Where(t => t is { IsAbstract: false, IsClass: true } && typeof(ControllerBase).IsAssignableFrom(t));
+
+    private static IEnumerable<(Type Controller, MethodInfo Action, string[] Verbs)> Actions() =>
+        from controller in Controllers()
+        from method in controller.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+        let verbs = method.GetCustomAttributes<HttpMethodAttribute>(inherit: true)
+            .SelectMany(a => a.HttpMethods)
+            .Distinct()
+            .ToArray()
+        where verbs.Length > 0
+        select (controller, method, verbs);
+
+    private static bool IsWrite(string[] verbs) => verbs.Any(v => WriteVerbs.Contains(v));
+
+    /// <summary>The policy in force for an action: its own attribute, else its controller's.</summary>
+    private static string? EffectivePolicy(Type controller, MethodInfo action) =>
+        action.GetCustomAttributes<AuthorizeAttribute>(inherit: true).Select(a => a.Policy).FirstOrDefault()
+        ?? controller.GetCustomAttributes<AuthorizeAttribute>(inherit: true).Select(a => a.Policy).FirstOrDefault();
+
+    // The regression that started this: every write endpoint fell through to a
+    // fallback that only required authentication, so a Viewer — and in fact any
+    // authenticated non-member — could create a project.
+    [Fact]
+    public void EveryWriteEndpointRequiresItsMappedRole()
+    {
+        var writes = Actions().Where(a => IsWrite(a.Verbs)).ToList();
+
+        // Non-vacuity guard: if the reflection ever stops finding actions — a
+        // renamed base class, a changed binding flag — every assertion below would
+        // pass over an empty list and this audit would silently stop auditing.
+        writes.Should().HaveCountGreaterThan(60,
+            "the write surface was ~72 endpoints when this audit was written");
+
+        var offenders = new List<string>();
+
+        foreach (var (controller, action, verbs) in writes)
+        {
+            if (!WritePolicyByController.TryGetValue(controller.Name, out var expected))
+            {
+                offenders.Add($"{controller.Name}.{action.Name} [{string.Join('/', verbs)}] — controller not mapped");
+                continue;
+            }
+
+            var actual = EffectivePolicy(controller, action);
+            if (actual != expected)
+                offenders.Add($"{controller.Name}.{action.Name} [{string.Join('/', verbs)}] — expected {expected}, found {actual ?? "<none>"}");
+        }
+
+        offenders.Should().BeEmpty();
+    }
+
+    // Reads carry no attribute on purpose — the fallback policy is Viewer, so an
+    // un-annotated endpoint already demands membership. What must never happen is
+    // a read demanding MORE than the mapping says, which would silently hide data
+    // from people entitled to it.
+    [Fact]
+    public void ReadEndpointsDoNotDemandMoreThanTheirControllersWrites()
+    {
+        var offenders = new List<string>();
+
+        foreach (var (controller, action, verbs) in Actions().Where(a => !IsWrite(a.Verbs)))
+        {
+            var actual = EffectivePolicy(controller, action);
+            if (actual is null or AccessPolicies.Viewer) continue;
+
+            // A read may inherit a stricter controller-level policy, but only where
+            // the whole controller is that strict by design (memberships).
+            if (WritePolicyByController.TryGetValue(controller.Name, out var expected) && actual == expected) continue;
+
+            offenders.Add($"{controller.Name}.{action.Name} [{string.Join('/', verbs)}] — read requires {actual}");
+        }
+
+        offenders.Should().BeEmpty();
+    }
+
+    // GET /api/me is THE exemption: it must stay reachable by a non-member, or the
+    // client cannot render "you have no access" and shows a blank screen instead.
+    [Fact]
+    public void OnlyMeIsExemptFromTheMembershipRequirement()
+    {
+        var exempt = Controllers()
+            .Where(c => c.GetCustomAttributes<AuthorizeAttribute>(inherit: true).Any(a => a.Policy is null))
+            .Select(c => c.Name)
+            .ToArray();
+
+        exempt.Should().BeEquivalentTo(["MeController"]);
+    }
+
+    // Application roles are ours: a role claim is something the identity provider
+    // controls, so [Authorize(Roles = ...)] must never appear (ADR-0029 §6).
+    [Fact]
+    public void NoEndpointAuthorizesOnARoleClaim()
+    {
+        var offenders =
+            from controller in Controllers()
+            from attribute in controller.GetCustomAttributes<AuthorizeAttribute>(inherit: true)
+                .Concat(controller
+                    .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                    .SelectMany(m => m.GetCustomAttributes<AuthorizeAttribute>(inherit: true)))
+            where !string.IsNullOrEmpty(attribute.Roles)
+            select controller.Name;
+
+        offenders.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void EveryControllerIsMapped()
+    {
+        var known = WritePolicyByController.Keys.Concat(ReadOnlyControllers).ToHashSet();
+        var actual = Controllers().Select(c => c.Name).ToHashSet();
+
+        actual.Except(known).Should().BeEmpty("a new controller must be mapped to a role deliberately");
+        known.Except(actual).Should().BeEmpty("the mapping lists a controller that no longer exists");
+    }
+
+    [Fact]
+    public void ReadOnlyControllersReallyHaveNoWrites()
+    {
+        var withWrites = Actions()
+            .Where(a => IsWrite(a.Verbs) && ReadOnlyControllers.Contains(a.Controller.Name))
+            .Select(a => $"{a.Controller.Name}.{a.Action.Name}");
+
+        withWrites.Should().BeEmpty();
+    }
+}

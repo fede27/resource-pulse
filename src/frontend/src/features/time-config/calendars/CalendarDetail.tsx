@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useAccess } from '@/auth/access';
 import dayjs from 'dayjs';
 import {
   getBusinessCalendarsGetAllQueryKey,
@@ -55,6 +56,7 @@ export type CalendarDetailProps = {
 export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
   const { t } = useTranslation();
   const { styles } = useStyles();
+  const canAdminister = useAccess().can('administer');
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const showApiError = useApiError();
@@ -286,13 +288,15 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
                       {t('timeConfig.calendars.defaultCalendarBadge')}
                     </Tag>
                   )}
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<EditOutlined />}
-                    aria-label={t('common.rename')}
-                    onClick={startRename}
-                  />
+                  {canAdminister && (
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<EditOutlined />}
+                      aria-label={t('common.rename')}
+                      onClick={startRename}
+                    />
+                  )}
                 </>
               )}
             </Space>
@@ -311,38 +315,40 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
               />
             </Space>
           </div>
-          <Space>
-            {!calendar.isDefault && (
-              <Button
-                icon={<StarOutlined />}
-                loading={promoteMutation.isPending}
-                onClick={confirmPromote}
+          {canAdminister && (
+            <Space>
+              {!calendar.isDefault && (
+                <Button
+                  icon={<StarOutlined />}
+                  loading={promoteMutation.isPending}
+                  onClick={confirmPromote}
+                >
+                  {t('timeConfig.calendars.setAsDefault')}
+                </Button>
+              )}
+              <Dropdown
+                placement="bottomRight"
+                menu={{
+                  items: [
+                    {
+                      key: 'rename',
+                      label: t('common.rename'),
+                      onClick: startRename,
+                    },
+                    { type: 'divider' },
+                    {
+                      key: 'delete',
+                      label: t('timeConfig.calendars.deleteCalendarButton'),
+                      danger: true,
+                      onClick: confirmDelete,
+                    },
+                  ],
+                }}
               >
-                {t('timeConfig.calendars.setAsDefault')}
-              </Button>
-            )}
-            <Dropdown
-              placement="bottomRight"
-              menu={{
-                items: [
-                  {
-                    key: 'rename',
-                    label: t('common.rename'),
-                    onClick: startRename,
-                  },
-                  { type: 'divider' },
-                  {
-                    key: 'delete',
-                    label: t('timeConfig.calendars.deleteCalendarButton'),
-                    danger: true,
-                    onClick: confirmDelete,
-                  },
-                ],
-              }}
-            >
-              <Button icon={<MoreOutlined />} />
-            </Dropdown>
-          </Space>
+                <Button icon={<MoreOutlined />} />
+              </Dropdown>
+            </Space>
+          )}
         </div>
 
         <div className={styles.viewBar}>
@@ -395,16 +401,21 @@ export function CalendarDetail({ calendar, onDeleted }: CalendarDetailProps) {
         />
       )}
 
-      <DayPatternEditor
-        windows={windows}
-        view={view}
-        saving={addWindowMutation.isPending}
-        deleting={removeWindowMutation.isPending}
-        onCreate={handleCreateWindow}
-        onUpdate={handleUpdateWindow}
-        onDelete={handleDeleteWindow}
-        onCopyDay={handleCopyDay}
-      />
+      {/* The editor is the write surface; the WeekGrid below is already readOnly,
+          so a viewer still sees the whole pattern — they just cannot change it
+          (ADR-0030). */}
+      {canAdminister && (
+        <DayPatternEditor
+          windows={windows}
+          view={view}
+          saving={addWindowMutation.isPending}
+          deleting={removeWindowMutation.isPending}
+          onCreate={handleCreateWindow}
+          onUpdate={handleUpdateWindow}
+          onDelete={handleDeleteWindow}
+          onCopyDay={handleCopyDay}
+        />
+      )}
 
       <WeekGrid
         windows={windows}

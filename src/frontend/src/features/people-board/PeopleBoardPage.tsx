@@ -12,6 +12,7 @@ import {
   useWindowedRows,
   type BoardDomain,
 } from '@/components/board';
+import { useAccess } from '@/auth/access';
 import { PageHeader } from '@/components/domain/PageHeader';
 import { SignalCards, type SignalItem } from '@/components/domain/SignalCards';
 import type { Grain } from '@/components/timeline';
@@ -69,6 +70,9 @@ export function PeopleBoardPage() {
   const setDomain = (d: BoardDomain) => setPickedDomain(clampDomain(d));
 
   const board = usePeopleBoard(domain);
+
+  // Gates the free-capacity lane, this page's only write gesture.
+  const canPlan = useAccess().can('plan');
 
   const [pickedBucket, setPickedBucket] = useState<Grain | null>(null);
   const bucket = pickedBucket ?? board.primaryGrain;
@@ -343,6 +347,7 @@ export function PeopleBoardPage() {
               onInspect={setInspect}
               onPinChange={setRowPinned}
               rootProjects={board.rootProjects}
+              canPlan={canPlan}
             />
           );
         })}

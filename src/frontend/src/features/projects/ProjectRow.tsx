@@ -48,8 +48,11 @@ export type ProjectRowProps = {
   // (React.memo needs referentially stable props to skip re-renders).
   onToggle: (projectId: string) => void;
   onInspect: (target: InspectTarget) => void;
-  onAction: (project: BoardProject, action: ProjectAction) => void;
-  onLaneAction: (action: LaneAction) => void;
+  // Null when the viewer cannot plan: the kebab disappears rather than filling
+  // with disabled entries, which would describe an application they will never
+  // have (ADR-0030). The page decides once and passes one stable value.
+  onAction: ((project: BoardProject, action: ProjectAction) => void) | null;
+  onLaneAction: ((action: LaneAction) => void) | null;
   peakByPerson: (resourceId: string) => number;
   overloadThreshold: number;
   // Range-scoped hours of a block (% × capacity, consolidation P3); null while
@@ -149,7 +152,7 @@ export const ProjectRow = memo(function ProjectRow(props: ProjectRowProps) {
                 <span className={styles.verdictNote}>{verdictNote}</span>
               </div>
             </div>
-            <ProjectActionsMenu project={project} onAction={props.onAction} />
+            {props.onAction && <ProjectActionsMenu project={project} onAction={props.onAction} />}
           </div>
         </div>
         {/* dynamic: axis width computed from the domain. */}
@@ -302,7 +305,9 @@ function BlockLane(props: ProjectRowProps & { block: CoverageBlock }) {
           )}
         </div>
         <div className={styles.laneKebab}>
-          <LaneActionsMenu target={{ kind: 'person', block, project }} onAction={props.onLaneAction} />
+          {props.onLaneAction && (
+            <LaneActionsMenu target={{ kind: 'person', block, project }} onAction={props.onLaneAction} />
+          )}
         </div>
       </div>
       {/* dynamic: axis width computed from the domain. */}
@@ -398,7 +403,9 @@ function HoleLane(props: ProjectRowProps & { demand: DemandRow }) {
           </div>
         </div>
         <div className={styles.laneKebab}>
-          <LaneActionsMenu target={{ kind: 'hole', demand, project }} onAction={props.onLaneAction} />
+          {props.onLaneAction && (
+            <LaneActionsMenu target={{ kind: 'hole', demand, project }} onAction={props.onLaneAction} />
+          )}
         </div>
       </div>
       {/* dynamic: axis width computed from the domain. */}

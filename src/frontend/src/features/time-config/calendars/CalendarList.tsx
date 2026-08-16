@@ -3,6 +3,7 @@ import { Button, Card, Checkbox, Empty, Input, Space, Tag, Typography } from 'an
 import { PlusOutlined, StarFilled } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { BusinessCalendarReadDto } from '@/api/generated/schemas';
+import { useAccess } from '@/auth/access';
 import { useDays } from '@/i18n/useDays';
 import { formatPatternSummary, patternSummary, weeklyHours } from './workWindow.utils';
 import { useStyles } from './CalendarList.styles';
@@ -35,6 +36,7 @@ export function CalendarList({
   const { t } = useTranslation();
   const { styles, cx } = useStyles();
   const days = useDays();
+  const canAdminister = useAccess().can('administer');
 
   const patternFallbacks = useMemo(
     () => ({
@@ -55,6 +57,9 @@ export function CalendarList({
         </span>
       }
       extra={
+        // Calendars are tenant configuration — they set everyone's capacity — so
+        // they are Owner-level (ADR-0030).
+        canAdminister &&
         !creating && (
           <Button
             type="primary"

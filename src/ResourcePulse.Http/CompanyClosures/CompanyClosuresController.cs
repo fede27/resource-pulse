@@ -2,6 +2,7 @@ using DevExtreme.AspNet.Data;
 using DevExtreme.AspNet.Data.ResponseModel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ResourcePulse.Http.Auth;
 using ResourcePulse.Services.CompanyClosures;
 
 namespace ResourcePulse.Http.CompanyClosures;
@@ -21,12 +22,14 @@ public sealed class CompanyClosuresController(ICompanyClosureService service)
     public override async Task<IActionResult> GetByIdAsync(Guid id, CancellationToken ct) =>
         FromResult(await service.GetByIdAsync(id, ct));
 
+    [RequireOwner]
     [HttpPost]
     [ProducesResponseType<CompanyClosureReadDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     public override async Task<IActionResult> CreateAsync([FromBody] CreateCompanyClosureDto dto, CancellationToken ct) =>
         FromCreateResult(await service.CreateAsync(dto, ct), x => x.Id);
 
+    [RequireOwner]
     [HttpPut("{id}")]
     [ProducesResponseType<CompanyClosureReadDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -34,6 +37,7 @@ public sealed class CompanyClosuresController(ICompanyClosureService service)
     public override async Task<IActionResult> UpdateAsync(Guid id, [FromBody] UpdateCompanyClosureDto dto, CancellationToken ct) =>
         FromResult(await service.UpdateAsync(id, dto, ct));
 
+    [RequireOwner]
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]

@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ResourcePulse.Domain.Access;
@@ -25,7 +24,7 @@ namespace ResourcePulse.Http.Access;
 [Route("api/dev/access")]
 [ApiController]
 [Auth.DevelopmentOnly]
-[Authorize(Policy = Auth.AccessPolicies.Viewer)]
+[Auth.RequireViewer]
 public sealed class DevAccessController(IDevAccessService service) : ControllerFoundation
 {
     [HttpPost("act-as")]

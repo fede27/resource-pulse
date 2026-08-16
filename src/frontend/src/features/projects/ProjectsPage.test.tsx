@@ -6,6 +6,8 @@ import { renderWithProviders } from '@/test/render';
 import { seedProjectsBoard, acmeRoot } from '@/test/fixtures/projectsBoard';
 import { getProjectNodesCreateMockHandler } from '@/api/generated/project-nodes/project-nodes.msw';
 import { getPlanCommandsExecuteMockHandler } from '@/api/generated/plan-commands/plan-commands.msw';
+import { getMeGetMockHandler } from '@/api/generated/me/me.msw';
+import { AppRole } from '@/api/generated/schemas/appRole';
 import {
   getProjectsStartMockHandler,
   getProjectsSuspendMockHandler,
@@ -390,5 +392,53 @@ describe('<ProjectsPage>', () => {
 
     expect(await screen.findByText('Nessun progetto corrisponde ai filtri')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Azzera filtri/ })).toBeInTheDocument();
+  });
+
+  // The regression that motivated step 2 of ADR-0030: a viewer could create a
+  // project, because nothing on the board — or behind it — said no. The server is
+  // the enforcement; this asserts the UI stops OFFERING what the server refuses.
+  describe('viewer', () => {
+    const asViewer = () =>
+      server.use(
+        getMeGetMockHandler({
+          isAuthenticated: true,
+          sub: 'dev',
+          email: 'viewer@resourcepulse.local',
+          name: 'Viewer',
+          isMember: true,
+          accessRole: AppRole.Viewer,
+        }),
+      );
+
+    it('cannot reach the new-project panel', async () => {
+      seedProjectsBoard();
+      asViewer();
+      renderWithProviders(<ProjectsPage />);
+
+      await screen.findByText('Portale ACME');
+      expect(screen.queryByRole('button', { name: /Nuovo progetto/ })).not.toBeInTheDocument();
+    });
+
+    // Hidden, not disabled: a kebab full of greyed-out entries describes an
+    // application the viewer will never have.
+    it('gets no action kebabs on the row or its lanes', async () => {
+      seedProjectsBoard();
+      asViewer();
+      const user = userEvent.setup();
+      renderWithProviders(<ProjectsPage />);
+
+      await expandAcme(user);
+
+      expect(screen.queryByLabelText('Azioni progetto')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Azioni domanda')).not.toBeInTheDocument();
+    });
+
+    it('still reads the board', async () => {
+      seedProjectsBoard();
+      asViewer();
+      renderWithProviders(<ProjectsPage />);
+
+      expect(await screen.findByText('Portale ACME')).toBeInTheDocument();
+    });
   });
 });

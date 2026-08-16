@@ -11,6 +11,7 @@ export const it = {
       'Il tuo account è autenticato, ma nessuno ti ha ancora assegnato un ruolo. Chiedi a un owner di invitarti con questo indirizzo.',
     recheck: 'Ricontrolla',
     insufficientRole: 'Il tuo ruolo non consente questa operazione.',
+    readOnlyConfig: 'Sola lettura: la configurazione del tenant è gestita dagli owner.',
     roleViewer: 'Viewer',
     rolePlanner: 'Planner',
     roleOwner: 'Owner',

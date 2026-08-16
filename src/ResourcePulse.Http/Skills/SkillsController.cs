@@ -2,6 +2,7 @@ using DevExtreme.AspNet.Data;
 using DevExtreme.AspNet.Data.ResponseModel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ResourcePulse.Http.Auth;
 using ResourcePulse.Services.Skills;
 
 namespace ResourcePulse.Http.Skills;
@@ -21,6 +22,7 @@ public sealed class SkillsController(ISkillService service)
     public override async Task<IActionResult> GetByIdAsync(Guid id, CancellationToken ct) =>
         FromResult(await service.GetByIdAsync(id, ct));
 
+    [RequirePlanner]
     [HttpPost]
     [ProducesResponseType<SkillReadDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -28,6 +30,7 @@ public sealed class SkillsController(ISkillService service)
     public override async Task<IActionResult> CreateAsync([FromBody] CreateSkillDto dto, CancellationToken ct) =>
         FromCreateResult(await service.CreateAsync(dto, ct), x => x.Id);
 
+    [RequirePlanner]
     [HttpPut("{id}")]
     [ProducesResponseType<SkillReadDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -36,6 +39,7 @@ public sealed class SkillsController(ISkillService service)
     public override async Task<IActionResult> UpdateAsync(Guid id, [FromBody] UpdateSkillDto dto, CancellationToken ct) =>
         FromResult(await service.UpdateAsync(id, dto, ct));
 
+    [RequirePlanner]
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]

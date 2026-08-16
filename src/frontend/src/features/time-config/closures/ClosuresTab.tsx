@@ -12,6 +12,7 @@ import {
   useCompanyClosuresUpdate,
 } from '@/api/generated/company-closures/company-closures';
 import type { CompanyClosureReadDto } from '@/api/generated/schemas';
+import { useAccess } from '@/auth/access';
 import { useApiError } from '@/lib/errors';
 import { PageHeader } from '@/components/domain/PageHeader';
 import { SignalCards, type SignalItem } from '@/components/domain/SignalCards';
@@ -31,6 +32,7 @@ type EditState =
 
 export function ClosuresTab() {
   const { t } = useTranslation();
+  const canAdminister = useAccess().can('administer');
   const { styles } = useStyles();
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
@@ -244,14 +246,17 @@ export function ClosuresTab() {
         subtitle={t('timeConfig.closures.sectionSubtitle')}
         signals={<SignalCards items={signals} />}
         actions={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setEditState({ kind: 'creating' })}
-            disabled={editState.kind !== 'idle'}
-          >
-            {t('timeConfig.closures.newButton')}
-          </Button>
+          // Company closures move everyone's capacity: Owner-level (ADR-0030).
+          canAdminister ? (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setEditState({ kind: 'creating' })}
+              disabled={editState.kind !== 'idle'}
+            >
+              {t('timeConfig.closures.newButton')}
+            </Button>
+          ) : null
         }
       />
       <div className={styles.mb}>

@@ -24,6 +24,7 @@ export const en: Loose<typeof it> = {
       'Your account is authenticated, but nobody has granted you a role yet. Ask an owner to invite this address.',
     recheck: 'Check again',
     insufficientRole: 'Your role does not allow this action.',
+    readOnlyConfig: 'Read-only: tenant configuration is managed by owners.',
     roleViewer: 'Viewer',
     rolePlanner: 'Planner',
     roleOwner: 'Owner',

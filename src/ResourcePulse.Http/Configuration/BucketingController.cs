@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ResourcePulse.Http.Auth;
 using ResourcePulse.Services.Configuration;
 
 namespace ResourcePulse.Http.Configuration;
@@ -12,6 +13,7 @@ public sealed class BucketingController(IBucketingDefaultsService service) : Con
     public async Task<IActionResult> Get(CancellationToken ct) =>
         FromResult(await service.GetAsync(ct));
 
+    [RequireOwner]
     [HttpPut]
     [ProducesResponseType<BucketingDefaultsDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]

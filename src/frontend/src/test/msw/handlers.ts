@@ -15,7 +15,8 @@ import { getDemandsMock } from '@/api/generated/demands/demands.msw';
 import { getDevAccessMock } from '@/api/generated/dev-access/dev-access.msw';
 import { getLoadMock } from '@/api/generated/load/load.msw';
 import { getLoadBandsMock } from '@/api/generated/load-bands/load-bands.msw';
-import { getMeMock } from '@/api/generated/me/me.msw';
+import { getMeGetMockHandler, getMeMock } from '@/api/generated/me/me.msw';
+import { AppRole } from '@/api/generated/schemas/appRole';
 import { getPlanCommandsMock } from '@/api/generated/plan-commands/plan-commands.msw';
 import { getProjectNodesMock } from '@/api/generated/project-nodes/project-nodes.msw';
 import { getProjectsMock } from '@/api/generated/projects/projects.msw';
@@ -27,6 +28,22 @@ import { getTeamsMock } from '@/api/generated/teams/teams.msw';
 import { getTimeFenceMock } from '@/api/generated/time-fence/time-fence.msw';
 
 export const handlers: RequestHandler[] = [
+  // FIRST, deliberately: MSW resolves with the first matching handler, and this
+  // one has to win over the generated /api/me mock below.
+  //
+  // That mock randomizes every field, including `isMember` and `accessRole` — and
+  // since ADR-0030 those two decide whether a write gesture renders at all. Left
+  // random, any test touching a gated surface would pass or fail by coin flip.
+  // The baseline is therefore an owner; a test that cares about a lesser role
+  // narrows it with server.use(getMeGetMockHandler({ ... })).
+  getMeGetMockHandler({
+    isAuthenticated: true,
+    sub: 'test-user',
+    email: 'test@resourcepulse.local',
+    name: 'Test User',
+    isMember: true,
+    accessRole: AppRole.Owner,
+  }),
   ...getAllocationsMock(),
   ...getBucketingMock(),
   ...getBusinessCalendarsMock(),
