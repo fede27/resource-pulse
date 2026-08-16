@@ -1,5 +1,5 @@
-// Data layer for the "Disponibilità" timeline. Read surface (no fan-out):
-//   1 × GET /api/resources                      (persone + adjustments + windows + calendarId)
+// Data layer for the Availability timeline. Read surface (no fan-out):
+//   1 × GET /api/resources                      (people + adjustments + windows + calendarId)
 //   1 × GET /api/business-calendars             (pattern per calendario)
 //   1 × GET /api/company-closures               (azzerano la base per tutti)
 //   1 × GET /api/resources/capacity?from&to     (ore effettive, RLE batch — P1)

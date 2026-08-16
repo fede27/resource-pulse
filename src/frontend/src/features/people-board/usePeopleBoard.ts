@@ -1,9 +1,9 @@
-// Persone board — data layer. Composes the read surface into PersonData[]:
-//   1 × GET /api/resources                         (rows = tutte le persone attive)
+// People board — data layer. Composes the read surface into PersonData[]:
+//   1 × GET /api/resources                         (rows = every active person)
 //   1 × GET /api/roles + GET /api/teams            (group labels)
-//   1 × GET /api/project-nodes                     (opzioni "materializza domanda inferita")
-//   1 × GET /api/resources/capacity?from&to        (RLE, tutte le attive — P1)
-//   1 × GET /api/allocations/in-range?from&to      (slice del piano — P3)
+//   1 × GET /api/project-nodes                     ("materialize inferred demand" options)
+//   1 × GET /api/resources/capacity?from&to        (run-length, every active person — P1)
+//   1 × GET /api/allocations/in-range?from&to      (flat plan slice — P3)
 // plus the org config (bands / fence / bucketing).
 //
 // Cells, lanes and the inspector all derive from (blocks × capacity) in the
@@ -72,7 +72,7 @@ export type PeopleBoard = {
   fence: FenceBoundaries;
   todayISO: string;
   primaryGrain: Grain;
-  // Non-closed root projects — the "materializza domanda inferita" targets.
+  // Non-closed root projects — the "materialize inferred demand" targets.
   rootProjects: RootProjectOption[];
   fetchRange: { from: string; to: string };
 };

@@ -109,11 +109,11 @@ public sealed class UpdateProjectDto
     // Customer / committente (M1).
     public string? Client { get; init; }
 
-    // Conferma esplicita richiesta dall'invariante I6 (ADR-0015 §4): un
-    // downgrade da {Committed, Critical} a {Exploratory, Planned} con
-    // allocazioni Hard nella subtree del progetto le demota a Tentative.
-    // L'operazione non è silenziosa — richiede ConfirmDemoteHardAllocations =
-    // true; altrimenti restituisce Conflict con il conteggio.
+    // Explicit confirmation demanded by invariant I6 (ADR-0015 §4): downgrading
+    // from {Committed, Critical} to {Exploratory, Planned} while Hard
+    // allocations exist in the project subtree demotes them to Tentative.
+    // The operation is never silent — it requires ConfirmDemoteHardAllocations =
+    // true; otherwise it returns Conflict carrying the count.
     public bool ConfirmDemoteHardAllocations { get; init; }
 }
 

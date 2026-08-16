@@ -1,17 +1,17 @@
-// Persone board — pure view-model. No React, no network.
+// People board — pure view-model. No React, no network.
 //
-// The PEOPLE pivot of the coverage timeline: rows = persone, lanes = i loro
-// progetti. Same data as the Progetti board read supply-first — only the
-// OFFERTA is shown here; the uncovered demand lives on Progetti (and surfaces
-// here only inside the drag-to-cover picker).
+// The PEOPLE pivot of the coverage timeline: rows are people, lanes are their
+// projects. Same data as the Projects board, read supply-first — only SUPPLY is
+// shown here; uncovered demand lives on the Projects board (and surfaces here
+// only inside the drag-to-cover picker).
 //
 // The heatmap cell is the BUCKET AVERAGE utilization: allocated hours ÷
 // capacity hours (hours = % × daily capacity, ADR-0026 — the capacity series
 // already encodes the calendar). Only Hard blocks count by default; the
-// "conteggia tentative" toggle adds the proposed ones. A bucket with ZERO
+// "count tentative" toggle adds the proposed ones. A bucket with ZERO
 // capacity has UNDEFINED utilization (pct = null — 0h over 0h is neither 0%
-// nor overload): when blocks touch it, that's the OFF-CALENDAR state
-// ("fuori calendario"), rendered as a discreet hatch and excluded from
+// nor overload): when blocks touch it, that's the OFF-CALENDAR state,
+// rendered as a discreet hatch and excluded from
 // peak/KPIs/band filters — 0h are counted, so it is presentation, not load.
 // (The backend LoadPercent sentinel on /load is a domain signal for Phase 5
 // and stays untouched; this page derives its cells client-side.)
@@ -114,7 +114,7 @@ export function toPersonBlock(a: AllocationReadDto): PersonBlock {
   };
 }
 
-// RLE expansion promoted to the shared lib with consolidation P3 (the Progetti
+// RLE expansion promoted to the shared lib with consolidation P3 (the Projects
 // board derives per-block hours from the same batch read); re-exported here so
 // existing imports don't churn.
 export { capacityMapFromSegments } from '@/lib/capacity';

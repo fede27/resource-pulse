@@ -1,4 +1,4 @@
-// Reads for the "Anagrafica" view (role/team-first): people + the two
+// Reads for the Registry view (role/team-first): people + the two
 // catalogues + the tag pool, with the id→name maps the grouping helpers need.
 // One GET each; TanStack dedups across the page header and the view.
 
@@ -18,7 +18,7 @@ import {
 } from '@/api/generated/schemas';
 import { nameMapById, toCategories, type Category } from './rolesTeamsModel';
 
-export type AnagraficaData = {
+export type RegistryData = {
   isLoading: boolean;
   people: ResourceReadDto[];
   roles: Category[];
@@ -28,7 +28,7 @@ export type AnagraficaData = {
   teamNameById: Map<string, string>;
 };
 
-export function useAnagraficaData(): AnagraficaData {
+export function useRegistryData(): RegistryData {
   const resourcesQ = useResourcesGetAll();
   const rolesQ = useRolesGetAll();
   const teamsQ = useTeamsGetAll();

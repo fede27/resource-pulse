@@ -468,7 +468,7 @@ export function portfolioHealth(
 }
 
 // A person's TENTATIVE blocks across the board (the hard-only profile excludes
-// them; the inspector shows them as a "(proposto, non conteggiato)" note).
+// them; the inspector shows them as a "proposed, not counted" note).
 export function tentativeNotesOf(
   projects: BoardProject[],
   resourceId: string,

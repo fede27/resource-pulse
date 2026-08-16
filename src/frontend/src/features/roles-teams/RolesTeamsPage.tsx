@@ -3,19 +3,19 @@ import { Segmented, Skeleton } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/domain/PageHeader';
 import { SignalCards, type SignalItem } from '@/components/domain/SignalCards';
-import { AnagraficaView } from './AnagraficaView';
+import { RegistryView } from './RegistryView';
 import { AvailabilityTimeline } from './AvailabilityTimeline';
-import { useAnagraficaData } from './useAnagraficaData';
+import { useRegistryData } from './useRegistryData';
 import { emptyCategoryCount } from './rolesTeamsModel';
 import { useStyles } from './RolesTeamsPage.styles';
 
-type View = 'anagrafica' | 'availability';
+type View = 'registry' | 'availability';
 
 export function RolesTeamsPage() {
   const { t } = useTranslation();
   const { styles } = useStyles();
-  const [view, setView] = useState<View>('anagrafica');
-  const data = useAnagraficaData();
+  const [view, setView] = useState<View>('registry');
+  const data = useRegistryData();
 
   const emptyRoles = emptyCategoryCount(data.roles, data.people, 'role');
   const emptyTeams = emptyCategoryCount(data.teams, data.people, 'team');
@@ -44,10 +44,10 @@ export function RolesTeamsPage() {
         subtitle={
           view === 'availability'
             ? t('rolesTeams.subtitleAvailability')
-            : t('rolesTeams.subtitleAnagrafica')
+            : t('rolesTeams.subtitleRegistry')
         }
         signals={
-          view === 'anagrafica' && !data.isLoading ? <SignalCards items={signals} /> : undefined
+          view === 'registry' && !data.isLoading ? <SignalCards items={signals} /> : undefined
         }
       />
 
@@ -56,16 +56,16 @@ export function RolesTeamsPage() {
         value={view}
         onChange={setView}
         options={[
-          { label: t('rolesTeams.viewAnagrafica'), value: 'anagrafica' },
+          { label: t('rolesTeams.viewRegistry'), value: 'registry' },
           { label: t('rolesTeams.viewAvailability'), value: 'availability' },
         ]}
       />
 
-      {view === 'anagrafica' ? (
+      {view === 'registry' ? (
         data.isLoading ? (
           <Skeleton active />
         ) : (
-          <AnagraficaView data={data} />
+          <RegistryView data={data} />
         )
       ) : (
         <AvailabilityTimeline />

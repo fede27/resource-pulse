@@ -37,7 +37,7 @@ import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
 import { InlineEditableText } from '@/components/domain/InlineEditableText';
 import { InspectorDrawer } from '@/components/domain/InspectorDrawer';
 import { useApiError } from '@/lib/errors';
-import type { AnagraficaData } from './useAnagraficaData';
+import type { RegistryData } from './useRegistryData';
 import {
   countInCategory,
   crossAxisCount,
@@ -46,13 +46,13 @@ import {
 } from './rolesTeamsModel';
 import { PersonInlineCreate, type PersonCreateValues } from './PersonInlineCreate';
 import { PersonInspector } from './PersonInspector';
-import { useStyles } from './AnagraficaView.styles';
+import { useStyles } from './RegistryView.styles';
 
-export type AnagraficaViewProps = {
-  data: AnagraficaData;
+export type RegistryViewProps = {
+  data: RegistryData;
 };
 
-export function AnagraficaView({ data }: AnagraficaViewProps) {
+export function RegistryView({ data }: RegistryViewProps) {
   const { t } = useTranslation();
   const { styles, cx } = useStyles();
   const { message, modal } = App.useApp();

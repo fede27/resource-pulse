@@ -10,7 +10,7 @@ const selectDevRole = async (user: ReturnType<typeof userEvent.setup>) => {
   await screen.findByText('Ada Lovelace');
 };
 
-describe('<RolesTeamsPage> — Anagrafica interactions', () => {
+describe('<RolesTeamsPage> — Registry interactions', () => {
   it('reveals the inline "new role" input', async () => {
     seedRolesTeams();
     const user = userEvent.setup();

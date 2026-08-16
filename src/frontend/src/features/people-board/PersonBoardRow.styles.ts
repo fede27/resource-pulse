@@ -7,7 +7,7 @@ export const PLANE_H = 30;
 
 // Decorative-only patterns (not part of the token language).
 export const TENT_HATCH_ALPHA = 0.12;
-// Discreet diagonal hatch for the "fuori calendario" cell (active blocks on a
+// Discreet diagonal hatch for the off-calendar cell (active blocks on a
 // zero-capacity bucket): neutral by design — never a band colour.
 export const OFF_CALENDAR_HATCH =
   'repeating-linear-gradient(135deg, rgba(0,0,0,0.07) 0 3px, transparent 3px 8px)';

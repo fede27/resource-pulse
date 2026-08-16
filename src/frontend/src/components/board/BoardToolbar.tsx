@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useStyles } from './BoardToolbar.styles';
 
-// THE control surface above every timed view (Progetti, Persone, Disponibilità):
+// THE control surface above every timed view (Projects, People, Availability):
 // one card that carries the time filter and everything else that shapes the
 // view — metric, grouping, search, sort, filters, result counts.
 //
@@ -57,7 +57,7 @@ function Label({
   );
 }
 
-/** "12 progetti di 40" — result feedback, tabular so it doesn't jitter. */
+/** "12 of 40 projects" — result feedback, tabular so it doesn't jitter. */
 function Count({ children }: { children: ReactNode }) {
   const { styles } = useStyles();
   return <span className={styles.count}>{children}</span>;

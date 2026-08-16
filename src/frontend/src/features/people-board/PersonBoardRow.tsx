@@ -207,7 +207,7 @@ const HeatCell = memo(function HeatCell({
 }: HeatCellProps) {
   const stat = bucketStat(data, bucket, countTentative);
   // Zero-capacity bucket: utilization is undefined — neutral cell, never a
-  // band colour. With active blocks it's the "fuori calendario" state: a
+  // band colour. With active blocks it's the off-calendar state: a
   // discreet hatch + explanatory tooltip, no number (0h counted).
   const c = stat.pct !== null ? loadColor(stat.pct, bands) : NO_CAPACITY_CELL;
   const label =

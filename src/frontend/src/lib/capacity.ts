@@ -1,5 +1,5 @@
 // Shared capacity helpers for the batch read GET /api/resources/capacity
-// (api-roundtrip-consolidation.md P1) — used by both boards (Persone, Progetti).
+// (api-roundtrip-consolidation.md P1) — used by both boards (People, Projects).
 
 import dayjs from 'dayjs';
 import type { CapacitySegmentDto } from '@/api/generated/schemas';

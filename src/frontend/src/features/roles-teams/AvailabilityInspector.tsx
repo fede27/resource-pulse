@@ -52,7 +52,7 @@ export function AvailabilityInspector({
 
   const stateLabels: Record<string, string> = {
     work: t('rolesTeams.avail.legendWork'),
-    ferie: t('rolesTeams.avail.legendFerie'),
+    absence: t('rolesTeams.avail.legendAbsence'),
     extra: t('rolesTeams.avail.legendExtra'),
     closure: t('rolesTeams.avail.legendClosure'),
     off: t('rolesTeams.avail.legendOff'),
@@ -73,8 +73,8 @@ export function AvailabilityInspector({
     [resource.adjustments, from, to],
   );
 
-  const single_di = single ? dayInfo(resource, calendar, closures, from) : null;
-  const heroColors = single_di ? STATE_COLORS[single_di.state] : STATE_COLORS.off;
+  const singleDayInfo = single ? dayInfo(resource, calendar, closures, from) : null;
+  const heroColors = singleDayInfo ? STATE_COLORS[singleDayInfo.state] : STATE_COLORS.off;
   const singleEffective = single ? (capacityByDay.get(from) ?? 0) : 0;
 
   return (
@@ -100,7 +100,7 @@ export function AvailabilityInspector({
           : t('rolesTeams.insp.periodTitle', { from: fmtShort(from), to: fmtShort(to) })}
       </div>
 
-      {single && single_di ? (
+      {single && singleDayInfo ? (
         <div>
           <div
             className={styles.dayHero}
@@ -115,32 +115,32 @@ export function AvailabilityInspector({
               {singleEffective}h
             </span>
             <div className={styles.heroLabel} style={{ color: heroColors.fg }}>
-              <div className={styles.heroState}>{stateLabels[single_di.state]}</div>
+              <div className={styles.heroState}>{stateLabels[singleDayInfo.state]}</div>
               <div>{dayjs(from).format('dddd')}</div>
             </div>
           </div>
           <div className={styles.row}>
             <span className={styles.rowLabel}>{t('rolesTeams.insp.baseFromCalendar')}</span>
             <span className={styles.rowValue}>
-              {single_di.closure ? t('rolesTeams.insp.closureZero') : `${single_di.baseHours}h`}
+              {singleDayInfo.closure ? t('rolesTeams.insp.closureZero') : `${singleDayInfo.baseHours}h`}
             </span>
           </div>
-          {single_di.closure && (
+          {singleDayInfo.closure && (
             <div className={styles.row}>
               <span className={styles.rowLabel}>{t('rolesTeams.insp.closureLabel')}</span>
-              <span className={styles.rowValue}>{single_di.closure.reason}</span>
+              <span className={styles.rowValue}>{singleDayInfo.closure.reason}</span>
             </div>
           )}
-          {single_di.ferieHours > 0 && (
+          {singleDayInfo.absenceHours > 0 && (
             <div className={styles.row}>
-              <span className={styles.rowLabel}>{t('rolesTeams.insp.ferie')}</span>
-              <span className={styles.rowValue}>−{single_di.ferieHours}h</span>
+              <span className={styles.rowLabel}>{t('rolesTeams.insp.absence')}</span>
+              <span className={styles.rowValue}>−{singleDayInfo.absenceHours}h</span>
             </div>
           )}
-          {single_di.extraHours > 0 && (
+          {singleDayInfo.extraHours > 0 && (
             <div className={styles.row}>
               <span className={styles.rowLabel}>{t('rolesTeams.insp.extra')}</span>
-              <span className={styles.rowValue}>+{single_di.extraHours}h</span>
+              <span className={styles.rowValue}>+{singleDayInfo.extraHours}h</span>
             </div>
           )}
           <div className={styles.row}>
@@ -166,7 +166,7 @@ export function AvailabilityInspector({
             <div
               className={styles.delta}
               // dynamic: sign-dependent semantic colour.
-              style={{ color: delta < 0 ? STATE_COLORS.ferie.fg : STATE_COLORS.extra.fg }}
+              style={{ color: delta < 0 ? STATE_COLORS.absence.fg : STATE_COLORS.extra.fg }}
             >
               {delta < 0
                 ? t('rolesTeams.insp.deltaLess', { delta })
@@ -181,17 +181,17 @@ export function AvailabilityInspector({
         <div className={styles.noExc}>{t('rolesTeams.insp.noExceptions')}</div>
       )}
       {exceptions.map((a) => {
-        const isFerie = a.type === AdjustmentType.Absence;
+        const isAbsence = a.type === AdjustmentType.Absence;
         return (
           <div key={a.id} className={styles.exception} onClick={() => onEditAdjustment(a)}>
             <span
               className={styles.excDot}
               // dynamic: adjustment-type colour.
-              style={{ background: isFerie ? FERIE_DOT : EXTRA_DOT }}
+              style={{ background: isAbsence ? FERIE_DOT : EXTRA_DOT }}
             />
             <div className={styles.excBody}>
               <div className={styles.excReason}>
-                {a.reason || (isFerie ? t('rolesTeams.insp.ferie') : t('rolesTeams.insp.extra'))}
+                {a.reason || (isAbsence ? t('rolesTeams.insp.absence') : t('rolesTeams.insp.extra'))}
               </div>
               <div className={styles.excMeta}>
                 {fmtShort(a.dateFrom ?? '')} – {fmtShort(a.dateTo ?? '')} ·{' '}
@@ -203,9 +203,9 @@ export function AvailabilityInspector({
             <span
               className={styles.excTag}
               // dynamic: adjustment-type colour.
-              style={{ color: isFerie ? STATE_COLORS.ferie.fg : STATE_COLORS.extra.fg }}
+              style={{ color: isAbsence ? STATE_COLORS.absence.fg : STATE_COLORS.extra.fg }}
             >
-              {isFerie ? t('rolesTeams.insp.ferie') : t('rolesTeams.insp.extra')}
+              {isAbsence ? t('rolesTeams.insp.absence') : t('rolesTeams.insp.extra')}
             </span>
           </div>
         );
@@ -216,7 +216,7 @@ export function AvailabilityInspector({
           icon={<PlusOutlined />}
           onClick={() => onAddAdjustment(AdjustmentType.Absence, from, to)}
         >
-          {t('rolesTeams.insp.addFerie')}
+          {t('rolesTeams.insp.addAbsence')}
         </Button>
         <Button
           size="small"

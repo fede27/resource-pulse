@@ -1,5 +1,5 @@
 // Shared board palette: time-fence zones (geekblue axis) used by every board
-// timeline (Progetti, Persone). Pure data derived from the central palette —
+// timeline (Projects, People). Pure data derived from the central palette —
 // resolved from live geometry at render time and applied as dynamic inline
 // values, so it lives in a ts module, not in createStyles.
 

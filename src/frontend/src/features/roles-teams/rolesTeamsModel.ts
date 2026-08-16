@@ -1,6 +1,6 @@
-// Pure view-model for the "Anagrafica" (role/team-first) view.
+// Pure view-model for the Registry (role/team-first) view.
 //
-// The catalog pivots between ruoli and team; both are flat name-only catalogues
+// The catalog pivots between roles and teams; both are flat name-only catalogues
 // (RoleReadDto / TeamReadDto). People reference a role and an optional team.
 // These helpers group people under the pivoted category and surface the "empty
 // category" signal (a role with no people contributes no capacity).
@@ -48,7 +48,7 @@ export function countInCategory(
   );
 }
 
-// Number of categories with zero people — the "senza persone" warning count.
+// Number of categories with zero people — the "without people" warning count.
 export function emptyCategoryCount(
   categories: Category[],
   people: ResourceReadDto[],

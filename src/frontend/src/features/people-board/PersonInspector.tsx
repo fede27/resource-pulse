@@ -36,7 +36,7 @@ type Face = 'utilization' | 'coverage';
 
 const ISO = 'YYYY-MM-DD';
 const round = (n: number) => Math.round(n);
-// Null = zero-capacity bucket: utilization undefined ("fuori calendario" when
+// Null = zero-capacity bucket: utilization undefined (off-calendar when
 // blocks touch it) — shown as a dash, never a number and never ∞.
 const fmtPct = (n: number | null) => (n !== null ? `${round(n)}%` : '—');
 
@@ -49,7 +49,7 @@ function humanRange(p: FocusPeriod): string {
 
 // Two faces of the same person: Utilizzo (bucket-average %, band state,
 // per-project composition) and Copertura (hours toward demands — the other
-// face of the Progetti page).
+// face of the Projects page).
 export function PersonInspector(props: PersonInspectorProps) {
   const { t } = useTranslation();
   const { target } = props;

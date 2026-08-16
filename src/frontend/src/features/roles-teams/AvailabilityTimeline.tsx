@@ -212,8 +212,8 @@ export function AvailabilityTimeline() {
   };
 
   // "Adatta" frames what this board actually has to show. Capacity exists every
-  // day, so fitting to "the content" would be a no-op; the exceptions — ferie,
-  // straordinari, chiusure — are the extent worth framing. No exceptions, no move.
+  // day, so fitting to "the content" would be a no-op; the exceptions — absence,
+  // overtime, closures — are the extent worth framing. No exceptions, no move.
   const onFit = () => {
     const ext = exceptionsExtent(resources, closures);
     if (!ext) return;
@@ -439,7 +439,7 @@ export function AvailabilityTimeline() {
 
   const legend: { key: string; label: string; state: keyof typeof STATE_COLORS }[] = [
     { key: 'work', label: t('rolesTeams.avail.legendWork'), state: 'work' },
-    { key: 'ferie', label: t('rolesTeams.avail.legendFerie'), state: 'ferie' },
+    { key: 'absence', label: t('rolesTeams.avail.legendAbsence'), state: 'absence' },
     { key: 'extra', label: t('rolesTeams.avail.legendExtra'), state: 'extra' },
     { key: 'closure', label: t('rolesTeams.avail.legendClosure'), state: 'closure' },
     { key: 'off', label: t('rolesTeams.avail.legendOff'), state: 'off' },

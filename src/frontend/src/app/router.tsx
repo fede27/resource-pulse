@@ -33,16 +33,16 @@ const timeConfigRoute = createRoute({
   component: TimeConfigRoutePage,
 });
 
-// "/people" is the Persone planning board. The former registry (anagrafica) and
-// the Teams page were consolidated into "/roles-teams" (Ruoli e team).
+// "/people" is the People planning board. The former registry and the Teams
+// page were consolidated into "/roles-teams".
 const peopleRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/people',
   component: PeopleRoutePage,
 });
 
-// The consolidated "Ruoli e team" page: anagrafica (ruoli/team/persone) +
-// disponibilità base (calendario assegnato + ferie/straordinari).
+// The consolidated Roles & teams page: registry (roles/teams/people) plus
+// base availability (assigned calendar + absences/overtime).
 const rolesTeamsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/roles-teams',

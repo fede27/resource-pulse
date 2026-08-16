@@ -20,7 +20,7 @@ export const CLOSURE_HATCH =
 
 export const STATE_COLORS: Record<DayState, StateColors> = {
   work: { fg: blue[6], bg: blue[0], border: blue[2], dot: blue[5] },
-  ferie: { fg: purple[6], bg: purple[0], border: purple[2], dot: purple[5] },
+  absence: { fg: purple[6], bg: purple[0], border: purple[2], dot: purple[5] },
   extra: { fg: orange[6], bg: orange[0], border: orange[2], dot: orange[5] },
   closure: {
     fg: text.tertiary,
@@ -36,6 +36,6 @@ export const STATE_COLORS: Record<DayState, StateColors> = {
   },
 };
 
-// Accent dots for the adjustment markers (ferie = purple, extra = orange).
+// Accent dots for the adjustment markers (absence = purple, extra = orange).
 export const FERIE_DOT = purple[5];
 export const EXTRA_DOT = orange[5];

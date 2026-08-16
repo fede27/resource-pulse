@@ -46,10 +46,10 @@ type PeopleRowItem =
 
 const ISO = 'YYYY-MM-DD';
 
-// La pagina PERSONE: il pivot persone della timeline di copertura. Righe =
-// persone (heatmap della media di bucket), corsie = i loro progetti, drag
-// sulla capacità libera = proposta di copertura. Solo l'offerta — i buchi
-// vivono su Progetti.
+// The People board: the supply-side pivot of the coverage timeline. Rows are
+// people (heatmap of the bucket average), lanes are their projects, and
+// dragging over free capacity proposes coverage. Supply only — uncovered
+// demand lives on the Projects board.
 export function PeopleBoardPage() {
   const { t } = useTranslation();
   const { styles } = useStyles();

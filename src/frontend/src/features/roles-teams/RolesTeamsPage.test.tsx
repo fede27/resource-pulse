@@ -13,7 +13,7 @@ const openView = async (user: ReturnType<typeof userEvent.setup>, label: string)
   await user.click(screen.getByText(label));
 };
 
-describe('<RolesTeamsPage> — Anagrafica', () => {
+describe('<RolesTeamsPage> — Registry', () => {
   it('lists a role’s people and flags empty roles', async () => {
     seedRolesTeams();
     const user = userEvent.setup();
@@ -56,7 +56,7 @@ describe('<RolesTeamsPage> — Anagrafica', () => {
   });
 });
 
-describe('<RolesTeamsPage> — Disponibilità', () => {
+describe('<RolesTeamsPage> — Availability', () => {
   it('renders the availability grid grouped by team with a legend', async () => {
     seedRolesTeams();
     const user = userEvent.setup();

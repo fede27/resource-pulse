@@ -38,7 +38,7 @@ describe('useVisibleYRange', () => {
   // Every board page renders a loading skeleton first, so the scroller mounts on
   // a LATER render than this hook's first effect. Keyed on the ref object, that
   // effect never re-ran and the range stayed unbounded forever — windowing was
-  // silently inert on every board (Disponibilità most visibly, ~80 rows).
+  // silently inert on every board (Availability most visibly, ~80 rows).
   it('picks up a scroller that mounts on a later render', async () => {
     const ref: { current: HTMLDivElement | null } = { current: null };
     const { result, rerender } = renderHook(() => useVisibleYRange(ref, 600, 300));

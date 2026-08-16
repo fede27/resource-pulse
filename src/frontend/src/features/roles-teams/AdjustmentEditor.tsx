@@ -104,7 +104,7 @@ export function AdjustmentEditor({
       reason: reason.trim(),
     };
     const onSuccess = () => {
-      message.success(isExtra ? t('rolesTeams.toast.extraSaved') : t('rolesTeams.toast.ferieSaved'));
+      message.success(isExtra ? t('rolesTeams.toast.extraSaved') : t('rolesTeams.toast.absenceSaved'));
       invalidate();
       onClose();
     };
@@ -159,8 +159,8 @@ export function AdjustmentEditor({
           className={cx(styles.typeBtn, !isExtra && styles.typeBtnFerie)}
           onClick={() => setType(AdjustmentType.Absence)}
         >
-          {t('rolesTeams.editor.typeFerie')}
-          <div className={styles.typeHint}>{t('rolesTeams.editor.typeFerieHint')}</div>
+          {t('rolesTeams.editor.typeAbsence')}
+          <div className={styles.typeHint}>{t('rolesTeams.editor.typeAbsenceHint')}</div>
         </button>
         <button
           type="button"
@@ -181,7 +181,7 @@ export function AdjustmentEditor({
           placeholder={
             isExtra
               ? t('rolesTeams.editor.reasonPlaceholderExtra')
-              : t('rolesTeams.editor.reasonPlaceholderFerie')
+              : t('rolesTeams.editor.reasonPlaceholderAbsence')
           }
         />
         {errors.reason && <div className={styles.err}>{t('rolesTeams.editor.reasonRequired')}</div>}
@@ -239,8 +239,8 @@ export function AdjustmentEditor({
               ? t('rolesTeams.editor.hintExtraFull')
               : t('rolesTeams.editor.hintExtraPartial')
             : fullDay
-              ? t('rolesTeams.editor.hintFerieFull')
-              : t('rolesTeams.editor.hintFeriePartial')}
+              ? t('rolesTeams.editor.hintAbsenceFull')
+              : t('rolesTeams.editor.hintAbsencePartial')}
         </div>
       </div>
     </Modal>

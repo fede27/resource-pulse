@@ -9,15 +9,15 @@ namespace ResourcePulse.Persistence.Migrations
     // Phase 4.2: schema changes that back ADR-0015 + ADR-0016.
     //
     // ADR-0015 — Status {Tentative, Hard} dell'allocazione:
-    //   - Aggiunge la colonna `status` (text, max 20), default 'Tentative' al
-    //     backfill delle righe esistenti. Default applicativo è 'Tentative'
-    //     (aggregate factory) — il default di colonna è solo per il backfill.
+    //   - Adds the `status` column (text, max 20), defaulting to 'Tentative' for
+    //     the backfill of existing rows. The application default is 'Tentative'
+    //     (aggregate factory) — the column default exists only for the backfill.
     //   - I6 (Hard richiede progetto root committato) NON è espressa al DB:
     //     richiede walk cross-aggregate al root via materialized path,
     //     enforced da AllocationService.
     //
     // ADR-0016 — Deallocazione come conversione / placeholder sull'atomo:
-    //   - `resource_id` diventa NULLABLE: lo stato Placeholder ha
+    //   - `resource_id` becomes NULLABLE: the Placeholder form has
     //     ResourceId = null.
     //   - Nuove colonne `role_skill_id` (FK Restrict → skills) e
     //     `owner_resource_id` (FK Restrict → resources), valorizzate IFF
@@ -28,7 +28,7 @@ namespace ResourcePulse.Persistence.Migrations
     //   - Indici sui due nuovi FK per supportare i futuri filtri sul
     //     placeholder workflow (ruolo scoperto, owner).
     //
-    // Le righe esistenti hanno tutte resource_id valorizzato → passano l'XOR
+    // Every existing row has resource_id set → they all satisfy the XOR
     // (placeholder fields NULL) e ricevono status = 'Tentative' via backfill.
     public partial class AddAllocationStatusAndPlaceholder : Migration
     {
@@ -55,9 +55,9 @@ namespace ResourcePulse.Persistence.Migrations
                 type: "uuid",
                 nullable: true);
 
-            // Default 'Tentative' al backfill delle righe esistenti (ADR-0015).
-            // Le nuove righe ricevono il valore dall'aggregate factory; il
-            // default di colonna è inerte in fase di INSERT applicativo.
+            // 'Tentative' default for backfilling existing rows (ADR-0015).
+            // New rows get their value from the aggregate factory; the
+            // column default is inert for application-issued INSERTs.
             migrationBuilder.AddColumn<string>(
                 name: "status",
                 table: "allocations",
@@ -102,8 +102,8 @@ namespace ResourcePulse.Persistence.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Il rollback fallisce se esistono righe placeholder (resource_id
-            // NULL): AlterColumn → NOT NULL viola il vincolo. Risolvere prima
+            // The rollback fails if placeholder rows exist (resource_id
+            // NULL): AlterColumn → NOT NULL violates the constraint. Resolve first
             // i placeholder (riassegnandoli o cancellandoli) e poi rollback.
             migrationBuilder.DropForeignKey(
                 name: "fk_allocations_resources_owner_resource_id",

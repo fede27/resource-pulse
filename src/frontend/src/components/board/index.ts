@@ -1,8 +1,8 @@
 // Shared board-timeline building blocks (bounded-domain gantt): pixel geometry,
 // the scrollable timeline shell (fence zones + today indicator + axis), the
 // toolbar that holds the view's controls, the time filter (grain + window) and
-// the fence palette. Used by every timed view — Progetti, Persone,
-// Disponibilità — do not re-implement these per feature.
+// the fence palette. Used by every timed view — Projects, People,
+// Availability — do not re-implement these per feature.
 
 export {
   BUCKET_DAYPX,

@@ -114,15 +114,15 @@ describe('dayInfo', () => {
   it('a full-day absence subtracts the whole base', () => {
     const p = person({ adjustments: [adj(AdjustmentType.Absence, MON, MON, null)] });
     const di = dayInfo(p, CAL, [], MON);
-    expect(di.state).toBe('ferie');
-    expect(di.ferieHours).toBe(8);
+    expect(di.state).toBe('absence');
+    expect(di.absenceHours).toBe(8);
   });
 
   it('a partial absence subtracts the given hours', () => {
     const p = person({ adjustments: [adj(AdjustmentType.Absence, MON, MON, '04:00:00')] });
     const di = dayInfo(p, CAL, [], MON);
-    expect(di.state).toBe('ferie');
-    expect(di.ferieHours).toBe(4);
+    expect(di.state).toBe('absence');
+    expect(di.absenceHours).toBe(4);
   });
 
   it('extra time adds hours even on a non-working day', () => {
@@ -205,7 +205,7 @@ describe('bucketAgg / sums', () => {
     expect(agg.hasFerie).toBe(false);
   });
 
-  it('flags ferie in a bucket touched by an absence', () => {
+  it('flags absence in a bucket touched by an absence', () => {
     const p = person({ adjustments: [adj(AdjustmentType.Absence, WED, WED, null)] });
     const reduced = new Map(capacity);
     reduced.set('2026-07-08', 0);

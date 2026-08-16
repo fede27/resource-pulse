@@ -1,10 +1,10 @@
-// Pure view-model for the "Disponibilità" timeline.
+// Pure view-model for the Availability timeline.
 //
 // The effective hours per person-day are read authoritatively from the batch
 // capacity endpoint (GET /api/resources/capacity — same run-length source the
-// Persone/Progetti boards use). What this module adds is the *decomposition and
-// state* the inspector explains — base pattern, company closure, ferie
-// (Absence) and straordinari (ExtraTime) — computed client-side by faithfully
+// People/Projects boards use). What this module adds is the *decomposition and
+// state* the inspector explains — base pattern, company closure, absence
+// (Absence) and overtime (ExtraTime) — computed client-side by faithfully
 // mirroring the backend `CapacityCalculator` composition:
 //   pattern = resource.workWindows (override) else calendar.workWindows
 //   closure covering the day zeros the base
@@ -25,7 +25,7 @@ import { parseDurationHours } from '@/lib/duration';
 
 const ISO = 'YYYY-MM-DD';
 
-export type DayState = 'work' | 'ferie' | 'extra' | 'closure' | 'off';
+export type DayState = 'work' | 'absence' | 'extra' | 'closure' | 'off';
 
 export type DayInfo = {
   iso: string;
@@ -35,11 +35,11 @@ export type DayInfo = {
   /** The closure covering this day, if any (base is zeroed when present). */
   closure: CompanyClosureReadDto | null;
   /** Absence adjustments touching this day. */
-  ferie: IndividualAdjustmentDto[];
+  absence: IndividualAdjustmentDto[];
   /** ExtraTime adjustments touching this day. */
   extra: IndividualAdjustmentDto[];
   /** Absence hours applied this day for display (capped at the available base). */
-  ferieHours: number;
+  absenceHours: number;
   /** Extra hours added this day. */
   extraHours: number;
   state: DayState;
@@ -128,14 +128,14 @@ export function dayInfo(
   const effectiveBase = closure ? 0 : baseHours;
 
   const touching = adjustmentsOn(resource.adjustments ?? [], iso);
-  const ferie = touching.filter((a) => a.type === AdjustmentType.Absence);
+  const absence = touching.filter((a) => a.type === AdjustmentType.Absence);
   const extra = touching.filter((a) => a.type === AdjustmentType.ExtraTime);
 
-  const absenceRaw = ferie.reduce(
+  const absenceRaw = absence.reduce(
     (sum, a) => sum + (a.hours != null ? parseDurationHours(a.hours) : effectiveBase),
     0,
   );
-  const ferieHours = Math.min(effectiveBase, absenceRaw);
+  const absenceHours = Math.min(effectiveBase, absenceRaw);
   const extraHours = extra.reduce((sum, a) => sum + parseDurationHours(a.hours), 0);
 
   const dow = dayjs(iso).day();
@@ -144,7 +144,7 @@ export function dayInfo(
   let state: DayState = 'off';
   if (baseHours > 0 && !closure) state = 'work';
   if (closure) state = 'closure';
-  if (ferie.length > 0 && (closure || baseHours > 0)) state = 'ferie';
+  if (absence.length > 0 && (closure || baseHours > 0)) state = 'absence';
   if (extra.length > 0) state = 'extra';
 
   return {
@@ -152,9 +152,9 @@ export function dayInfo(
     weekend,
     baseHours: round1(baseHours),
     closure,
-    ferie,
+    absence,
     extra,
-    ferieHours: round1(ferieHours),
+    absenceHours: round1(absenceHours),
     extraHours: round1(extraHours),
     state,
   };
@@ -212,7 +212,7 @@ export function buildBuckets(fromISO: string, toISO: string, grain: Grain): Buck
 
 // The extent of what this board actually has to show. Capacity is defined every
 // day, so "fit to the content" would be a no-op; what carries information is the
-// exceptions — ferie, straordinari, chiusure. Null when there are none.
+// exceptions — absences, overtime, closures. Null when there are none.
 export function exceptionsExtent(
   resources: ResourceReadDto[],
   closures: CompanyClosureReadDto[],
@@ -265,14 +265,14 @@ export function bucketAgg(
     hours += capacityByDay.get(iso) ?? 0;
     const di = dayInfo(resource, calendar, closures, iso);
     base += di.closure ? 0 : di.baseHours;
-    if (di.ferie.length > 0) hasFerie = true;
+    if (di.absence.length > 0) hasFerie = true;
     if (di.extra.length > 0) hasExtra = true;
     if (di.closure) hasClosure = true;
   }
   let state: DayState = 'off';
   if (base > 0 || hours > 0) state = 'work';
   if (hasClosure && hours === 0) state = 'closure';
-  if (hasFerie && hours < base) state = 'ferie';
+  if (hasFerie && hours < base) state = 'absence';
   if (hasExtra) state = 'extra';
   return { hours: round1(hours), state, hasFerie, hasExtra, hasClosure };
 }

@@ -1,9 +1,9 @@
 namespace ResourcePulse.Domain.Allocations;
 
-// Impegno percepito dello stesso blocco di allocazione. Default Tentative
-// (ADR-0015): abbassa la soglia di impegno percepita al momento della creazione.
-// Hard è un commitment che richiede fondamento sul progetto: l'invariante I6
-// (service-level) ammette Hard solo se il Project radice del nodo target ha
+// How committed the same allocation block is. Defaults to Tentative
+// (ADR-0015): it lowers the perceived commitment at the moment of creation.
+// Hard is a commitment that has to be grounded in the project: invariant I6
+// (service-level) admits Hard only if the root Project of the target node has
 // CommitmentLevel in {Committed, Critical}.
 public enum AllocationStatus
 {

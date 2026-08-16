@@ -321,11 +321,11 @@ public sealed class ProjectNodeService(
                 });
         }
 
-        // Cascade demotion guard (ADR-0015 §4). Quando il downgrade attraversa
-        // la soglia hard-committed → non-hard, le allocazioni Hard sulla
-        // subtree del progetto vanno demote esplicitamente: o il chiamante
-        // conferma con ConfirmDemoteHardAllocations = true e procediamo, o
-        // restituiamo Conflict con il conteggio.
+        // Cascade demotion guard (ADR-0015 §4). When the downgrade crosses the
+        // hard-committed → non-hard threshold, Hard allocations in the project
+        // subtree must be demoted explicitly: either the caller confirms with
+        // ConfirmDemoteHardAllocations = true and we proceed, or we return
+        // Conflict carrying the count.
         // Hard-commit threshold read from CommitmentPolicy (ADR-0020) — no longer
         // cabled; same single source as the PlanCommandService Hard gate (I6).
         var policy = await commitmentPolicy.GetConfigurationAsync(ct);

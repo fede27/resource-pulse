@@ -19,7 +19,7 @@ export type BoardTimeFilterProps = {
   onFit: () => void;
 };
 
-// THE time filter for every timed view (Progetti, Persone, Disponibilità).
+// THE time filter for every timed view (Projects, People, Availability).
 // Grain and window are one gesture — reading "settimana" and reading "2026" are
 // the same question asked twice — so they live in one component and are never
 // re-spelled per feature. Anything that shapes ROWS (group-by, sort, search)

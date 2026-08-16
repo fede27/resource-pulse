@@ -1,5 +1,5 @@
-// Board timeline — scrollable pixel geometry shared by the Progetti and
-// Persone boards. Pure: no React, no network.
+// Board timeline — scrollable pixel geometry shared by the Projects and
+// People boards. Pure: no React, no network.
 //
 // A board is a bounded-domain continuous gantt (absolute bars over a shared
 // axis), configurable as domain [minISO, maxISO] × bucket (day/week/month).
