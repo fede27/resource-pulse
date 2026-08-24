@@ -194,7 +194,16 @@ var bootstrap = builder.AddProject<Projects.ResourcePulse_DevBootstrap>("zitadel
         Path.Combine(builder.AppHostDirectory, "..", "frontend", ".env.local"))
     .WithEnvironment("Bootstrap__SpaRedirectUri", "http://localhost:5173/auth/callback")
     .WithEnvironment("Bootstrap__SpaSilentRenewUri", "http://localhost:5173/auth/silent-renew")
-    .WithEnvironment("Bootstrap__SpaPostLogoutUri", "http://localhost:5173/");
+    .WithEnvironment("Bootstrap__SpaPostLogoutUri", "http://localhost:5173/")
+    // Where Zitadel sends an auth request for the SPA instead of to its own
+    // hosted login (ADR-0031). Set on the APPLICATION, not on the instance: the
+    // instance-wide LoginV2 flag would route the Zitadel Console here too, and
+    // this page can only finalise auth requests for our project.
+    //
+    // This is the SPA's ORIGIN, not the page's URL: Zitadel appends its own
+    // route to the base — an auth request lands on `{base}/login?authRequest=…`.
+    // Pointing it at ".../login" produced "/login/login" and a 404.
+    .WithEnvironment("Bootstrap__SpaLoginUri", "http://localhost:5173");
 
 var api = builder.AddProject<Projects.ResourcePulse_Hosting>("api")
     .WithReference(postgres)

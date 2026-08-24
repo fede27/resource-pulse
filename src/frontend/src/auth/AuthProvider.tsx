@@ -3,7 +3,8 @@ import { AuthProvider as OidcProvider, useAuth } from 'react-oidc-context';
 import { Alert, Button, Flex, Spin, Typography } from 'antd';
 import { useTranslation } from 'react-i18next';
 
-import { isOidcConfigured, oidcConfig } from '@/auth/config';
+import { isOidcConfigured, oidcConfig, type SigninState } from '@/auth/config';
+import { CALLBACK_PATH, isSignInPath } from '@/auth/routes';
 import { publishAuthHandlers } from '@/auth/token-store';
 import { useAuthStyles } from '@/auth/auth.styles';
 
@@ -14,13 +15,15 @@ import { useAuthStyles } from '@/auth/auth.styles';
  * the API runs its FakeAuth scheme — this is a pass-through. That keeps `npm run
  * dev` and the whole test suite working without a running Zitadel container.
  */
-/** Where the user was headed before being sent off to log in. */
-type SigninState = { returnTo?: string };
-
-export const CALLBACK_PATH = '/auth/callback';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   if (!isOidcConfigured) return <>{children}</>;
+
+  // The sign-in screen must render for somebody who has NO session — that is its
+  // whole job. Mounting the gate over it would have it redirect to the identity
+  // provider, which redirects back to the sign-in screen, forever (ADR-0031). It
+  // drives its own `UserManager` when it needs an authorization request, so it
+  // needs nothing from the context either.
+  if (isSignInPath(window.location.pathname)) return <>{children}</>;
 
   return (
     <OidcProvider

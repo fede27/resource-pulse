@@ -69,9 +69,24 @@ var spaClientId = await zitadel.EnsureSpaApplicationAsync(
         Required(config, "Bootstrap:SpaSilentRenewUri")
     ],
     [Required(config, "Bootstrap:SpaPostLogoutUri")],
+    Required(config, "Bootstrap:SpaLoginUri"),
     ct);
 
 var apiClientId = await zitadel.EnsureApiApplicationAsync(projectId, "resource-pulse-api", ct);
+
+// The credential behind our own login page (ADR-0031). It can finalise an
+// authorization request for ANY user, so it is written only where the API reads
+// it and never reaches the browser.
+//
+// Reuse before re-minting: a PAT's value is returned once and is not readable
+// afterwards, so the previous run's token is carried over from the generated
+// config file and only replaced when it no longer works.
+var previousLoginClientToken = await ReadPreviousLoginClientTokenAsync(apiConfigPath, ct);
+var loginClientToken = await zitadel.EnsureLoginClientAsync(
+    "login-client", previousLoginClientToken, ct);
+
+log.LogInformation("Zitadel login client ready ({TokenOrigin})",
+    loginClientToken == previousLoginClientToken ? "existing token" : "new token");
 
 // Without this, registering a user fails with Errors.SMTPConfig.NotFound and the
 // account is never initialised. The target is the dev mail sink, so nothing
@@ -121,7 +136,10 @@ var apiConfig = new
         Issuer = issuer,
         ProjectId = projectId,
         ApiClientId = apiClientId,
-        SpaClientId = spaClientId
+        SpaClientId = spaClientId,
+        // The login client's PAT. Development only: this file is gitignored and
+        // in production the credential is provisioned out of band.
+        LoginClientToken = loginClientToken
     }
 };
 
@@ -151,6 +169,31 @@ log.LogInformation("Bootstrap complete. API config: {ApiConfig}; SPA env: {SpaEn
     apiConfigPath, spaEnvPath);
 
 return 0;
+
+/// <summary>
+/// The login-client token written by a previous run, if the generated config file
+/// still holds one. Any problem reading it means "we have no token" — the caller
+/// simply mints a new one, so a corrupt or absent file is not an error.
+/// </summary>
+static async Task<string?> ReadPreviousLoginClientTokenAsync(string path, CancellationToken ct)
+{
+    if (!File.Exists(path)) return null;
+
+    try
+    {
+        await using var stream = File.OpenRead(path);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
+
+        return document.RootElement.TryGetProperty("Zitadel", out var zitadelSection)
+               && zitadelSection.TryGetProperty("LoginClientToken", out var token)
+            ? token.GetString()
+            : null;
+    }
+    catch (JsonException)
+    {
+        return null;
+    }
+}
 
 static string Required(IConfiguration config, string key) =>
     config[key] ?? throw new InvalidOperationException($"Missing required configuration '{key}'.");

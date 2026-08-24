@@ -1,5 +1,8 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router';
 import { AuthCallbackPage } from '@/auth/AuthCallbackPage';
+import { LOGIN_PATH } from '@/auth/routes';
+import { LoginHelpPage } from '@/features/auth/LoginHelpPage';
+import { LoginPage } from '@/features/auth/LoginPage';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { HomePage } from '@/app/routes/index';
 import { PeopleRoutePage } from '@/app/routes/people/index';
@@ -70,6 +73,22 @@ const authCallbackRoute = createRoute({
   component: AuthCallbackPage,
 });
 
+// Our own sign-in screen (ADR-0031). Like the callback it hangs off the ROOT, not
+// the shell: its caller has no token, so there is no navigation to render and no
+// tenant to render it for.
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: LOGIN_PATH,
+  component: LoginPage,
+});
+
+// Honest dead end for "forgot your password?" until the reset flow ships.
+const loginHelpRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: `${LOGIN_PATH}/help`,
+  component: LoginHelpPage,
+});
+
 const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
     indexRoute,
@@ -80,6 +99,8 @@ const routeTree = rootRoute.addChildren([
     settingsRoute,
   ]),
   authCallbackRoute,
+  loginRoute,
+  loginHelpRoute,
 ]);
 
 export const router = createRouter({ routeTree });

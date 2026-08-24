@@ -71,6 +71,25 @@ public class TenantResolutionTests
         result.TenantId.Should().Be(expected);
     }
 
+    // THE claim a real Zitadel access token carries. The regression it guards is
+    // not hypothetical: the resolver originally knew only about
+    // `urn:zitadel:iam:org:id` — which Zitadel emits solely when a client PINS an
+    // organization — so no genuine token ever resolved, and every authenticated
+    // request was refused with 403, `GET /api/me` included. FakeAuth hid it by
+    // issuing the pinned-org claim itself.
+    [Fact]
+    public async Task ZitadelResourceOwnerClaim_IsReadFromThePrincipal()
+    {
+        await using var db = await WithTenantAsync(OrgId);
+        var expected = await db.Tenants.Select(t => t.Id).SingleAsync();
+
+        var result = await new TenantResolver(db).ResolveAsync(
+            PrincipalWith((TenantResolver.ZitadelResourceOwnerIdClaim, OrgId)));
+
+        result.IsResolved.Should().BeTrue();
+        result.TenantId.Should().Be(expected);
+    }
+
     [Fact]
     public async Task GenericOrganizationClaim_IsAlsoAccepted()
     {

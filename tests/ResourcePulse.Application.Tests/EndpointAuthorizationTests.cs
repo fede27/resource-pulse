@@ -65,6 +65,32 @@ public class EndpointAuthorizationTests
     private static readonly string[] ReadOnlyControllers =
         ["AllocationsController", "DemandsController", "LoadController", "MeController"];
 
+    /// <summary>
+    /// Controllers reachable with no principal at all (ADR-0031).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A third category, declared for the same reason as the other two: an
+    /// anonymous write endpoint is the one thing this audit exists to catch, so it
+    /// must be impossible to add one <i>quietly</i>. Adding a controller here is a
+    /// deliberate act, and <see cref="AnonymousControllersReallyAreAnonymous"/>
+    /// plus <see cref="OnlyDeclaredControllersAreAnonymous"/> close both directions:
+    /// nothing listed here is secretly guarded, and nothing guarded-looking is
+    /// secretly anonymous.
+    /// </para>
+    /// <para>
+    /// <b>LoginController</b> earns it structurally: it serves the sign-in page,
+    /// whose caller has no token, therefore no organization, therefore no tenant
+    /// and no membership. It grants nothing — it only relays a password check to
+    /// the identity provider. Authorization still happens where it always did,
+    /// against our membership store, once the token comes back.
+    /// </para>
+    /// </remarks>
+    private static readonly string[] AnonymousControllers = ["LoginController"];
+
+    private static bool IsAnonymous(Type controller) =>
+        controller.GetCustomAttributes<AllowAnonymousAttribute>(inherit: true).Any();
+
     private static IEnumerable<Type> Controllers() =>
         typeof(ControllerFoundation).Assembly
             .GetTypes()
@@ -105,6 +131,11 @@ public class EndpointAuthorizationTests
 
         foreach (var (controller, action, verbs) in writes)
         {
+            // Declared anonymous surface (ADR-0031). Skipped here, but not
+            // unchecked: the two tests below verify the declaration matches reality
+            // in both directions.
+            if (AnonymousControllers.Contains(controller.Name)) continue;
+
             if (!WritePolicyByController.TryGetValue(controller.Name, out var expected))
             {
                 offenders.Add($"{controller.Name}.{action.Name} [{string.Join('/', verbs)}] — controller not mapped");
@@ -173,10 +204,39 @@ public class EndpointAuthorizationTests
         offenders.Should().BeEmpty();
     }
 
+    // The declaration must not become a way to exempt a controller on paper while
+    // it is in fact guarded — or, far worse, the reverse.
+    [Fact]
+    public void AnonymousControllersReallyAreAnonymous()
+    {
+        var offenders = AnonymousControllers
+            .Select(name => Controllers().SingleOrDefault(c => c.Name == name) is { } c && IsAnonymous(c)
+                ? null
+                : $"{name} is declared anonymous but does not carry [AllowAnonymous]")
+            .Where(x => x is not null);
+
+        offenders.Should().BeEmpty();
+    }
+
+    // The direction that actually protects data: an [AllowAnonymous] added to any
+    // other controller drops it out of the Viewer fallback entirely, and this is
+    // the only test that would notice.
+    [Fact]
+    public void OnlyDeclaredControllersAreAnonymous()
+    {
+        Controllers()
+            .Where(IsAnonymous)
+            .Select(c => c.Name)
+            .Should().BeEquivalentTo(AnonymousControllers);
+    }
+
     [Fact]
     public void EveryControllerIsMapped()
     {
-        var known = WritePolicyByController.Keys.Concat(ReadOnlyControllers).ToHashSet();
+        var known = WritePolicyByController.Keys
+            .Concat(ReadOnlyControllers)
+            .Concat(AnonymousControllers)
+            .ToHashSet();
         var actual = Controllers().Select(c => c.Name).ToHashSet();
 
         actual.Except(known).Should().BeEmpty("a new controller must be mapped to a role deliberately");

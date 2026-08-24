@@ -15,6 +15,7 @@ import { getDemandsMock } from '@/api/generated/demands/demands.msw';
 import { getDevAccessMock } from '@/api/generated/dev-access/dev-access.msw';
 import { getLoadMock } from '@/api/generated/load/load.msw';
 import { getLoadBandsMock } from '@/api/generated/load-bands/load-bands.msw';
+import { getLoginMock } from '@/api/generated/login/login.msw';
 import { getMeGetMockHandler, getMeMock } from '@/api/generated/me/me.msw';
 import { AppRole } from '@/api/generated/schemas/appRole';
 import { getPlanCommandsMock } from '@/api/generated/plan-commands/plan-commands.msw';
@@ -53,6 +54,7 @@ export const handlers: RequestHandler[] = [
   ...getDevAccessMock(),
   ...getLoadMock(),
   ...getLoadBandsMock(),
+  ...getLoginMock(),
   ...getMeMock(),
   ...getPlanCommandsMock(),
   ...getProjectNodesMock(),

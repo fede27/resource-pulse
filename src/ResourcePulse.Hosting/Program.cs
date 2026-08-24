@@ -170,6 +170,11 @@ builder.Services.AddScoped<ILoadQueryService, LiveLoadQueryService>();
 builder.Services.AddScoped<IMeService, MeService>();
 builder.Services.AddScoped<ITenantResolver, TenantResolver>();
 
+// Our own login page (ADR-0031). The typed client carries the login client's
+// personal access token, which can finalise an authorization request for ANY
+// user — so it lives here, in the API, and never in the browser.
+builder.AddResourcePulseLoginClient();
+
 // Access control (ADR-0030): membership resolution + administration.
 builder.Services.AddScoped<IAccessResolver, AccessResolver>();
 builder.Services.AddScoped<IMembershipService, MembershipService>();
@@ -261,6 +266,11 @@ app.UseSerilogRequestLogging(opts =>
             diagnosticContext.Set("UserSub", userAccessor.User.Sub);
     };
 });
+
+// Throttles the anonymous sign-in endpoints (ADR-0031). Deliberately BEFORE
+// authentication: the endpoints it guards have no principal, and the point is to
+// spend as little as possible on a caller who is spraying passwords.
+app.UseRateLimiter();
 
 app.UseAuthentication();
 // After authentication (it reads the validated principal), before authorization
