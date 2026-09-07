@@ -20,4 +20,6 @@ export interface PlanDemandChange {
   ownerResourceId?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  decideBy?: string | null;
 }

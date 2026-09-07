@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ResourcePulse.Hosting\ResourcePulse.Hosting.csproj" />
     <ProjectReference Include="..\ResourcePulse.DevBootstrap\ResourcePulse.DevBootstrap.csproj" />
+    <ProjectReference Include="..\ResourcePulse.SignalWorker\ResourcePulse.SignalWorker.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

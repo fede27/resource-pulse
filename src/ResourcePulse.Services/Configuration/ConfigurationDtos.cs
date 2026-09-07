@@ -62,6 +62,26 @@ public sealed class CommitmentPolicyDto
     public IReadOnlyList<CommitmentLevel> HardCommitLevels { get; init; } = [];
 }
 
+// The fifth org-level singleton (ADR-0032 §12). Exactly two dials — the depth of
+// the change feed, and how much notice a staffing decision needs. Everything else
+// about triage is a declared constant or already lives in LoadBandConfiguration.
+public sealed class SignalPolicyDto
+{
+    public int ResolvedRetentionDays { get; init; }
+    public DurationDto DecisionLeadTime { get; init; } = new();
+
+    // The queue budget, exposed READ-ONLY so the page can say "7 di 40" without
+    // hard-coding the number. Deliberately absent from the update DTO: it is a
+    // constant, not a per-tenant dial (ADR-0032 §12).
+    public int QueueBudget { get; init; }
+}
+
+public sealed class UpdateSignalPolicyDto
+{
+    public int ResolvedRetentionDays { get; init; }
+    public DurationDto DecisionLeadTime { get; init; } = new();
+}
+
 public sealed class UpdateCommitmentPolicyDto
 {
     public List<CommitmentLevel> HardCommitLevels { get; init; } = [];

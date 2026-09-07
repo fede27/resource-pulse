@@ -48,6 +48,8 @@ public sealed class PlanDemandChange
     public DemandProvenance Provenance { get; init; }
     public Guid? OwnerResourceId { get; init; }
     public string? Notes { get; init; }
+    // The EXPLICIT decision deadline (ADR-0033 §3); null means "derive it".
+    public DateOnly? DecideBy { get; init; }
 }
 
 // Result of a plan command (ADR-0018). `CommandKind` echoes the intent;

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
 using ResourcePulse.Common.Auth;
 using ResourcePulse.Common.Tenancy;
@@ -30,6 +31,7 @@ using ResourcePulse.Services.Plan;
 using ResourcePulse.Services.Projects;
 using ResourcePulse.Services.Resources;
 using ResourcePulse.Services.Roles;
+using ResourcePulse.Services.Signals;
 using ResourcePulse.Services.Skills;
 using ResourcePulse.Services.Tags;
 using ResourcePulse.Services.Teams;
@@ -186,6 +188,19 @@ builder.Services.AddScoped<ILoadBandConfigurationService, LoadBandConfigurationS
 builder.Services.AddScoped<ITimeFenceConfigurationService, TimeFenceConfigurationService>();
 builder.Services.AddScoped<IBucketingDefaultsService, BucketingDefaultsService>();
 builder.Services.AddScoped<ICommitmentPolicyService, CommitmentPolicyService>();
+builder.Services.AddScoped<ISignalPolicyService, SignalPolicyService>();
+
+// Triage (ADR-0032). The detector is registered here too — the API never runs it
+// on a schedule (that is the dedicated worker's job, so N replicas cannot mean N
+// concurrent sweeps on the same tenant), but the resolve-only hook on the plan
+// envelope resolves it per request.
+builder.Services.TryAddSingleton(TimeProvider.System);
+builder.Services.AddScoped<ISignalDetectionService, SignalDetectionService>();
+builder.Services.AddScoped<ISignalService, SignalService>();
+// Operational, not organizational (ADR-0032 §12): the cadence belongs to the
+// worker's settings. The API only echoes the tolerance so no client invents one.
+builder.Services.AddSingleton<ISweepCadence>(_ => new SweepCadence(
+    builder.Configuration.GetValue("Signals:StaleAfterHours", SweepCadence.DefaultStaleAfterHours)));
 
 // MVC + global validation filter
 builder.Services

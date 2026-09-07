@@ -29,6 +29,12 @@ public sealed class DemandReadDto
 
     public string? Notes { get; init; }
 
+    // The EXPLICIT decision deadline (ADR-0033 §3) — an override. Null is the
+    // normal case: the effective deadline is then derived from the node's planned
+    // start minus the org lead time, and it is the triage signal (not this DTO)
+    // that carries the resolved value.
+    public DateOnly? DecideBy { get; init; }
+
     public DateTime CreatedAt { get; init; }
     public string CreatedBy { get; init; } = string.Empty;
     public DateTime? UpdatedAt { get; init; }

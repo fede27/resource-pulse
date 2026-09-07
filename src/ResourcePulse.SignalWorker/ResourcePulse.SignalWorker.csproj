@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <UserSecretsId>resourcepulse-signal-worker</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ServiceDefaults targets the ASP.NET Core shared framework; a worker host
+         still needs the reference to consume it. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ResourcePulse.Services\ResourcePulse.Services.csproj" />
+    <ProjectReference Include="..\ResourcePulse.Persistence\ResourcePulse.Persistence.csproj" />
+    <ProjectReference Include="..\ResourcePulse.Domain\ResourcePulse.Domain.csproj" />
+    <ProjectReference Include="..\ResourcePulse.Common\ResourcePulse.Common.csproj" />
+    <ProjectReference Include="..\ResourcePulse.ServiceDefaults\ResourcePulse.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

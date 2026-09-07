@@ -37,6 +37,12 @@ public sealed class DemandConfiguration : IEntityTypeConfiguration<Demand>
         builder.Property(d => d.OwnerResourceId);
         builder.Property(d => d.Notes).HasMaxLength(2000);
 
+        // EXPLICIT decision deadline (ADR-0033 §3) — an override. Null is the
+        // normal case and means "derive it": node.PlannedStart − the org lead
+        // time. A single date, NOT a work window: ADR-0027 Decision 4 stands and
+        // the gap stays scalar over the queried range.
+        builder.Property(d => d.DecideBy).HasColumnType("date");
+
         builder.Property(d => d.CreatedBy).HasMaxLength(256).IsRequired();
         builder.Property(d => d.UpdatedBy).HasMaxLength(256);
 

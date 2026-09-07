@@ -28,6 +28,15 @@ public sealed class DurationDtoValidator : AbstractValidator<DurationDto>
     }
 }
 
+public sealed class UpdateSignalPolicyDtoValidator : AbstractValidator<UpdateSignalPolicyDto>
+{
+    public UpdateSignalPolicyDtoValidator()
+    {
+        RuleFor(x => x.ResolvedRetentionDays).GreaterThan(0);
+        RuleFor(x => x.DecisionLeadTime).NotNull().SetValidator(new DurationDtoValidator());
+    }
+}
+
 public sealed class UpdateTimeFenceConfigurationDtoValidator : AbstractValidator<UpdateTimeFenceConfigurationDto>
 {
     public UpdateTimeFenceConfigurationDtoValidator()

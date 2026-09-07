@@ -25,6 +25,8 @@ export interface DemandReadDto {
   ownerResourceName?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  decideBy?: string | null;
   createdAt?: string;
   /** @nullable */
   createdBy?: string | null;

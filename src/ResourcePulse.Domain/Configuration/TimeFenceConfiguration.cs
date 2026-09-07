@@ -4,7 +4,22 @@ namespace ResourcePulse.Domain.Configuration;
 
 // Computed zone boundaries for a given "today". Dates, not durations — these are
 // the rolling projection of the stored horizons onto a concrete day.
-public sealed record FenceBoundaries(DateOnly FrozenUntil, DateOnly SlushyUntil);
+public sealed record FenceBoundaries(DateOnly FrozenUntil, DateOnly SlushyUntil)
+{
+    // Classifies a date against these boundaries. Frozen takes precedence at the
+    // boundary (inclusive), then Slushy, then Liquid.
+    //
+    // Lives here, not on the configuration, so that everything classifying a date
+    // against the fence goes through ONE implementation of the half-open rule —
+    // the triage zone resolution (ADR-0033) needs it without holding the
+    // configuration aggregate.
+    public FenceZone ZoneFor(DateOnly date)
+    {
+        if (date <= FrozenUntil) return FenceZone.Frozen;
+        if (date <= SlushyUntil) return FenceZone.Slushy;
+        return FenceZone.Liquid;
+    }
+}
 
 // Org-level singleton (ADR-0020). Two rolling horizons from "today" partition the
 // timeline into three zones: Frozen = [today, FrozenUntil], Slushy =
@@ -62,13 +77,8 @@ public sealed class TimeFenceConfiguration : Entity<Guid>, IAuditable
     public FenceBoundaries ComputeBoundaries(DateOnly today) =>
         new(FrozenHorizon.AddTo(today), SlushyHorizon.AddTo(today));
 
-    // Classifies a date relative to "today". Frozen takes precedence at the
-    // boundary (inclusive), then Slushy, then Liquid.
-    public FenceZone ZoneFor(DateOnly date, DateOnly today)
-    {
-        var b = ComputeBoundaries(today);
-        if (date <= b.FrozenUntil) return FenceZone.Frozen;
-        if (date <= b.SlushyUntil) return FenceZone.Slushy;
-        return FenceZone.Liquid;
-    }
+    // Classifies a date relative to "today". Delegates the half-open rule to the
+    // computed boundaries so there is one implementation of it.
+    public FenceZone ZoneFor(DateOnly date, DateOnly today) =>
+        ComputeBoundaries(today).ZoneFor(date);
 }

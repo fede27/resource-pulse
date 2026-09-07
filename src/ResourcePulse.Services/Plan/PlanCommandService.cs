@@ -352,7 +352,7 @@ public sealed class PlanCommandService(
         try
         {
             d = Demand.Create(
-                c.ProjectNodeId, c.RoleId, c.RequiredHours, DemandProvenance.Declared, c.OwnerResourceId, c.Notes);
+                c.ProjectNodeId, c.RoleId, c.RequiredHours, DemandProvenance.Declared, c.OwnerResourceId, c.Notes, c.DecideBy);
         }
         catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
 
@@ -378,6 +378,7 @@ public sealed class PlanCommandService(
             if (c.RequiredHoursSet) d.ChangeRequiredHours(c.RequiredHours);
             if (c.OwnerResourceIdSet) d.ChangeOwner(c.OwnerResourceId);
             if (c.NotesSet) d.Annotate(c.Notes);
+            if (c.DecideBySet) d.ChangeDecideBy(c.DecideBy);
         }
         catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
 
@@ -461,7 +462,8 @@ public sealed class PlanCommandService(
         RequiredHours = d.RequiredHours,
         Provenance = d.Provenance,
         OwnerResourceId = d.OwnerResourceId,
-        Notes = d.Notes
+        Notes = d.Notes,
+        DecideBy = d.DecideBy
     };
 
     private static ServiceResult<PlanCommandResult> Fail(ServiceError e) =>

@@ -20,4 +20,7 @@ export type EditDemandCommand = PlanCommand & ({
   /** @nullable */
   notes?: string | null;
   notesSet?: boolean;
+  /** @nullable */
+  decideBy?: string | null;
+  decideBySet?: boolean;
 });

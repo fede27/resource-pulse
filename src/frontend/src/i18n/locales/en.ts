@@ -473,6 +473,134 @@ export const en: Loose<typeof it> = {
     intro: 'Resource Pulse — capacity planning for teams and projects.',
     hint: 'Open "Calendars & closures" from the menu to configure the time foundations of the system.',
   },
+  dashboard: {
+    title: 'Today',
+    subtitle: 'What needs attention, and what changed.',
+    scope: { mine: 'My projects', all: 'Everything' },
+    cards: {
+      uncovered: 'uncovered roles',
+      uncoveredHint: '{{hours}}h to cover',
+      overcommit: 'over threshold',
+      accepted: 'accepted risks',
+    },
+    verdict: {
+      clean:
+        'No breaches in the committing horizon: demand is covered and nobody is over the policy threshold.',
+      breach:
+        'In the committing horizon there are {{hours}}h uncovered across {{gaps}} demands, and {{overcommits}} people over the policy threshold.',
+    },
+    queue: {
+      title: 'Exception queue',
+      order: 'by deadline, then severity, then size',
+      emptyTitle: 'Nothing to triage',
+      emptyAll:
+        'No missed deadline, no tentative in the frozen zone, nobody over the threshold. That is a result: the queue is empty because the plan holds.',
+      emptyMine: 'No exceptions on the projects you lead. Try "Everything" for the rest.',
+      overflow: '{{shown}} of {{total}} — the dashboard does not expand past {{budget}}.',
+    },
+    sweep: {
+      neverTitle: 'We have not looked yet',
+      neverBody:
+        'The detector has not analysed this workspace yet: an empty queue here does not mean the plan holds.',
+      staleTitle: 'Last check is not recent',
+      staleBody: 'The last analysis was on {{when}}: the queue may not reflect the current plan.',
+    },
+    feed: {
+      title: 'What changed',
+      since: 'since {{when}}',
+      verb: { new: 'New', worsened: 'Worse', crossed: 'Crossed', resolved: 'Resolved' },
+      text: {
+        new: '{{role}} on {{project}} became a problem',
+        worsened: '{{person}} went from {{from}} to {{to}}',
+        crossed: '{{person}} on {{project}} moved into a closer zone',
+        resolved: '{{role}} on {{project}} is back in order',
+      },
+    },
+    kind: {
+      gap: 'Uncovered role',
+      tentativeInFrozen: 'Tentative in frozen',
+      overcommit: 'Over threshold',
+      demandOnClosedRoot: 'Model hygiene',
+      coverageOutOfWindow: 'Model hygiene',
+      demandOnUndatedNode: 'Model hygiene',
+      noDefaultCalendar: 'Model hygiene',
+      inactiveWithCoverage: 'Model hygiene',
+      underBand: 'Free capacity',
+    },
+    verb: {
+      gap: 'Open the coverage',
+      tentativeInFrozen: 'Open the project',
+      overcommit: 'Open the load',
+      demandOnClosedRoot: 'Open projects',
+      coverageOutOfWindow: 'Open projects',
+      demandOnUndatedNode: 'Open projects',
+      noDefaultCalendar: 'Open calendars',
+      inactiveWithCoverage: 'Open people',
+      underBand: 'Open free capacity',
+    },
+    zone: { overdue: 'overdue', frozen: 'frozen', slushy: 'slushy', liquid: 'liquid' },
+    signal: {
+      gap: {
+        title: '{{role}} uncovered on {{project}}',
+        reason: '{{hours}}h uncovered · decision {{zone}} · owner {{owner}}',
+      },
+      tentativeInFrozen: {
+        title: '{{person}} is tentative on {{project}} inside the frozen zone',
+        reason: '{{hours}}h unconfirmed · role asked {{role}}',
+      },
+      overcommit: {
+        title: '{{person}} is over the policy threshold',
+        reason: '{{points}} points over the threshold · starts {{zone}}',
+      },
+      demandOnClosedRoot: {
+        title: '{{count}} open demands on closed projects',
+        reason: 'the project is closed but the demand is still active',
+      },
+      coverageOutOfWindow: {
+        title: '{{count}} coverages outside the project window',
+        reason: 'the coverage dates overrun the planned ones',
+      },
+      demandOnUndatedNode: {
+        title: '{{count}} demands on undated nodes',
+        reason: 'without a start date the deadline cannot be derived',
+      },
+      noDefaultCalendar: {
+        title: 'No calendar is marked as default',
+        reason: 'new people have no starting pattern',
+      },
+      inactiveWithCoverage: {
+        title: '{{count}} deactivated people with future coverage',
+        reason: 'they count hours nobody will work',
+      },
+      underBand: {
+        title: '{{count}} people below the healthy band',
+        reason: 'capacity left uncommitted in the committing horizon',
+      },
+    },
+    unseen: 'Unseen',
+    ownerFallback: 'unassigned',
+    accept: 'Accept',
+    acceptHint: 'I have decided this is acceptable',
+    accepted: 'Risk accepted',
+    reopen: 'Reopen',
+    riskAssumed: 'Risk accepted: {{reason}}',
+    composition: 'Composition',
+    compositionTitle: 'What it is made of',
+    compositionNote:
+      'This shows where it comes from, not who should fix it: changing quantities takes the destination page.',
+    compositionNoteOvercommit:
+      'The projects contributing to the peak. Where to take hours from is decided on the People page, where the context is.',
+    confirmAllocation: 'Confirm allocation',
+    confirmedToast: 'Allocation confirmed — a state change, no quantity moved.',
+    acceptedToast: 'Risk accepted. The row stays visible.',
+    reopenedToast: 'Risk reopened.',
+    acceptDialog: {
+      title: 'Accept this risk?',
+      body: 'It does not hide it: it stays in the queue as an accepted risk, distinct from "resolved".',
+      ok: 'Accept the risk',
+      reasonPlaceholder: 'Reason (optional) — e.g. the client confirmed the slip',
+    },
+  },
   timeConfig: {
     tabs: {
       calendars: 'Calendars',

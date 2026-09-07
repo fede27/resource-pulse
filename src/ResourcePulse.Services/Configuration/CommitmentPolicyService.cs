@@ -4,6 +4,7 @@ using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
 using ResourcePulse.Domain.Configuration;
 using ResourcePulse.Persistence;
+using ResourcePulse.Services.Shared;
 
 namespace ResourcePulse.Services.Configuration;
 
@@ -39,18 +40,13 @@ public sealed class CommitmentPolicyService(
         return ServiceResult<CommitmentPolicyDto>.Success(ToDto(config));
     }
 
-    public async Task<CommitmentPolicyConfiguration> GetConfigurationAsync(CancellationToken ct = default)
-    {
-        // Per-tenant singleton get-or-seed (ADR-0029).
-        var config = await db.CommitmentPolicies.FirstOrDefaultAsync(ct);
-        if (config is null)
-        {
-            config = CommitmentPolicyConfiguration.CreateDefault();
-            await repository.AddAsync(config, ct);
-            await repository.SaveChangesAsync(ct);
-        }
-        return config;
-    }
+    // Per-tenant singleton get-or-seed (ADR-0029), race-safe (see SingletonSeed).
+    public Task<CommitmentPolicyConfiguration> GetConfigurationAsync(CancellationToken ct = default) =>
+        SingletonSeed.GetOrSeedAsync(
+            db, repository,
+            token => db.CommitmentPolicies.FirstOrDefaultAsync(token),
+            CommitmentPolicyConfiguration.CreateDefault,
+            ct);
 
     private static CommitmentPolicyDto ToDto(CommitmentPolicyConfiguration config) => new()
     {

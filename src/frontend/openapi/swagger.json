@@ -8594,6 +8594,483 @@
         }
       }
     },
+    "/api/config/signal-policy": {
+      "get": {
+        "tags": [
+          "SignalPolicy"
+        ],
+        "operationId": "SignalPolicy_Get",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalPolicyDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalPolicyDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalPolicyDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "SignalPolicy"
+        ],
+        "operationId": "SignalPolicy_Update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSignalPolicyDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSignalPolicyDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSignalPolicyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalPolicyDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalPolicyDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalPolicyDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signals": {
+      "get": {
+        "tags": [
+          "Signals"
+        ],
+        "operationId": "Signals_Get",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/SignalScope"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SignalDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SignalDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SignalDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signals/changes": {
+      "get": {
+        "tags": [
+          "Signals"
+        ],
+        "operationId": "Signals_GetChanges",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/SignalScope"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "max",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 4
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SignalChangeDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SignalChangeDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SignalChangeDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signals/sweep": {
+      "get": {
+        "tags": [
+          "Signals"
+        ],
+        "operationId": "Signals_GetSweep",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalSweepDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalSweepDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalSweepDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signals/{id}/acknowledge": {
+      "post": {
+        "tags": [
+          "Signals"
+        ],
+        "operationId": "Signals_Acknowledge",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcknowledgeSignalDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcknowledgeSignalDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcknowledgeSignalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signals/{id}/reopen": {
+      "post": {
+        "tags": [
+          "Signals"
+        ],
+        "operationId": "Signals_Reopen",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signals/visit": {
+      "post": {
+        "tags": [
+          "Signals"
+        ],
+        "operationId": "Signals_RecordVisit",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/api/skills": {
       "get": {
         "tags": [
@@ -10146,6 +10623,16 @@
   },
   "components": {
     "schemas": {
+      "AcknowledgeSignalDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "AddOrUpdateProjectSkillRequirementDto": {
         "type": "object",
         "properties": {
@@ -10805,6 +11292,11 @@
               "notes": {
                 "type": "string",
                 "nullable": true
+              },
+              "decideBy": {
+                "type": "string",
+                "format": "date",
+                "nullable": true
               }
             },
             "additionalProperties": false
@@ -11324,6 +11816,11 @@
             "type": "string",
             "nullable": true
           },
+          "decideBy": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -11465,6 +11962,14 @@
                 "nullable": true
               },
               "notesSet": {
+                "type": "boolean"
+              },
+              "decideBy": {
+                "type": "string",
+                "format": "date",
+                "nullable": true
+              },
+              "decideBySet": {
                 "type": "boolean"
               }
             },
@@ -12029,6 +12534,11 @@
           },
           "notes": {
             "type": "string",
+            "nullable": true
+          },
+          "decideBy": {
+            "type": "string",
+            "format": "date",
             "nullable": true
           }
         },
@@ -12602,6 +13112,352 @@
           }
         ]
       },
+      "SignalChange": {
+        "enum": [
+          0,
+          1,
+          2,
+          4,
+          8
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "None",
+          "Created",
+          "MagnitudeWorsened",
+          "ZoneWorsened",
+          "Resolved"
+        ]
+      },
+      "SignalChangeDto": {
+        "type": "object",
+        "properties": {
+          "signalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SignalKind"
+          },
+          "change": {
+            "$ref": "#/components/schemas/SignalChange"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "roleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "resourceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "rootProjectName": {
+            "type": "string",
+            "nullable": true
+          },
+          "magnitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "previousMagnitude": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "zone": {
+            "$ref": "#/components/schemas/SignalZone"
+          },
+          "previousZone": {
+            "$ref": "#/components/schemas/SignalZone"
+          },
+          "link": {
+            "$ref": "#/components/schemas/SignalLinkDto"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SignalContributionDto": {
+        "type": "object",
+        "properties": {
+          "rootProjectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rootProjectName": {
+            "type": "string",
+            "nullable": true
+          },
+          "percent": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SignalDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SignalKind"
+          },
+          "tier": {
+            "$ref": "#/components/schemas/SignalTier"
+          },
+          "shape": {
+            "$ref": "#/components/schemas/SignalShape"
+          },
+          "subjectId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "zone": {
+            "$ref": "#/components/schemas/SignalZone"
+          },
+          "deadlineAt": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "magnitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "hardCommitted": {
+            "type": "boolean"
+          },
+          "roleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "resourceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "rootProjectName": {
+            "type": "string",
+            "nullable": true
+          },
+          "ownerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "memberNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "link": {
+            "$ref": "#/components/schemas/SignalLinkDto"
+          },
+          "firstDetectedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastObservedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isUnseen": {
+            "type": "boolean"
+          },
+          "isAcknowledged": {
+            "type": "boolean"
+          },
+          "acknowledgedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "acknowledgedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "acknowledgedReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "contributions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SignalContributionDto"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SignalKind": {
+        "enum": [
+          1,
+          2,
+          3,
+          10,
+          11,
+          12,
+          13,
+          14,
+          20
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "Gap",
+          "TentativeInFrozen",
+          "Overcommit",
+          "DemandOnClosedRoot",
+          "CoverageOutOfWindow",
+          "DemandOnUndatedNode",
+          "NoDefaultCalendar",
+          "InactiveWithCoverage",
+          "UnderBand"
+        ]
+      },
+      "SignalLinkDto": {
+        "type": "object",
+        "properties": {
+          "rootProjectId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "projectNodeId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "demandId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "allocationId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "resourceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "roleId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SignalPolicyDto": {
+        "type": "object",
+        "properties": {
+          "resolvedRetentionDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "decisionLeadTime": {
+            "$ref": "#/components/schemas/DurationDto"
+          },
+          "queueBudget": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SignalScope": {
+        "enum": [
+          0,
+          1
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "Mine",
+          "All"
+        ]
+      },
+      "SignalShape": {
+        "enum": [
+          0,
+          1
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "Subject",
+          "Aggregate"
+        ]
+      },
+      "SignalSweepDto": {
+        "type": "object",
+        "properties": {
+          "lastSweptAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "liveCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "staleAfterHours": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lastVisitedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "queueBudget": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SignalTier": {
+        "enum": [
+          0,
+          1,
+          2
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "Breach",
+          "Hygiene",
+          "Slack"
+        ]
+      },
+      "SignalZone": {
+        "enum": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "Overdue",
+          "Frozen",
+          "Slushy",
+          "Liquid"
+        ]
+      },
       "SkillApprovalStatus": {
         "enum": [
           0,
@@ -12902,6 +13758,19 @@
         },
         "additionalProperties": false
       },
+      "UpdateSignalPolicyDto": {
+        "type": "object",
+        "properties": {
+          "resolvedRetentionDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "decisionLeadTime": {
+            "$ref": "#/components/schemas/DurationDto"
+          }
+        },
+        "additionalProperties": false
+      },
       "UpdateSkillDto": {
         "type": "object",
         "properties": {
@@ -13071,6 +13940,12 @@
     },
     {
       "name": "Roles"
+    },
+    {
+      "name": "SignalPolicy"
+    },
+    {
+      "name": "Signals"
     },
     {
       "name": "Skills"

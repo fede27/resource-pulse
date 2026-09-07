@@ -80,4 +80,26 @@ public sealed class LoadBandConfiguration : Entity<Guid>, IAuditable
         return match ?? throw new DomainException(
             $"Load percent {loadPercent} is below the first band's lower bound.");
     }
+
+    // The LAST band is open-ended toward +∞, so its lower bound IS the overload
+    // threshold. Named here rather than re-derived at each call site: the triage
+    // detector and the boards must not disagree about where overload starts, and
+    // ADR-0032 §12 forbids a second copy of the threshold in SignalPolicy.
+    public decimal OverloadFloor => Bands[^1].LowerBound;
+
+    // Where "healthy" begins — the SECOND band's lower bound, since the first is
+    // the under-loaded one starting at 0. Below it and above zero is slack; at
+    // exactly zero there is no data at all, which is a different thing and the
+    // caller's job to exclude (ADR-0032 §7).
+    //
+    // A single-band configuration has no such boundary: nothing is under-loaded
+    // when there is only one band, so the floor is 0 and the slack set is empty.
+    public decimal HealthyFloor
+    {
+        get
+        {
+            var ordered = Bands;
+            return ordered.Count < 2 ? 0m : ordered[1].LowerBound;
+        }
+    }
 }

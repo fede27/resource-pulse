@@ -4,6 +4,7 @@ using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
 using ResourcePulse.Domain.Configuration;
 using ResourcePulse.Persistence;
+using ResourcePulse.Services.Shared;
 
 namespace ResourcePulse.Services.Configuration;
 
@@ -45,17 +46,18 @@ public sealed class LoadBandConfigurationService(
     // Per-tenant singleton get-or-seed. The tenant query filter reduces the table
     // to this tenant's single row; a missing row (a freshly provisioned tenant)
     // seeds the opinionated default on first read.
-    private async Task<LoadBandConfiguration> GetOrSeedAsync(CancellationToken ct)
-    {
-        var config = await db.LoadBandConfigurations.FirstOrDefaultAsync(ct);
-        if (config is null)
-        {
-            config = LoadBandConfiguration.CreateDefault();
-            await repository.AddAsync(config, ct);
-            await repository.SaveChangesAsync(ct);
-        }
-        return config;
-    }
+    // Exposes the get-or-seeded aggregate to the triage detector, which needs the
+    // aggregate's own derivations (OverloadFloor / HealthyFloor) rather than the
+    // DTO's raw band list.
+    public Task<LoadBandConfiguration> GetConfigurationAsync(CancellationToken ct = default) =>
+        GetOrSeedAsync(ct);
+
+    private Task<LoadBandConfiguration> GetOrSeedAsync(CancellationToken ct) =>
+        SingletonSeed.GetOrSeedAsync(
+            db, repository,
+            token => db.LoadBandConfigurations.FirstOrDefaultAsync(token),
+            LoadBandConfiguration.CreateDefault,
+            ct);
 
     private static LoadBandConfigurationDto ToDto(LoadBandConfiguration config) => new()
     {

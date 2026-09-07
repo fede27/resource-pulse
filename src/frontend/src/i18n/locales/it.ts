@@ -464,6 +464,134 @@ export const it = {
     intro: 'Resource Pulse — pianificazione di capacità per team e progetti.',
     hint: 'Apri "Calendari & chiusure" dal menu per configurare le basi temporali del sistema.',
   },
+  dashboard: {
+    title: 'Oggi',
+    subtitle: 'Cosa richiede attenzione e cosa è cambiato.',
+    scope: { mine: 'I miei progetti', all: 'Tutto' },
+    cards: {
+      uncovered: 'ruoli scoperti',
+      uncoveredHint: '{{hours}}h da coprire',
+      overcommit: 'oltre soglia',
+      accepted: 'rischi assunti',
+    },
+    verdict: {
+      clean:
+        "Nell'orizzonte impegnativo non ci sono violazioni: la domanda è coperta e nessuno è oltre la soglia di policy.",
+      breach:
+        "Nell'orizzonte impegnativo ci sono {{hours}}h scoperte su {{gaps}} domande, e {{overcommits}} persone oltre la soglia di policy.",
+    },
+    queue: {
+      title: 'Coda delle eccezioni',
+      order: 'per scadenza, poi gravità, poi grandezza',
+      emptyTitle: 'Niente da triare',
+      emptyAll:
+        'Nessuna scadenza mancata, nessuna tentative nel frozen, nessuno oltre la soglia. È un risultato: la coda è vuota perché il piano tiene.',
+      emptyMine: 'Nessuna eccezione sui progetti che guidi. Prova «Tutto» per il resto.',
+      overflow: '{{shown}} di {{total}} — la dashboard non si espande oltre {{budget}}.',
+    },
+    sweep: {
+      neverTitle: 'Non abbiamo ancora guardato',
+      neverBody:
+        'Il rilevatore non ha ancora analizzato questo spazio di lavoro: una coda vuota qui non significa che il piano tiene.',
+      staleTitle: 'Ultimo controllo non recente',
+      staleBody: "L'ultima analisi risale al {{when}}: la coda potrebbe non riflettere il piano attuale.",
+    },
+    feed: {
+      title: 'Cosa è cambiato',
+      since: 'dal {{when}}',
+      verb: { new: 'Nuovo', worsened: 'Peggiorato', crossed: 'Attraversato', resolved: 'Risolto' },
+      text: {
+        new: '{{role}} su {{project}} è diventato un problema',
+        worsened: '{{person}} è passato da {{from}} a {{to}}',
+        crossed: '{{person}} su {{project}} è entrato in una zona più vicina',
+        resolved: '{{role}} su {{project}} è rientrato',
+      },
+    },
+    kind: {
+      gap: 'Ruolo scoperto',
+      tentativeInFrozen: 'Tentative nel frozen',
+      overcommit: 'Oltre soglia',
+      demandOnClosedRoot: 'Igiene del modello',
+      coverageOutOfWindow: 'Igiene del modello',
+      demandOnUndatedNode: 'Igiene del modello',
+      noDefaultCalendar: 'Igiene del modello',
+      inactiveWithCoverage: 'Igiene del modello',
+      underBand: 'Capacità libera',
+    },
+    verb: {
+      gap: 'Apri la copertura',
+      tentativeInFrozen: 'Apri il progetto',
+      overcommit: 'Apri il carico',
+      demandOnClosedRoot: 'Apri i progetti',
+      coverageOutOfWindow: 'Apri i progetti',
+      demandOnUndatedNode: 'Apri i progetti',
+      noDefaultCalendar: 'Apri i calendari',
+      inactiveWithCoverage: 'Apri le persone',
+      underBand: 'Apri le capacità libere',
+    },
+    zone: { overdue: 'scaduta', frozen: 'frozen', slushy: 'slushy', liquid: 'liquid' },
+    signal: {
+      gap: {
+        title: '{{role}} scoperto su {{project}}',
+        reason: '{{hours}}h scoperte · decisione {{zone}} · owner {{owner}}',
+      },
+      tentativeInFrozen: {
+        title: '{{person}} è tentative su {{project}} dentro il frozen',
+        reason: '{{hours}}h non confermate · ruolo richiesto {{role}}',
+      },
+      overcommit: {
+        title: '{{person}} è oltre la soglia di policy',
+        reason: '{{points}} punti oltre la soglia · inizia {{zone}}',
+      },
+      demandOnClosedRoot: {
+        title: '{{count}} domande aperte su progetti chiusi',
+        reason: 'il progetto è chiuso ma la domanda è ancora attiva',
+      },
+      coverageOutOfWindow: {
+        title: '{{count}} coperture fuori dalla finestra del progetto',
+        reason: 'le date della copertura sforano quelle pianificate',
+      },
+      demandOnUndatedNode: {
+        title: '{{count}} domande su nodi senza date',
+        reason: 'senza data di inizio la scadenza non è calcolabile',
+      },
+      noDefaultCalendar: {
+        title: 'Nessun calendario è marcato come predefinito',
+        reason: 'le nuove persone non hanno un pattern di partenza',
+      },
+      inactiveWithCoverage: {
+        title: '{{count}} persone disattivate con coperture future',
+        reason: 'contano ore che nessuno lavorerà',
+      },
+      underBand: {
+        title: '{{count}} persone sotto la banda sana',
+        reason: 'capacità non impegnata nell’orizzonte impegnativo',
+      },
+    },
+    unseen: 'Non visto',
+    ownerFallback: 'non assegnato',
+    accept: 'Accetta',
+    acceptHint: 'Ho deciso che è accettabile',
+    accepted: 'Rischio assunto',
+    reopen: 'Riapri',
+    riskAssumed: 'Rischio assunto: {{reason}}',
+    composition: 'Composizione',
+    compositionTitle: 'Da cosa è composto',
+    compositionNote:
+      'Qui si vede da cosa nasce, non chi dovrebbe risolverlo: cambiare le quantità richiede la pagina di destinazione.',
+    compositionNoteOvercommit:
+      'I progetti che contribuiscono al picco. Da dove togliere ore si decide sulla pagina Persone, dove si vede il contesto.',
+    confirmAllocation: 'Conferma allocazione',
+    confirmedToast: 'Allocazione confermata — cambio di stato, nessuna quantità modificata.',
+    acceptedToast: 'Rischio assunto. La riga resta visibile.',
+    reopenedToast: 'Rischio riaperto.',
+    acceptDialog: {
+      title: 'Accettare questo rischio?',
+      body: 'Non lo nasconde: resta visibile in coda come rischio assunto, distinto da «risolto».',
+      ok: 'Accetta il rischio',
+      reasonPlaceholder: 'Motivo (opzionale) — es. il cliente ha confermato lo slittamento',
+    },
+  },
   timeConfig: {
     tabs: {
       calendars: 'Calendari',

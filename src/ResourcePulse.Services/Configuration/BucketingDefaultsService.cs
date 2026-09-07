@@ -4,6 +4,7 @@ using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
 using ResourcePulse.Domain.Configuration;
 using ResourcePulse.Persistence;
+using ResourcePulse.Services.Shared;
 
 namespace ResourcePulse.Services.Configuration;
 
@@ -40,17 +41,12 @@ public sealed class BucketingDefaultsService(
     }
 
     // Per-tenant singleton get-or-seed (ADR-0029).
-    private async Task<BucketingDefaults> GetOrSeedAsync(CancellationToken ct)
-    {
-        var config = await db.BucketingDefaults.FirstOrDefaultAsync(ct);
-        if (config is null)
-        {
-            config = BucketingDefaults.CreateDefault();
-            await repository.AddAsync(config, ct);
-            await repository.SaveChangesAsync(ct);
-        }
-        return config;
-    }
+    private Task<BucketingDefaults> GetOrSeedAsync(CancellationToken ct) =>
+        SingletonSeed.GetOrSeedAsync(
+            db, repository,
+            token => db.BucketingDefaults.FirstOrDefaultAsync(token),
+            BucketingDefaults.CreateDefault,
+            ct);
 
     private static BucketingDefaultsDto ToDto(BucketingDefaults config) => new()
     {

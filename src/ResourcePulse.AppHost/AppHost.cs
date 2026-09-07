@@ -213,6 +213,29 @@ var api = builder.AddProject<Projects.ResourcePulse_Hosting>("api")
     .WithEnvironment("Tenancy__AppDbRole", appDbRole)
     .WithEnvironment("Tenancy__AppDbPassword", appDbPassword);
 
+// ── Triage detector (ADR-0032 §9) ────────────────────────────────────────────
+// Its own process, not a BackgroundService inside the API: N API replicas would
+// mean N concurrent sweeps of the same tenant, and the defence would be a
+// distributed lock — more machinery than the process it saves.
+//
+// It connects as the SAME non-superuser role as the API. It writes tenant data,
+// so an owner connection would bypass RLS unconditionally and let one tenant's
+// sweep land rows in another while the policies looked perfectly configured.
+//
+// WaitFor(api), not WaitForCompletion: the API applies pending migrations on
+// startup in development, and there is no table to sweep before it does.
+builder.AddProject<Projects.ResourcePulse_SignalWorker>("signal-worker")
+    .WithReference(postgres)
+    .WaitFor(api)
+    .WithEnvironment("Tenancy__AppDbRole", appDbRole)
+    .WithEnvironment("Tenancy__AppDbPassword", appDbPassword)
+    // Development cadence: minutes, not the production day. The fence rolls in
+    // days, but a dev loop where the queue only refreshes tomorrow is unusable —
+    // and the cadence is operational configuration precisely so it can differ
+    // per environment without touching SignalPolicy (ADR-0032 §12).
+    .WithEnvironment("Signals__SweepIntervalHours", "1")
+    .WithEnvironment("Signals__InitialDelaySeconds", "15");
+
 builder.AddNpmApp("frontend", "../frontend", "dev")
     .WaitFor(api)
     .WaitForCompletion(bootstrap)

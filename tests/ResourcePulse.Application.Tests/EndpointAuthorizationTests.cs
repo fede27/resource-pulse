@@ -50,11 +50,34 @@ public class EndpointAuthorizationTests
         ["TimeFenceController"] = AccessPolicies.Owner,
         ["BucketingController"] = AccessPolicies.Owner,
         ["CommitmentPolicyController"] = AccessPolicies.Owner,
+        ["SignalPolicyController"] = AccessPolicies.Owner,
         // The authorization store itself.
         ["MembershipsController"] = AccessPolicies.Owner,
+        // Triage (ADR-0032): accepting or reopening a risk is a planning decision.
+        // One of its writes is deliberately looser — see WritePolicyByAction.
+        ["SignalsController"] = AccessPolicies.Planner,
         // Development-only role switch: deliberately Viewer, so the way back stays
         // open after self-demotion (see DevAccessService).
         ["DevAccessController"] = AccessPolicies.Viewer,
+    };
+
+    /// <summary>
+    /// The rare write that must be looser than its controller, keyed
+    /// <c>Controller.Action</c>. Checked before
+    /// <see cref="WritePolicyByController"/>.
+    /// </summary>
+    /// <remarks>
+    /// Per-action rather than per-controller because the alternative — splitting a
+    /// controller so the mapping stays one-policy-wide — would let the shape of an
+    /// audit dictate the shape of the API. Each entry has to justify itself here,
+    /// which is the same bar the controller-level mapping sets.
+    /// </remarks>
+    private static readonly Dictionary<string, string> WritePolicyByAction = new()
+    {
+        // A personal bookmark, not plan data (ADR-0032 §5). Guarded Viewer for the
+        // same reason the development role switch is: refuse it and the "unseen"
+        // dot never works for the very people it exists for.
+        ["SignalsController.RecordVisit"] = AccessPolicies.Viewer,
     };
 
     /// <summary>
@@ -136,7 +159,8 @@ public class EndpointAuthorizationTests
             // in both directions.
             if (AnonymousControllers.Contains(controller.Name)) continue;
 
-            if (!WritePolicyByController.TryGetValue(controller.Name, out var expected))
+            if (!WritePolicyByAction.TryGetValue($"{controller.Name}.{action.Name}", out var expected) &&
+                !WritePolicyByController.TryGetValue(controller.Name, out expected))
             {
                 offenders.Add($"{controller.Name}.{action.Name} [{string.Join('/', verbs)}] — controller not mapped");
                 continue;
@@ -228,6 +252,19 @@ public class EndpointAuthorizationTests
             .Where(IsAnonymous)
             .Select(c => c.Name)
             .Should().BeEquivalentTo(AnonymousControllers);
+    }
+
+    // A per-action override that no longer overrides anything is worse than no
+    // override: it reads as a documented exception while the endpoint has quietly
+    // moved back under its controller's policy — or vanished.
+    [Fact]
+    public void EveryPerActionOverrideStillPointsAtARealAction()
+    {
+        var actual = Actions()
+            .Select(a => $"{a.Controller.Name}.{a.Action.Name}")
+            .ToHashSet();
+
+        WritePolicyByAction.Keys.Except(actual).Should().BeEmpty();
     }
 
     [Fact]

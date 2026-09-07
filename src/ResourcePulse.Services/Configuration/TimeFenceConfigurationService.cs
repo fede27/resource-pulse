@@ -4,6 +4,7 @@ using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
 using ResourcePulse.Domain.Configuration;
 using ResourcePulse.Persistence;
+using ResourcePulse.Services.Shared;
 
 namespace ResourcePulse.Services.Configuration;
 
@@ -42,17 +43,18 @@ public sealed class TimeFenceConfigurationService(
     }
 
     // Per-tenant singleton get-or-seed (ADR-0029).
-    private async Task<TimeFenceConfiguration> GetOrSeedAsync(CancellationToken ct)
-    {
-        var config = await db.TimeFenceConfigurations.FirstOrDefaultAsync(ct);
-        if (config is null)
-        {
-            config = TimeFenceConfiguration.CreateDefault();
-            await repository.AddAsync(config, ct);
-            await repository.SaveChangesAsync(ct);
-        }
-        return config;
-    }
+    // Exposes the get-or-seeded aggregate to the triage detector, which needs the
+    // aggregate's own derivations (ComputeBoundaries) rather than the DTO's raw
+    // durations.
+    public Task<TimeFenceConfiguration> GetConfigurationAsync(CancellationToken ct = default) =>
+        GetOrSeedAsync(ct);
+
+    private Task<TimeFenceConfiguration> GetOrSeedAsync(CancellationToken ct) =>
+        SingletonSeed.GetOrSeedAsync(
+            db, repository,
+            token => db.TimeFenceConfigurations.FirstOrDefaultAsync(token),
+            TimeFenceConfiguration.CreateDefault,
+            ct);
 
     private static TimeFenceConfigurationDto ToDto(TimeFenceConfiguration config) => new()
     {

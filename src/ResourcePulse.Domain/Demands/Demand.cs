@@ -43,6 +43,16 @@ public sealed class Demand : Entity<Guid>, IAuditable
     // Optional; visibility without an owner is ignorable noise (alarm-fatigue).
     public Guid? OwnerResourceId { get; private set; }
 
+    // EXPLICIT decision deadline — an override, not the normal case (ADR-0033
+    // §3). Null means "use the derived one", node.PlannedStart − the org lead
+    // time, which is what gives every demand a deadline at zero friction. Set it
+    // only when this demand must be decided on its own schedule.
+    //
+    // This is NOT a work window (ADR-0033 §10). ADR-0027 Decision 4 stands: the
+    // gap stays scalar over the queried range. Do not read this as a `from` to
+    // start a coverage block at, and do not grow it into a {from,to}.
+    public DateOnly? DecideBy { get; private set; }
+
     public string? Notes { get; private set; }
 
     public DateTime CreatedAt { get; set; }
@@ -60,7 +70,8 @@ public sealed class Demand : Entity<Guid>, IAuditable
         TimeSpan? requiredHours,
         DemandProvenance provenance,
         Guid? ownerResourceId = null,
-        string? notes = null)
+        string? notes = null,
+        DateOnly? decideBy = null)
     {
         if (projectNodeId == Guid.Empty)
             throw new DomainException("Demand must reference a project node.");
@@ -79,7 +90,8 @@ public sealed class Demand : Entity<Guid>, IAuditable
             RequiredHours = requiredHours,
             Provenance = provenance,
             OwnerResourceId = ownerResourceId,
-            Notes = NormalizeNotes(notes)
+            Notes = NormalizeNotes(notes),
+            DecideBy = decideBy
         };
 
         demand.RaiseEvent(new DemandCreated(
@@ -121,6 +133,17 @@ public sealed class Demand : Entity<Guid>, IAuditable
         var old = RoleId;
         RoleId = roleId;
         RaiseEvent(new DemandRoleChanged(Id, old, roleId, DateTimeOffset.UtcNow));
+    }
+
+    // Set or clear the EXPLICIT decision deadline. Clearing (null) returns the
+    // demand to the derived deadline (ADR-0033 §3) — it does not remove urgency.
+    public void ChangeDecideBy(DateOnly? decideBy)
+    {
+        if (DecideBy == decideBy) return; // no-op suppresses event
+
+        var old = DecideBy;
+        DecideBy = decideBy;
+        RaiseEvent(new DemandDecideByChanged(Id, old, decideBy, DateTimeOffset.UtcNow));
     }
 
     // Notes are bookkeeping: no event, matching Allocation.Annotate.

@@ -16,4 +16,6 @@ export type CreateDemandCommand = PlanCommand & ({
   ownerResourceId?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  decideBy?: string | null;
 });

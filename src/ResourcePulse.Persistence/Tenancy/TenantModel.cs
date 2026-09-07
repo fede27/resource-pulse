@@ -43,10 +43,16 @@ public static class TenantModel
     /// applied per table and a child table without the column could not be
     /// protected — and installs the tenant query filter on every root type.
     /// </summary>
-    public static void ApplyTenantIsolation(this ModelBuilder modelBuilder, ITenantContext tenantContext)
+    /// <remarks>
+    /// Takes the <b>context</b>, not the tenant accessor: the filter must be
+    /// rooted at the DbContext or EF inlines the tenant id as a SQL literal and
+    /// caches the compiled query with it — see
+    /// <see cref="ResourcePulseDbContext.CurrentTenantId"/>.
+    /// </remarks>
+    public static void ApplyTenantIsolation(this ModelBuilder modelBuilder, ResourcePulseDbContext context)
     {
-        ArgumentNullException.ThrowIfNull(tenantContext);
-        Apply(modelBuilder, tenantContext);
+        ArgumentNullException.ThrowIfNull(context);
+        Apply(modelBuilder, context);
     }
 
     /// <summary>
@@ -55,9 +61,9 @@ public static class TenantModel
     /// where there is no ambient request to scope to.
     /// </summary>
     public static void ApplyTenantColumnsOnly(this ModelBuilder modelBuilder) =>
-        Apply(modelBuilder, tenantContext: null);
+        Apply(modelBuilder, context: null);
 
-    private static void Apply(ModelBuilder modelBuilder, ITenantContext? tenantContext)
+    private static void Apply(ModelBuilder modelBuilder, ResourcePulseDbContext? context)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
@@ -89,12 +95,12 @@ public static class TenantModel
             // Query filters belong to root types only; owned types inherit the
             // filter of the aggregate that owns them, and derived types inherit
             // from their base.
-            if (tenantContext is not null && !entityType.IsOwned() && entityType.BaseType is null)
-                entityType.SetQueryFilter(BuildTenantFilter(entityType, tenantContext));
+            if (context is not null && !entityType.IsOwned() && entityType.BaseType is null)
+                entityType.SetQueryFilter(BuildTenantFilter(entityType, context));
         }
     }
 
-    private static LambdaExpression BuildTenantFilter(IMutableEntityType entityType, ITenantContext tenantContext)
+    private static LambdaExpression BuildTenantFilter(IMutableEntityType entityType, ResourcePulseDbContext context)
     {
         var parameter = Expression.Parameter(entityType.ClrType, "e");
 
@@ -105,12 +111,20 @@ public static class TenantModel
             parameter,
             Expression.Constant(TenantIdProperty));
 
-        // Reading the property off the captured singleton (rather than baking a
-        // value in) is what makes the filter re-evaluate per query execution —
-        // required because the DbContext is pooled and the model is built once.
+        // Rooted at the DbContext, NOT at the tenant accessor. EF treats a
+        // subtree that reaches the context as a query PARAMETER
+        // (`__ef_filter__…`), re-evaluated on every execution. A subtree that
+        // reaches anything else is "evaluatable": EF computes it once, writes the
+        // result into the SQL as a literal, and caches that compiled query — so
+        // every subsequent execution, for every other tenant, silently reuses the
+        // first tenant's id.
+        //
+        // The model is built once and the context is pooled, which is exactly why
+        // the value must come from a property that resolves the ambient tenant at
+        // call time rather than from anything captured at model-building time.
         var currentTenantId = Expression.Property(
-            Expression.Constant(tenantContext, typeof(ITenantContext)),
-            nameof(ITenantContext.TenantIdOrEmpty));
+            Expression.Constant(context, typeof(ResourcePulseDbContext)),
+            nameof(ResourcePulseDbContext.CurrentTenantId));
 
         return Expression.Lambda(Expression.Equal(entityTenantId, currentTenantId), parameter);
     }

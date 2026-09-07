@@ -23,6 +23,8 @@ import { getProjectNodesMock } from '@/api/generated/project-nodes/project-nodes
 import { getProjectsMock } from '@/api/generated/projects/projects.msw';
 import { getResourcesMock } from '@/api/generated/resources/resources.msw';
 import { getRolesMock } from '@/api/generated/roles/roles.msw';
+import { getSignalPolicyMock } from '@/api/generated/signal-policy/signal-policy.msw';
+import { getSignalsMock } from '@/api/generated/signals/signals.msw';
 import { getSkillsMock } from '@/api/generated/skills/skills.msw';
 import { getTagsMock } from '@/api/generated/tags/tags.msw';
 import { getTeamsMock } from '@/api/generated/teams/teams.msw';
@@ -61,6 +63,8 @@ export const handlers: RequestHandler[] = [
   ...getProjectsMock(),
   ...getResourcesMock(),
   ...getRolesMock(),
+  ...getSignalPolicyMock(),
+  ...getSignalsMock(),
   ...getSkillsMock(),
   ...getTagsMock(),
   ...getTeamsMock(),

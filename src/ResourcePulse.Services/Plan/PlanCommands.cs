@@ -50,6 +50,12 @@ public sealed class CreateDemandCommand : PlanCommand
     public TimeSpan? RequiredHours { get; init; }
     public Guid? OwnerResourceId { get; init; }
     public string? Notes { get; init; }
+
+    // The EXPLICIT decision deadline (ADR-0033 §3) — an override. Null is the
+    // normal case and means "derive it" from the node's planned start minus the
+    // org lead time. A new field on an existing kind, not a new kind: the gesture
+    // is still "create a demand" (ADR-0018).
+    public DateOnly? DecideBy { get; init; }
 }
 
 // Edit a demand. RoleId (optional) corrects the role via Demand.ChangeRole
@@ -70,6 +76,11 @@ public sealed class EditDemandCommand : PlanCommand
 
     public string? Notes { get; init; }
     public bool NotesSet { get; init; }
+
+    // Clearing it (Set=true, value=null) returns the demand to the DERIVED
+    // deadline — it does not remove urgency (ADR-0033 §3).
+    public DateOnly? DecideBy { get; init; }
+    public bool DecideBySet { get; init; }
 }
 
 // Delete a demand. Fails Conflict if any coverage references it (FK Restrict) —
