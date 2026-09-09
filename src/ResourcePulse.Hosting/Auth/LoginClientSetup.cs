@@ -7,6 +7,28 @@ using ResourcePulse.Services.Identity.Login;
 namespace ResourcePulse.Hosting.Auth;
 
 /// <summary>
+/// How hard the anonymous sign-in endpoints are throttled.
+/// </summary>
+/// <remarks>
+/// Configurable so the limit can be loosened without a code change if it ever
+/// gets in a real user's way. Deliberately NOT switchable off: this is the only
+/// unauthenticated surface in the application, and "no throttle at all" should
+/// cost more than editing one key.
+/// </remarks>
+public sealed class LoginRateLimitSettings
+{
+    public const string SectionName = "Login:RateLimit";
+
+    /// <summary>
+    /// Roomy enough that a person mistyping their password never notices, tight
+    /// enough that scripted spraying does.
+    /// </summary>
+    public int PermitLimit { get; set; } = 20;
+
+    public int WindowSeconds { get; set; } = 60;
+}
+
+/// <summary>
 /// Wires the server side of our own login page (ADR-0031): the Zitadel client that
 /// holds the login-client credential, and the throttle in front of it.
 /// </summary>
@@ -15,6 +37,16 @@ public static class LoginClientSetup
     public static void AddResourcePulseLoginClient(this WebApplicationBuilder builder)
     {
         builder.Services.AddSingleton<PendingLoginSessionCookie>();
+
+        var rateLimit = builder.Configuration
+            .GetSection(LoginRateLimitSettings.SectionName)
+            .Get<LoginRateLimitSettings>() ?? new LoginRateLimitSettings();
+
+        if (rateLimit.PermitLimit < 1 || rateLimit.WindowSeconds < 1)
+            throw new InvalidOperationException(
+                $"{LoginRateLimitSettings.SectionName}: PermitLimit and WindowSeconds must both be " +
+                "at least 1. Raise the limit to relax the throttle; it cannot be removed.");
+
         builder.Services.AddRateLimiter(options =>
         {
             // The default rejection status is 503, which tells a client the server
@@ -27,14 +59,16 @@ public static class LoginClientSetup
                 // caller, not an account. Zitadel's own lockout already protects
                 // one account against many guesses; what it cannot see is one
                 // caller trying one password against a thousand accounts.
+                //
+                // RemoteIpAddress, never a header — behind a proxy it is
+                // ForwardedHeadersSetup's job to have made that the client address
+                // already, under a trust list nobody but us controls.
                 context => RateLimitPartition.GetFixedWindowLimiter(
-                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    LoginRateLimiting.PartitionKeyFor(context.Connection.RemoteIpAddress),
                     _ => new FixedWindowRateLimiterOptions
                     {
-                        // Roomy enough that a person mistyping their password never
-                        // notices, tight enough that scripted spraying does.
-                        PermitLimit = 20,
-                        Window = TimeSpan.FromMinutes(1),
+                        PermitLimit = rateLimit.PermitLimit,
+                        Window = TimeSpan.FromSeconds(rateLimit.WindowSeconds),
                         QueueLimit = 0
                     }));
         });

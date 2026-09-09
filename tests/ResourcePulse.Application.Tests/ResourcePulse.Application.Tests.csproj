@@ -24,6 +24,8 @@
     <ProjectReference Include="..\..\src\ResourcePulse.Services\ResourcePulse.Services.csproj" />
     <!-- EndpointAuthorizationTests audits the controller surface by reflection. -->
     <ProjectReference Include="..\..\src\ResourcePulse.Http\ResourcePulse.Http.csproj" />
+    <!-- ForwardedHeadersSetupTests exercise the startup guards on the trust list. -->
+    <ProjectReference Include="..\..\src\ResourcePulse.Hosting\ResourcePulse.Hosting.csproj" />
   </ItemGroup>
 
 </Project>

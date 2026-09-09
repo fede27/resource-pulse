@@ -175,6 +175,7 @@ builder.Services.AddScoped<ITenantResolver, TenantResolver>();
 // Our own login page (ADR-0031). The typed client carries the login client's
 // personal access token, which can finalise an authorization request for ANY
 // user — so it lives here, in the API, and never in the browser.
+builder.AddResourcePulseForwardedHeaders();
 builder.AddResourcePulseLoginClient();
 
 // Access control (ADR-0030): membership resolution + administration.
@@ -262,6 +263,10 @@ if (app.Environment.IsDevelopment())
         await BulkDevSeeder.SeedAsync(app.Services, app.Logger);
     }
 }
+
+// FIRST, before anything reads the client address — the request logger and the
+// login throttle both do. Off unless configured (review finding 6).
+app.UseResourcePulseForwardedHeaders();
 
 app.UseExceptionHandler();
 
