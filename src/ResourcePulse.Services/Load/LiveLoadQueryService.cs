@@ -359,6 +359,13 @@ public sealed class LiveLoadQueryService(
                 ["range"] = ["'from' must be on or before 'to'."]
             });
 
+        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
+        if (rangeDays > MaxRangeDays)
+            return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Validation(new Dictionary<string, string[]>
+            {
+                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
+            });
+
         var nodePath = await db.ProjectNodes.AsNoTracking()
             .Where(p => p.Id == projectNodeId).Select(p => p.Path).FirstOrDefaultAsync(ct);
         if (nodePath is null)
@@ -370,8 +377,7 @@ public sealed class LiveLoadQueryService(
                         && (p.Id == projectNodeId || p.Path.StartsWith(prefix))))
             .ToListAsync(ct);
 
-        var dtos = await ReconcileAsync(demands, from, toInclusive, ct);
-        return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Success(dtos);
+        return await ReconcileAsync(demands, from, toInclusive, ct);
     }
 
     public async Task<ServiceResult<DemandCoverageDto>> GetDemandCoverageForDemandAsync(
@@ -383,12 +389,22 @@ public sealed class LiveLoadQueryService(
                 ["range"] = ["'from' must be on or before 'to'."]
             });
 
+        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
+        if (rangeDays > MaxRangeDays)
+            return ServiceResult<DemandCoverageDto>.Validation(new Dictionary<string, string[]>
+            {
+                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
+            });
+
         var demand = await db.Demands.AsNoTracking().FirstOrDefaultAsync(d => d.Id == demandId, ct);
         if (demand is null)
             return ServiceResult<DemandCoverageDto>.NotFound($"Demand {demandId} not found.");
 
-        var dtos = await ReconcileAsync([demand], from, toInclusive, ct);
-        return ServiceResult<DemandCoverageDto>.Success(dtos[0]);
+        var reconciled = await ReconcileAsync([demand], from, toInclusive, ct);
+        if (reconciled.IsFailure)
+            return ServiceResult<DemandCoverageDto>.Failure(reconciled.Error!);
+
+        return ServiceResult<DemandCoverageDto>.Success(reconciled.Value[0]);
     }
 
     // Cross-project reconciliation (consolidation P4): every demand whose root
@@ -441,8 +457,7 @@ public sealed class LiveLoadQueryService(
             .Where(d => openRootSet.Contains(rootByDemand[d.Id]))
             .ToList();
 
-        var dtos = await ReconcileAsync(demands, from, toInclusive, ct);
-        return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Success(dtos);
+        return await ReconcileAsync(demands, from, toInclusive, ct);
     }
 
     public async Task<ServiceResult<IReadOnlyList<OpenDemandDto>>> GetOpenDemandsAsync(
@@ -499,7 +514,11 @@ public sealed class LiveLoadQueryService(
                      && root.Status is not (ProjectStatus.Closed or ProjectStatus.Cancelled))
             .ToList();
 
-        var reconciled = await ReconcileAsync(demands, from, toInclusive, ct);
+        var reconciliation = await ReconcileAsync(demands, from, toInclusive, ct);
+        if (reconciliation.IsFailure)
+            return ServiceResult<IReadOnlyList<OpenDemandDto>>.Failure(reconciliation.Error!);
+
+        var reconciled = reconciliation.Value;
 
         // Open = a concrete residual remains, or best-effort (no target ⇒ the demand
         // can always absorb coverage; §7 — null gap is "no defined gap", not zero).
@@ -539,10 +558,10 @@ public sealed class LiveLoadQueryService(
     // resources (one batch round, P1 of api-roundtrip-consolidation.md), run the
     // pure calculator, resolve role/owner names and the demands' ROOT projects
     // (ADR-0024 pattern, consolidation P4 — the cross-project read pivots on it).
-    private async Task<IReadOnlyList<DemandCoverageDto>> ReconcileAsync(
+    private async Task<ServiceResult<IReadOnlyList<DemandCoverageDto>>> ReconcileAsync(
         List<Demand> demands, DateOnly from, DateOnly toInclusive, CancellationToken ct)
     {
-        if (demands.Count == 0) return [];
+        if (demands.Count == 0) return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Success([]);
 
         var demandIds = demands.Select(d => d.Id).ToList();
         var coverage = await db.Allocations.AsNoTracking()
@@ -556,10 +575,16 @@ public sealed class LiveLoadQueryService(
         if (coveringIds.Count > 0)
         {
             var cap = await capacity.GetForResourcesAsync(coveringIds, from, toInclusive, ct);
-            if (cap.IsSuccess) // failure = zero capacity, same tolerance as before
-                foreach (var (rid, days) in cap.Value)
-                    foreach (var d in days)
-                        capacityByResourceAndDate[(rid, d.Date)] = d.Hours;
+            // A refused capacity read is NOT zero capacity. Swallowing it reports every
+            // demand as entirely uncovered with an HTTP 200 — a full-target gap the
+            // caller cannot tell from a real one, and one the detector would triage.
+            // The failure belongs to the caller (a range too wide is its own 400).
+            if (cap.IsFailure)
+                return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Failure(cap.Error!);
+
+            foreach (var (rid, days) in cap.Value)
+                foreach (var d in days)
+                    capacityByResourceAndDate[(rid, d.Date)] = d.Hours;
         }
 
         var reconciled = LoadCalculator.CoverageForDemands(demands, coverage, capacityByResourceAndDate, from, toInclusive);
@@ -584,7 +609,7 @@ public sealed class LiveLoadQueryService(
             .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
 
         var byId = demands.ToDictionary(d => d.Id);
-        return reconciled.Select(c =>
+        var dtos = reconciled.Select(c =>
         {
             var d = byId[c.DemandId];
             var rootId = rootByNode.GetValueOrDefault(c.ProjectNodeId);
@@ -604,6 +629,8 @@ public sealed class LiveLoadQueryService(
                 OwnerResourceName = d.OwnerResourceId is Guid o ? ownerNames.GetValueOrDefault(o) : null
             };
         }).ToList();
+
+        return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Success(dtos);
     }
 
     // Root project node id = first segment of the materialized Path "/{rootId}/...".

@@ -143,6 +143,29 @@ internal sealed class PlanCommandHarness
     }
 }
 
+// A capacity service that refuses every read (the shape a range wider than the cap
+// produces). Reconciliation must surface the refusal: treating it as zero capacity
+// turns a rejected request into "everything is uncovered" with an HTTP 200.
+internal sealed class RefusingCapacity : ICapacityQueryService
+{
+    private static ServiceError Refused => ServiceError.Validation(new Dictionary<string, string[]>
+    {
+        ["range"] = ["Refused by the fake."]
+    });
+
+    public Task<ServiceResult<IReadOnlyList<DailyCapacityDto>>> GetForResourceAsync(
+        Guid resourceId, DateOnly from, DateOnly toInclusive, CancellationToken ct = default) =>
+        Task.FromResult(ServiceResult<IReadOnlyList<DailyCapacityDto>>.Failure(Refused));
+
+    public Task<ServiceResult<IReadOnlyDictionary<Guid, IReadOnlyList<DailyCapacityDto>>>> GetForResourcesAsync(
+        IReadOnlyCollection<Guid>? resourceIds, DateOnly from, DateOnly toInclusive, CancellationToken ct = default) =>
+        Task.FromResult(ServiceResult<IReadOnlyDictionary<Guid, IReadOnlyList<DailyCapacityDto>>>.Failure(Refused));
+
+    public Task<ServiceResult<IReadOnlyList<ResourceCapacityDto>>> GetSegmentsForResourcesAsync(
+        IReadOnlyCollection<Guid>? resourceIds, DateOnly from, DateOnly toInclusive, CancellationToken ct = default) =>
+        Task.FromResult(ServiceResult<IReadOnlyList<ResourceCapacityDto>>.Failure(Refused));
+}
+
 internal sealed class FixedCapacity(TimeSpan perDay) : ICapacityQueryService
 {
     public Task<ServiceResult<IReadOnlyList<DailyCapacityDto>>> GetForResourceAsync(

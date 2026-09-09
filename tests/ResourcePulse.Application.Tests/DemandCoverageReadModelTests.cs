@@ -1,16 +1,19 @@
 using Microsoft.EntityFrameworkCore;
+using ResourcePulse.Common.Results;
 using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Demands;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Resources;
 using ResourcePulse.Domain.Roles;
 using ResourcePulse.Persistence;
+using ResourcePulse.Services.Capacity;
 using ResourcePulse.Services.Load;
 
 namespace ResourcePulse.Application.Tests;
 
 // Demand-coverage read model end-to-end (Phase 5.2, ADR-0025/0026): node/subtree
-// gap, best-effort null gap, and the role-mismatch coverage still counting (§6).
+// gap, best-effort null gap, and the role-mismatch coverage still counting (§6),
+// plus the two ways the reconciliation must refuse rather than report zero coverage.
 public class DemandCoverageReadModelTests
 {
     private static readonly DateOnly Mon = new(2026, 6, 1);
@@ -26,7 +29,7 @@ public class DemandCoverageReadModelTests
 
     // Root(Project) → Phase. A targeted demand on Root (40h) covered 20h; a
     // best-effort demand on the Phase covered by a role-mismatched resource.
-    private static Fixture Seed()
+    private static Fixture Seed(ICapacityQueryService? capacity = null)
     {
         var options = new DbContextOptionsBuilder<ResourcePulseDbContext>()
             .UseInMemoryDatabase($"demandcov-{Guid.NewGuid()}")
@@ -60,7 +63,7 @@ public class DemandCoverageReadModelTests
 
         return new Fixture
         {
-            Svc = new LiveLoadQueryService(db, new FixedCapacity(TimeSpan.FromHours(8))),
+            Svc = new LiveLoadQueryService(db, capacity ?? new FixedCapacity(TimeSpan.FromHours(8))),
             RootId = root.Id,
             TargetedDemandId = targeted.Id,
             BestEffortDemandId = bestEffort.Id
@@ -112,5 +115,52 @@ public class DemandCoverageReadModelTests
         result.IsSuccess.Should().BeTrue();
         result.Value.RoleName.Should().Be("Designer");           // what was asked
         result.Value.CoveredHours.Should().Be(TimeSpan.FromHours(10)); // a Dev's coverage counts
+    }
+
+    // ── The range cap and the refused capacity read ──────────────────────────
+    // Both used to end in the same wrong answer: CoveredHours = 0 for every demand,
+    // i.e. a full-target gap returned with a 200 and indistinguishable from a real one.
+
+    [Fact]
+    public async Task Subtree_RejectsARangeWiderThanTheCap()
+    {
+        var f = Seed();
+
+        var result = await f.Svc.GetDemandCoverageForProjectNodeAsync(f.RootId, Mon, Mon.AddDays(400));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Kind.Should().Be(ServiceErrorKind.Validation);
+    }
+
+    [Fact]
+    public async Task SingleDemand_RejectsARangeWiderThanTheCap()
+    {
+        var f = Seed();
+
+        var result = await f.Svc.GetDemandCoverageForDemandAsync(f.TargetedDemandId, Mon, Mon.AddDays(400));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Kind.Should().Be(ServiceErrorKind.Validation);
+    }
+
+    [Fact]
+    public async Task RefusedCapacityRead_PropagatesInsteadOfCountingAsZeroCapacity()
+    {
+        var f = Seed(new RefusingCapacity());
+
+        var result = await f.Svc.GetDemandCoverageForProjectNodeAsync(f.RootId, Mon, Fri);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error!.Kind.Should().Be(ServiceErrorKind.Validation);
+    }
+
+    [Fact]
+    public async Task RefusedCapacityRead_AlsoFailsTheOpenDemandsView()
+    {
+        var f = Seed(new RefusingCapacity());
+
+        var result = await f.Svc.GetOpenDemandsAsync(null, Mon, Fri);
+
+        result.IsFailure.Should().BeTrue();
     }
 }
