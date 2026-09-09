@@ -16,6 +16,27 @@ const UNIT_DAYS: Record<DurationUnit, number> = {
 
 export const durationToDays = (d: Duration): number => d.value * UNIT_DAYS[d.unit];
 
+// Upper bound on the span a horizon can project, over any start date — months are
+// calendar arithmetic, so 12 of them run to 367 days inclusive across a leap
+// February while the 30-day approximation above says 360. Mirrors the domain's
+// Duration.LongestProjectedDays; used only against the hard cap, never for
+// ordering.
+const UNIT_LONGEST_DAYS: Record<DurationUnit, number> = {
+  [DurationUnit.Days]: 1,
+  [DurationUnit.Weeks]: 7,
+  [DurationUnit.Months]: 31,
+};
+
+export const longestProjectedDays = (d: Duration): number => d.value * UNIT_LONGEST_DAYS[d.unit];
+
+// TimeFenceConfiguration.MaxHorizonDays. Past it the detector cannot read the
+// committing horizon at all and the triage queue silently empties, so the server
+// refuses — this mirror only spares the Owner a round trip.
+export const MAX_HORIZON_DAYS = 366;
+
+export const horizonFitsTheReadCap = (d: Duration): boolean =>
+  longestProjectedDays(d) + 1 <= MAX_HORIZON_DAYS;
+
 export const durationUnitKey = (u: DurationUnit): 'days' | 'weeks' | 'months' =>
   u === DurationUnit.Days ? 'days' : u === DurationUnit.Weeks ? 'weeks' : 'months';
 

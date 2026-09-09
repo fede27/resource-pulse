@@ -1149,6 +1149,9 @@ export const en: Loose<typeof it> = {
       zoneSlushy: 'Slushy',
       zoneLiquid: 'Liquid',
       invalidShort: 'frozen must be < slushy',
+      tooLongShort: 'slushy beyond the readable maximum',
+      tooLongDetail:
+        'The slushy horizon ({{slushy}}) exceeds {{max}} days: past that the detector cannot read the horizon and the triage queue would silently stay empty. Use at most 365 days, 52 weeks or 11 months.',
       invalidDetail:
         'The frozen horizon ({{frozen}} ≈ {{frozenDays}}d) must be shorter than the slushy horizon ({{slushy}} ≈ {{slushyDays}}d).',
       saveSuccess: 'Time fence saved',

@@ -120,9 +120,15 @@ public sealed class SignalSweepWorker(
         var detector = scope.ServiceProvider.GetRequiredService<ISignalDetectionService>();
         var result = await detector.SweepAsync(today, ct);
 
-        if (!result.IsSuccess || result.Value is null)
+        if (result.IsFailure)
         {
-            logger.LogWarning("Signal sweep returned no result for tenant {TenantId}.", tenant.Id);
+            // The sweep refuses rather than reporting an empty queue when it could
+            // not read the plan, so this is an actionable failure and not a quiet
+            // no-op: LastSweptAt was deliberately left untouched, and the dashboard
+            // will show the queue as stale until a pass actually succeeds.
+            logger.LogError(
+                "Signal sweep failed for tenant {TenantId}: {Error}. LastSweptAt left unchanged.",
+                tenant.Id, result.Error!.Message);
             return;
         }
 

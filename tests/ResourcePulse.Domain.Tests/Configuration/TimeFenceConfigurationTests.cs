@@ -96,4 +96,62 @@ public class TimeFenceConfigurationTests
         var act = () => Duration.Of(0, DurationUnit.Days);
         act.Should().Throw<DomainException>().WithMessage("*positive integer*");
     }
+
+    // ── The horizon must stay MEASURABLE (finding 4 of the 2026-09-09 review) ──
+    // Beyond the read models' range cap every read on the committing horizon is
+    // refused, and the detector reports an empty queue for the whole tenant.
+
+    [Fact]
+    public void SlushyHorizonBeyondTheReadCap_IsRejected()
+    {
+        var act = () => TimeFenceConfiguration.Create(
+            Guid.NewGuid(),
+            Duration.Of(2, DurationUnit.Weeks),
+            Duration.Of(18, DurationUnit.Months));
+        act.Should().Throw<DomainException>().WithMessage($"*{TimeFenceConfiguration.MaxHorizonDays} days*");
+    }
+
+    [Fact]
+    public void TwelveMonths_IsRejectedBecauseALeapCrossingWouldExceedTheCap()
+    {
+        // The 30-day approximation says 360 and would wave this through; the real
+        // projection across a leap February is 367 days inclusive — one past the cap.
+        // Ordering may use the approximation, a hard limit may not.
+        var leapCrossing = new DateOnly(2027, 3, 1);
+        var span = Duration.Of(12, DurationUnit.Months).AddTo(leapCrossing).DayNumber
+                   - leapCrossing.DayNumber + 1;
+        span.Should().Be(367);
+
+        var act = () => TimeFenceConfiguration.Create(
+            Guid.NewGuid(),
+            Duration.Of(2, DurationUnit.Weeks),
+            Duration.Of(12, DurationUnit.Months));
+        act.Should().Throw<DomainException>();
+    }
+
+    [Theory]
+    [InlineData(365, DurationUnit.Days)]
+    [InlineData(52, DurationUnit.Weeks)]
+    [InlineData(11, DurationUnit.Months)]
+    public void TheLongestMeasurableHorizons_AreStillExpressible(int value, DurationUnit unit)
+    {
+        var act = () => TimeFenceConfiguration.Create(
+            Guid.NewGuid(), Duration.Of(2, DurationUnit.Weeks), Duration.Of(value, unit));
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void EveryAcceptedHorizon_ProjectsWithinTheCapOnAnyToday()
+    {
+        // The property the bound exists for, checked against real calendar
+        // arithmetic over four years of start dates rather than the approximation.
+        var config = TimeFenceConfiguration.Create(
+            Guid.NewGuid(), Duration.Of(2, DurationUnit.Weeks), Duration.Of(11, DurationUnit.Months));
+
+        for (var today = new DateOnly(2026, 1, 1); today < new DateOnly(2030, 1, 1); today = today.AddDays(1))
+        {
+            var span = config.ComputeBoundaries(today).SlushyUntil.DayNumber - today.DayNumber + 1;
+            span.Should().BeLessThanOrEqualTo(TimeFenceConfiguration.MaxHorizonDays);
+        }
+    }
 }

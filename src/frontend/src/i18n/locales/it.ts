@@ -1148,6 +1148,9 @@ export const it = {
       zoneSlushy: 'Slushy',
       zoneLiquid: 'Liquid',
       invalidShort: 'frozen deve essere < slushy',
+      tooLongShort: 'slushy oltre il massimo leggibile',
+      tooLongDetail:
+        "Lo slushy horizon ({{slushy}}) supera i {{max}} giorni: oltre quel limite il detector non riesce a leggere l'orizzonte e la coda di triage resterebbe vuota senza dirlo. Usa al massimo 365 giorni, 52 settimane o 11 mesi.",
       invalidDetail:
         'Il frozen horizon ({{frozen}} ≈ {{frozenDays}}g) deve essere inferiore allo slushy horizon ({{slushy}} ≈ {{slushyDays}}g).',
       saveSuccess: 'Time fence salvato',

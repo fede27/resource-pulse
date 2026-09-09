@@ -33,6 +33,10 @@ internal sealed class SignalDetectionHarness
     public SignalDetectionService Detector { get; }
     public ISignalPolicyService Policy { get; }
 
+    // Flip Refuses to take the capacity read away: what the detector does then is
+    // the difference between "the plan holds" and "this pass could not look".
+    public SwitchableCapacity Capacity { get; }
+
     // Controllable wall clock: the retention purge compares against it, and the
     // change feed's timestamps come from it.
     public FakeClock Clock { get; } = new(new DateTimeOffset(2026, 6, 1, 6, 0, 0, TimeSpan.Zero));
@@ -45,7 +49,8 @@ internal sealed class SignalDetectionHarness
     private SignalDetectionHarness(ResourcePulseDbContext db, TimeSpan capacityPerDay)
     {
         Db = db;
-        var capacity = new FixedCapacity(capacityPerDay);
+        var capacity = new SwitchableCapacity(capacityPerDay);
+        Capacity = capacity;
         var load = new LiveLoadQueryService(db, capacity);
 
         Policy = new SignalPolicyService(new Repository<SignalPolicy, Guid>(db), db);

@@ -9,6 +9,9 @@ import {
   durationToDays,
   durationUnitKey,
   grainKey,
+  horizonFitsTheReadCap,
+  longestProjectedDays,
+  MAX_HORIZON_DAYS,
   today,
 } from './helpers';
 
@@ -20,6 +23,27 @@ describe('durationToDays', () => {
     expect(durationToDays({ value: 3, unit: DurationUnit.Days })).toBe(3);
     expect(durationToDays({ value: 2, unit: DurationUnit.Weeks })).toBe(14);
     expect(durationToDays({ value: 1, unit: DurationUnit.Months })).toBe(30);
+  });
+});
+
+describe('horizonFitsTheReadCap', () => {
+  // Mirrors TimeFenceConfiguration.MaxHorizonDays: past it the detector cannot
+  // read the horizon it polices and the triage queue empties without saying so.
+  it('accepts the longest horizons that always fit', () => {
+    expect(horizonFitsTheReadCap({ value: 365, unit: DurationUnit.Days })).toBe(true);
+    expect(horizonFitsTheReadCap({ value: 52, unit: DurationUnit.Weeks })).toBe(true);
+    expect(horizonFitsTheReadCap({ value: 11, unit: DurationUnit.Months })).toBe(true);
+  });
+
+  it('rejects twelve months, which the 30-day basis would wave through', () => {
+    // 12 × 30 = 360 by durationToDays, but a leap crossing runs to 367 inclusive.
+    expect(durationToDays({ value: 12, unit: DurationUnit.Months })).toBeLessThan(MAX_HORIZON_DAYS);
+    expect(longestProjectedDays({ value: 12, unit: DurationUnit.Months })).toBe(372);
+    expect(horizonFitsTheReadCap({ value: 12, unit: DurationUnit.Months })).toBe(false);
+  });
+
+  it('rejects the horizon that silently disabled the detectors', () => {
+    expect(horizonFitsTheReadCap({ value: 18, unit: DurationUnit.Months })).toBe(false);
   });
 });
 

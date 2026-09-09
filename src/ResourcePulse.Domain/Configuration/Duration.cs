@@ -31,6 +31,19 @@ public sealed class Duration
         _ => throw new DomainException($"Invalid duration unit '{Unit}'.")
     };
 
+    // UPPER BOUND on the span this horizon can project, over any start date.
+    // Distinct from ApproximateDays on purpose: months are calendar arithmetic in
+    // AddTo, so a horizon whose 30-day approximation fits a cap can still land one
+    // day past it across a leap February. Anything validated against a hard limit
+    // (the read models' range cap) must probe the worst case, never the average.
+    public int LongestProjectedDays => Unit switch
+    {
+        DurationUnit.Days => Value,
+        DurationUnit.Weeks => Value * 7,
+        DurationUnit.Months => Value * 31,
+        _ => throw new DomainException($"Invalid duration unit '{Unit}'.")
+    };
+
     // Comparison basis for validating one horizon against another, independent of
     // any "today". Months use a 30-day approximation — this is the documented
     // CONSTANT used only for ordering (frozen < slushy), not for boundary dates.

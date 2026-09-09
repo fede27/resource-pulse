@@ -143,6 +143,30 @@ internal sealed class PlanCommandHarness
     }
 }
 
+// Working capacity that can be TAKEN AWAY mid-test: sweep once so signals exist,
+// then flip Refuses and assert the next pass fails rather than resolving them.
+internal sealed class SwitchableCapacity(TimeSpan perDay) : ICapacityQueryService
+{
+    private readonly FixedCapacity working = new(perDay);
+    private readonly RefusingCapacity refusing = new();
+
+    public bool Refuses { get; set; }
+
+    private ICapacityQueryService Current => Refuses ? refusing : working;
+
+    public Task<ServiceResult<IReadOnlyList<DailyCapacityDto>>> GetForResourceAsync(
+        Guid resourceId, DateOnly from, DateOnly toInclusive, CancellationToken ct = default) =>
+        Current.GetForResourceAsync(resourceId, from, toInclusive, ct);
+
+    public Task<ServiceResult<IReadOnlyDictionary<Guid, IReadOnlyList<DailyCapacityDto>>>> GetForResourcesAsync(
+        IReadOnlyCollection<Guid>? resourceIds, DateOnly from, DateOnly toInclusive, CancellationToken ct = default) =>
+        Current.GetForResourcesAsync(resourceIds, from, toInclusive, ct);
+
+    public Task<ServiceResult<IReadOnlyList<ResourceCapacityDto>>> GetSegmentsForResourcesAsync(
+        IReadOnlyCollection<Guid>? resourceIds, DateOnly from, DateOnly toInclusive, CancellationToken ct = default) =>
+        Current.GetSegmentsForResourcesAsync(resourceIds, from, toInclusive, ct);
+}
+
 // A capacity service that refuses every read (the shape a range wider than the cap
 // produces). Reconciliation must surface the refusal: treating it as zero capacity
 // turns a rejected request into "everything is uncovered" with an HTTP 200.

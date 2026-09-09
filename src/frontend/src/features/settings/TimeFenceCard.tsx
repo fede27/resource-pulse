@@ -18,6 +18,8 @@ import {
   addDuration,
   durationLabel,
   durationToDays,
+  horizonFitsTheReadCap,
+  MAX_HORIZON_DAYS,
   durationUnitKey,
   today,
   type Duration,
@@ -59,8 +61,12 @@ export function TimeFenceCard({ committed }: { committed: TimeFenceConfiguration
   const dirty = signature(fence) !== signature(base);
   const frozenDays = durationToDays(fence.frozenHorizon);
   const slushyDays = durationToDays(fence.slushyHorizon);
-  const valid =
+  const ordered =
     fence.frozenHorizon.value > 0 && fence.slushyHorizon.value > 0 && frozenDays < slushyDays;
+  // Beyond the cap the detector cannot read the horizon it is asked to police, and
+  // an unreadable horizon shows up as an empty triage queue rather than an error.
+  const withinReadCap = horizonFitsTheReadCap(fence.slushyHorizon);
+  const valid = ordered && withinReadCap;
 
   const setPart = (which: 'frozenHorizon' | 'slushyHorizon', patch: Partial<Duration>) =>
     setFence((f) => ({ ...f, [which]: { ...f[which], ...patch } }));
@@ -166,7 +172,9 @@ export function TimeFenceCard({ committed }: { committed: TimeFenceConfiguration
               );
             })
           ) : (
-            <div className={styles.invalidTrack}>{t('settings.fence.invalidShort')}</div>
+            <div className={styles.invalidTrack}>
+              {ordered ? t('settings.fence.tooLongShort') : t('settings.fence.invalidShort')}
+            </div>
           )}
         </div>
         {valid && (
@@ -214,12 +222,17 @@ export function TimeFenceCard({ committed }: { committed: TimeFenceConfiguration
 
       {!valid && (
         <div className={styles.invalidDetail}>
-          {t('settings.fence.invalidDetail', {
-            frozen: durationLabel(fence.frozenHorizon, t),
-            frozenDays,
-            slushy: durationLabel(fence.slushyHorizon, t),
-            slushyDays,
-          })}
+          {ordered
+            ? t('settings.fence.tooLongDetail', {
+                slushy: durationLabel(fence.slushyHorizon, t),
+                max: MAX_HORIZON_DAYS,
+              })
+            : t('settings.fence.invalidDetail', {
+                frozen: durationLabel(fence.frozenHorizon, t),
+                frozenDays,
+                slushy: durationLabel(fence.slushyHorizon, t),
+                slushyDays,
+              })}
         </div>
       )}
 

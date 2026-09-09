@@ -32,6 +32,15 @@ public sealed record FenceBoundaries(DateOnly FrozenUntil, DateOnly SlushyUntil)
 // disruptive plan operations (their home is the command envelope); see ADR-0020.
 public sealed class TimeFenceConfiguration : Entity<Guid>, IAuditable
 {
+    // The committing horizon is not just a label: the detector MEASURES it, through
+    // read models that refuse a range wider than this (LiveLoadQueryService's
+    // MaxRangeDays, SignalDetectionService's ChunkDays — the three must agree). A
+    // longer horizon would make every read on it fail, and a detector that cannot
+    // look is a dashboard saying "the plan holds" about a plan nobody examined. So
+    // the boundary is bounded here, where it is chosen, rather than discovered as
+    // an empty sweep months later.
+    public const int MaxHorizonDays = 366;
+
     // One row per tenant, enforced by a unique index on tenant_id (ADR-0029).
     public Duration FrozenHorizon { get; private set; } = null!;
     public Duration SlushyHorizon { get; private set; } = null!;
@@ -68,6 +77,14 @@ public sealed class TimeFenceConfiguration : Entity<Guid>, IAuditable
         if (frozenHorizon.ApproximateDays >= slushyHorizon.ApproximateDays)
             throw new DomainException(
                 "Frozen horizon must be strictly shorter than the slushy horizon.");
+
+        // Worst-case projection, not the 30-day approximation: the span must fit the
+        // read models' cap on EVERY "today", leap Februaries included. Twelve months
+        // is therefore not expressible — 365 days or 52 weeks are.
+        if (slushyHorizon.LongestProjectedDays + 1 > MaxHorizonDays)
+            throw new DomainException(
+                $"Slushy horizon must not exceed {MaxHorizonDays} days: beyond it the " +
+                "detector cannot read the plan and would report an empty queue.");
 
         FrozenHorizon = frozenHorizon;
         SlushyHorizon = slushyHorizon;

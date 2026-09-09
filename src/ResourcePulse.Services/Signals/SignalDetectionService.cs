@@ -41,8 +41,9 @@ public sealed class SignalDetectionService(
     TimeProvider clock) : ISignalDetectionService
 {
     // The read models refuse anything wider; the union of project windows is
-    // walked in chunks of this size.
-    private const int ChunkDays = 366;
+    // walked in chunks of this size. Same number the fence horizon is bounded by,
+    // and taken from there so the two cannot drift apart.
+    private const int ChunkDays = TimeFenceConfiguration.MaxHorizonDays;
 
     // Safety bound on the reconciliation walk. A portfolio spanning more than
     // this is pathological; the walk keeps the MOST RECENT chunks, since a gap on
@@ -52,12 +53,21 @@ public sealed class SignalDetectionService(
     public async Task<ServiceResult<SignalSweepResult>> SweepAsync(DateOnly today, CancellationToken ct = default)
     {
         var context = await BuildContextAsync(today, ct);
-        var detected = await DetectAsync(context, ct);
+        var detection = await DetectAsync(context, ct);
+
+        // A pass that could not READ the plan must fail, never succeed empty. An
+        // empty detection is indistinguishable from "nothing is wrong": it resolves
+        // every live signal and stamps a fresh LastSweptAt, publishing "the plan
+        // holds" on the strength of having looked at nothing. Returning here leaves
+        // the previous timestamp in place, which is precisely what the three-state
+        // queue reads as stale (ADR-0032 §10).
+        if (detection.IsFailure)
+            return ServiceResult<SignalSweepResult>.Failure(detection.Error!);
 
         // Admission (ADR-0033 §8): the deadline must fall inside the committing
         // horizon — or there must be no deadline at all, in which case the signal
         // enters on tier alone.
-        var admitted = detected
+        var admitted = detection.Value
             .Where(d => SignalZones.IsInCommittingHorizon(d.Observation.Zone))
             .ToList();
 
@@ -78,14 +88,30 @@ public sealed class SignalDetectionService(
     // Everything the plan currently says, before anything is compared with what is
     // already on file. Shared by the sweep and the resolve-only hook precisely so
     // there is ONE answer to "what exists right now".
-    private async Task<List<DetectedSignal>> DetectAsync(DetectionContext context, CancellationToken ct)
+    // Fallible as a whole: a single unreadable input invalidates the pass. Detecting
+    // three kinds out of four and calling it a detection would resolve the fourth.
+    private async Task<ServiceResult<List<DetectedSignal>>> DetectAsync(
+        DetectionContext context, CancellationToken ct)
     {
+        // Sequential, and started one at a time: the pooled DbContext is not safe
+        // for concurrent queries (ADR-0010).
         var detected = new List<DetectedSignal>();
-        detected.AddRange(await DetectGapsAsync(context, ct));
-        detected.AddRange(await DetectTentativeInFrozenAsync(context, ct));
-        detected.AddRange(await DetectOvercommitAndSlackAsync(context, ct));
+
+        var gaps = await DetectGapsAsync(context, ct);
+        if (gaps.IsFailure) return ServiceResult<List<DetectedSignal>>.Failure(gaps.Error!);
+        detected.AddRange(gaps.Value);
+
+        var inFrozen = await DetectTentativeInFrozenAsync(context, ct);
+        if (inFrozen.IsFailure) return ServiceResult<List<DetectedSignal>>.Failure(inFrozen.Error!);
+        detected.AddRange(inFrozen.Value);
+
+        var load = await DetectOvercommitAndSlackAsync(context, ct);
+        if (load.IsFailure) return ServiceResult<List<DetectedSignal>>.Failure(load.Error!);
+        detected.AddRange(load.Value);
+
+        // Hygiene reads the tables directly and has no read model to be refused by.
         detected.AddRange(await DetectHygieneAsync(context, ct));
-        return detected;
+        return ServiceResult<List<DetectedSignal>>.Success(detected);
     }
 
     public async Task<ServiceResult<int>> ResolveStaleAsync(
@@ -106,8 +132,17 @@ public sealed class SignalDetectionService(
         // predicate is exactly the sort of duplicate that drifts from the detector
         // and starts resolving things that are still true. One code path decides
         // what exists; this method only chooses which of its conclusions to apply.
-        var detected = await DetectAsync(await BuildContextAsync(today, ct), ct);
-        var detectedKeys = detected
+        var detection = await DetectAsync(await BuildContextAsync(today, ct), ct);
+
+        // Nothing is resolved on a pass that failed. "Not observed" is the ONLY
+        // evidence this method has that a condition is gone, so a detection that
+        // could not look would resolve signals that still hold — and the row does
+        // not come back when they are re-detected, a new one does, losing
+        // FirstDetectedAt and any acceptance with it.
+        if (detection.IsFailure)
+            return ServiceResult<int>.Failure(detection.Error!);
+
+        var detectedKeys = detection.Value
             .Where(d => SignalZones.IsInCommittingHorizon(d.Observation.Zone))
             .Select(d => (d.Kind, d.SubjectId))
             .ToHashSet();
@@ -216,10 +251,10 @@ public sealed class SignalDetectionService(
 
     // ── Gap (breach, per demand) ─────────────────────────────────────────────
 
-    private async Task<IReadOnlyList<DetectedSignal>> DetectGapsAsync(DetectionContext ctx, CancellationToken ct)
+    private async Task<ServiceResult<IReadOnlyList<DetectedSignal>>> DetectGapsAsync(DetectionContext ctx, CancellationToken ct)
     {
         var roots = await ActiveRootsAsync(ct);
-        if (roots.Count == 0) return [];
+        if (roots.Count == 0) return ServiceResult<IReadOnlyList<DetectedSignal>>.Success([]);
 
         // Covered hours summed across the chunks; required hours taken once.
         var covered = new Dictionary<Guid, TimeSpan>();
@@ -228,7 +263,11 @@ public sealed class SignalDetectionService(
         foreach (var (from, to) in ReconciliationChunks(roots, ctx.Today))
         {
             var slice = await loadQuery.GetDemandCoverageInRangeAsync(from, to, ct);
-            if (!slice.IsSuccess || slice.Value is null) continue;
+            // Skipping a refused chunk would UNDERCOUNT covered hours, and covered
+            // hours are what the gap is measured against: the pass would invent gaps
+            // rather than miss them.
+            if (slice.IsFailure)
+                return ServiceResult<IReadOnlyList<DetectedSignal>>.Failure(slice.Error!);
 
             foreach (var row in slice.Value)
             {
@@ -237,7 +276,7 @@ public sealed class SignalDetectionService(
             }
         }
 
-        if (byDemand.Count == 0) return [];
+        if (byDemand.Count == 0) return ServiceResult<IReadOnlyList<DetectedSignal>>.Success([]);
 
         var deadlines = await DemandDeadlinesAsync(byDemand.Keys, ctx, ct);
         var signals = new List<DetectedSignal>();
@@ -263,33 +302,38 @@ public sealed class SignalDetectionService(
                     touchedRootProjectIds: [row.RootProjectId])));
         }
 
-        return signals;
+        return ServiceResult<IReadOnlyList<DetectedSignal>>.Success(signals);
     }
 
     // ── Tentative crossing the frozen fence (breach, per coverage block) ─────
 
-    private async Task<IReadOnlyList<DetectedSignal>> DetectTentativeInFrozenAsync(
+    private async Task<ServiceResult<IReadOnlyList<DetectedSignal>>> DetectTentativeInFrozenAsync(
         DetectionContext ctx, CancellationToken ct)
     {
         // "Crossed the fence" means the window OVERLAPS [today, frozenUntil], not
         // merely that it starts before the boundary.
         var inFrozen = await allocations.GetInRangeAsync(ctx.Today, ctx.Boundaries.FrozenUntil, ct);
-        if (!inFrozen.IsSuccess || inFrozen.Value is null) return [];
+        if (inFrozen.IsFailure)
+            return ServiceResult<IReadOnlyList<DetectedSignal>>.Failure(inFrozen.Error!);
 
         var tentative = inFrozen.Value.Where(a => a.Status == AllocationStatus.Tentative).ToList();
-        if (tentative.Count == 0) return [];
+        if (tentative.Count == 0) return ServiceResult<IReadOnlyList<DetectedSignal>>.Success([]);
 
         // Hours are the reconciliation truth (ADR-0026), so the magnitude is
         // resolved hours rather than a rate: one batch capacity read buys that.
         var resourceIds = tentative.Select(a => a.ResourceId).Distinct().ToList();
         var capacities = await capacity.GetSegmentsForResourcesAsync(
             resourceIds, ctx.Today, ctx.Boundaries.FrozenUntil, ct);
+        // Without capacity the magnitude would be zero hours for every block — a
+        // breach ranked as if it cost nothing.
+        if (capacities.IsFailure)
+            return ServiceResult<IReadOnlyList<DetectedSignal>>.Failure(capacities.Error!);
 
         var hardCommitted = await HardCommittedRootsAsync(ctx, ct);
 
-        return tentative.Select(a =>
+        var signals = tentative.Select(a =>
         {
-            var hours = ResolvedHoursInFrozen(a, capacities, ctx);
+            var hours = ResolvedHoursInFrozen(a, capacities.Value, ctx);
             // Its identity IS being in the frozen zone, so the deadline is the
             // moment it becomes untouchable: now, or when it starts if later.
             var deadline = a.PeriodStart < ctx.Today ? ctx.Today : a.PeriodStart;
@@ -303,16 +347,16 @@ public sealed class SignalDetectionService(
                     hardCommitted: hardCommitted.Contains(a.RootProjectId),
                     touchedRootProjectIds: [a.RootProjectId]));
         }).ToList();
+
+        return ServiceResult<IReadOnlyList<DetectedSignal>>.Success(signals);
     }
 
     private static decimal ResolvedHoursInFrozen(
         AllocationReadDto a,
-        ServiceResult<IReadOnlyList<ResourceCapacityDto>> capacities,
+        IReadOnlyList<ResourceCapacityDto> capacities,
         DetectionContext ctx)
     {
-        if (!capacities.IsSuccess || capacities.Value is null) return 0m;
-
-        var segments = capacities.Value.FirstOrDefault(c => c.ResourceId == a.ResourceId)?.Segments;
+        var segments = capacities.FirstOrDefault(c => c.ResourceId == a.ResourceId)?.Segments;
         if (segments is null) return 0m;
 
         var from = a.PeriodStart < ctx.Today ? ctx.Today : a.PeriodStart;
@@ -334,7 +378,7 @@ public sealed class SignalDetectionService(
 
     // ── Overcommit (breach, per resource) + UnderBand (slack, aggregated) ────
 
-    private async Task<IReadOnlyList<DetectedSignal>> DetectOvercommitAndSlackAsync(
+    private async Task<ServiceResult<IReadOnlyList<DetectedSignal>>> DetectOvercommitAndSlackAsync(
         DetectionContext ctx, CancellationToken ct)
     {
         // Hard-only, like the sustainability verdict: a tentative block is not a
@@ -342,7 +386,12 @@ public sealed class SignalDetectionService(
         var profiles = await loadQuery.GetCommitmentProfilesForResourcesAsync(
             null, ctx.Today, ctx.Boundaries.SlushyUntil, AllocationStatus.Hard, ct);
 
-        if (!profiles.IsSuccess || profiles.Value is null) return [];
+        // The horizon is bounded so this read fits (TimeFenceConfiguration
+        // .MaxHorizonDays). If it is refused anyway, the pass has measured no load
+        // at all: reporting no Overcommit and no UnderBand from that is a lie in
+        // both directions.
+        if (profiles.IsFailure)
+            return ServiceResult<IReadOnlyList<DetectedSignal>>.Failure(profiles.Error!);
 
         var signals = new List<DetectedSignal>();
         var underBand = new List<Guid>();
@@ -395,7 +444,7 @@ public sealed class SignalDetectionService(
                     memberSubjectIds: underBand)));
         }
 
-        return signals;
+        return ServiceResult<IReadOnlyList<DetectedSignal>>.Success(signals);
     }
 
     // ── Hygiene (aggregated) ─────────────────────────────────────────────────

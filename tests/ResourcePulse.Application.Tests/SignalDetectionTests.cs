@@ -534,6 +534,67 @@ public class SignalDetectionTests
         h.Reload(signalId).Detection.Should().Be(SignalDetection.Resolved);
     }
 
+    // ── A pass that cannot read must not report an empty plan (review finding 4) ──
+
+    [Fact]
+    public async Task ASweepThatCannotReadThePlan_FailsAndLeavesTheQueueAlone()
+    {
+        var h = SignalDetectionHarness.Create();
+        var demandId = h.SeedDemand(TimeSpan.FromHours(40));
+        h.SeedCoverage(demandId, Today.AddDays(30), Today.AddDays(34), percent: 50m);
+
+        (await h.SweepAsync()).IsSuccess.Should().BeTrue();
+        h.LiveOf(SignalKind.Gap, demandId).Should().NotBeNull();
+        var sweptAt = h.SweepState().LastSweptAt;
+
+        // Take the read away. Detecting nothing would resolve the gap AND stamp a
+        // fresh LastSweptAt — publishing "the plan holds" on the strength of having
+        // looked at nothing, and the two states are indistinguishable on screen.
+        h.Capacity.Refuses = true;
+
+        var result = await h.SweepAsync();
+
+        result.IsFailure.Should().BeTrue();
+        h.LiveOf(SignalKind.Gap, demandId).Should().NotBeNull();
+        h.SweepState().LastSweptAt.Should().Be(sweptAt);
+    }
+
+    [Fact]
+    public async Task ASweepThatCannotReadThePlan_LeavesANewTenantUnswept()
+    {
+        // The three-state queue (ADR-0032): "never swept" must not become "swept,
+        // nothing found" because the very first pass failed.
+        var h = SignalDetectionHarness.Create();
+        var demandId = h.SeedDemand(TimeSpan.FromHours(40));
+        h.SeedCoverage(demandId, Today.AddDays(30), Today.AddDays(34), percent: 50m);
+        h.Capacity.Refuses = true;
+
+        (await h.SweepAsync()).IsFailure.Should().BeTrue();
+
+        h.Db.SignalSweepStates.Any(s => s.LastSweptAt != null).Should().BeFalse();
+        h.Live().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task TheHookResolvesNothingWhenTheDetectionFailed()
+    {
+        // "Not observed" is the hook's only evidence a condition is gone. A pass
+        // that could not look would resolve a gap that still holds — and it does
+        // not come back as the same row, it comes back as a new one.
+        var h = SignalDetectionHarness.Create();
+        var demandId = h.SeedDemand(TimeSpan.FromHours(40));
+        h.SeedCoverage(demandId, Today.AddDays(30), Today.AddDays(34), percent: 50m);
+        await h.SweepAsync();
+
+        var signalId = h.LiveOf(SignalKind.Gap, demandId)!.Id;
+        h.Capacity.Refuses = true;
+
+        var resolved = await h.Detector.ResolveStaleAsync(new SignalTouch([demandId], [], []), Today);
+
+        resolved.IsFailure.Should().BeTrue();
+        h.Reload(signalId).Detection.Should().Be(SignalDetection.Live);
+    }
+
     [Fact]
     public async Task TheHookNeverCreates()
     {
