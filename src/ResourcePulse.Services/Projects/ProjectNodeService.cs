@@ -160,8 +160,33 @@ public sealed class ProjectNodeService(
         var hasChildren = await db.ProjectNodes.AnyAsync(p => p.ParentId == id, ct);
         if (hasChildren) return ServiceResult.Conflict("Cannot delete a node with children. Reparent or delete its children first.");
 
+        // Demands and coverage are the other two Restrict FKs into project_nodes
+        // (the third is parent_id, above). Leave them to the database and
+        // SaveChanges throws, which the global handler turns into a 500 — a plain
+        // conflict reported as a server fault, and a gesture the UI had to disable.
+        // Counted rather than probed: the caller has to go and clear them, so the
+        // message says how much is in the way.
+        var demandCount = await db.Demands.CountAsync(d => d.ProjectNodeId == id, ct);
+        var coverageCount = await db.Allocations.CountAsync(a => a.ProjectNodeId == id, ct);
+        if (demandCount > 0 || coverageCount > 0)
+            return ServiceResult.Conflict(
+                $"Cannot delete a node that still carries {demandCount} demand(s) and " +
+                $"{coverageCount} coverage block(s). Delete them through the plan commands first.");
+
         repository.Remove(node);
-        await repository.SaveChangesAsync(ct);
+
+        try
+        {
+            await repository.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsForeignKeyViolation(ex))
+        {
+            // The checks above are read-then-write and something can be attached in
+            // between. Rare, and still a conflict rather than a fault.
+            return ServiceResult.Conflict(
+                "Cannot delete a node that is still referenced by demands or coverage.");
+        }
+
         return ServiceResult.Ok();
     }
 
@@ -607,6 +632,12 @@ public sealed class ProjectNodeService(
     // anywhere we touch owned state.
     private Task<ProjectNode?> LoadWithOwnedAsync(Guid id, CancellationToken ct) =>
         db.ProjectNodes.FirstOrDefaultAsync(n => n.Id == id, ct);
+
+    // Message inspection, like IsUniqueViolation below and for the same reason
+    // (the documented convention): the provider exception type stays out of the
+    // service layer.
+    private static bool IsForeignKeyViolation(DbUpdateException ex) =>
+        ex.InnerException?.Message.Contains("foreign key constraint", StringComparison.OrdinalIgnoreCase) == true;
 
     private static bool IsUniqueViolation(DbUpdateException ex) =>
         ex.InnerException?.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) == true ||
