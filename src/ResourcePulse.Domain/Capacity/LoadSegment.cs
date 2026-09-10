@@ -10,8 +10,8 @@ namespace ResourcePulse.Domain.Capacity;
 //
 //   From / To   — inclusive date bounds of the run.
 //   Percent     — the resource's total committed rate% over the run = sum of the
-//                 rate% of its active ASSIGNED allocations (placeholders excluded,
-//                 ADR-0016 §5). Capacity-independent: for a single resource on a
+//                 rate% of its active coverage blocks (every one has a resource
+//                 since ADR-0025). Capacity-independent: for a single resource on a
 //                 working day this equals the capacity-normalised LoadPercent, but
 //                 it carries no zero-capacity sentinel and needs no capacity input.
 //                 Overcommitment (> 100%) is first-class (ADR-0013).

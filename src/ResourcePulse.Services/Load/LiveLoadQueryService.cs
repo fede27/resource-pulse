@@ -160,8 +160,7 @@ public sealed class LiveLoadQueryService(
         if (!resourceExists)
             return ServiceResult<IReadOnlyList<LoadSegmentDto>>.NotFound($"Resource {resourceId} not found.");
 
-        // Assigned allocations of this resource overlapping the horizon. Placeholders
-        // have no ResourceId, so they are excluded by construction (ADR-0016 §5).
+        // This resource's coverage blocks overlapping the horizon.
         // The optional status filter narrows to one commitment status before the
         // pure calculator runs (calculator stays status-agnostic, ADR-0010).
         var allocations = await db.Allocations

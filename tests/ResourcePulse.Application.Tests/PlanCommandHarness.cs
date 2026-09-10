@@ -45,7 +45,7 @@ internal sealed class PlanCommandHarness
     }
 
     // Seeds an active resource, a root Project node (Draft, given commitment),
-    // a second resource and a role (the open-role catalogue for placeholders,
+    // a second resource and a role (the catalogue a Demand names as required,
     // ADR-0021 / M2). Returns the harness ready to run commands.
     public static PlanCommandHarness Create(
         CommitmentLevel commitment = CommitmentLevel.Committed,

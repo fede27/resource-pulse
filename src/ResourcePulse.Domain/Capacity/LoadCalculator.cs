@@ -170,9 +170,8 @@ public static class LoadCalculator
 
     // Resource commitment profile (gap #4+#10): a run-length-encoded view of the
     // resource's committed rate% over [from, toInclusive], decomposed by ROOT
-    // project. Capacity-independent — the percent is the sum of active assigned
-    // rate% (placeholders carry no ResourceId, so they are naturally excluded),
-    // not a capacity-normalised figure. This keeps the read-model cheap (no
+    // project. Capacity-independent — the percent is the sum of the resource's
+    // active coverage rate%, not a capacity-normalised figure. This keeps the read-model cheap (no
     // per-resource capacity series) and the per-project decomposition exact (the
     // shares sum to the segment percent). See ADR-0023.
     //

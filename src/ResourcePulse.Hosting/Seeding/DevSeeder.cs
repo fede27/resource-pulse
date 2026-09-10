@@ -17,8 +17,8 @@ namespace ResourcePulse.Hosting.Seeding;
 // Dev-only seeder: idempotent by-name checks ensure a re-run leaves the DB
 // stable. Seeds a default Mon–Fri 9–18 calendar (only if none exists), then
 // skills, tags, roles, 2 teams, 10 resources (5 per team), 5 projects with
-// varied commitment/status, and a spread of allocations (assigned + placeholder,
-// Tentative + Hard, overlapping + cross-project) so the plan-command API
+// varied commitment/status, and a spread of demands and coverage (covered +
+// uncovered, Tentative + Hard, overlapping + cross-project) so the plan-command API
 // (POST /api/plan/commands) has realistic data to exercise out of the box.
 // One resource is linked to the FakeAuth dev sub so skill-approval works.
 public static class DevSeeder

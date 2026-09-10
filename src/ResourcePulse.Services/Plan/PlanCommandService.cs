@@ -21,7 +21,8 @@ namespace ResourcePulse.Services.Plan;
 // dryRun the ChangeTracker is cleared so tracked mutations are discarded.
 //
 // Cross-aggregate invariants ported verbatim from the retired AllocationService
-// write paths: I1 (planning-level node), I3 (resource active — assigned only),
+// write paths: I1 (planning-level node), I3 (resource active — unconditional
+// since ADR-0025: a coverage always has one),
 // I4 (root not Closed/Cancelled), I6 (Hard ⇒ root committed). Overlap is never
 // re-checked: it sums and is surfaced, not enforced (ADR-0014, ADR-0019 §4).
 public sealed class PlanCommandService(
@@ -273,8 +274,8 @@ public sealed class PlanCommandService(
     private async Task<ServiceResult<PlanCommandResult>> ShiftFromAsync(ShiftFromCommand c, CancellationToken ct)
     {
         // Lane = resource × project_node, downstream in time. Tracked load so the
-        // mutations persist. Placeholders (ResourceId null) are excluded by the
-        // ResourceId filter — per-resource lane = assigned offer (ADR-0016 §5).
+        // mutations persist. Every coverage has a resource (ADR-0025), so the
+        // ResourceId filter selects the lane and excludes nothing else.
         var lane = await db.Allocations
             .Where(a => a.ResourceId == c.ResourceId
                      && a.ProjectNodeId == c.ProjectNodeId
@@ -627,8 +628,7 @@ public sealed class PlanCommandService(
     }
 
     // Demand references exist (RoleId required; OwnerResourceId optional). Both
-    // target existing catalogue rows. Used by createDemand/editDemand (Phase 5.0);
-    // supersedes CheckPlaceholderRefsAsync once the placeholder is retired (5.1).
+    // target existing catalogue rows. Used by createDemand/editDemand (Phase 5.0).
     private async Task<ServiceError?> CheckRoleAndOwnerAsync(Guid roleId, Guid? ownerResourceId, CancellationToken ct)
     {
         if (!await db.Roles.AnyAsync(r => r.Id == roleId, ct))
