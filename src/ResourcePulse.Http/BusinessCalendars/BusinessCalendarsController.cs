@@ -52,7 +52,7 @@ public sealed class BusinessCalendarsController(IBusinessCalendarService service
     [ProducesResponseType<WorkWindowDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> AddWorkWindowAsync(Guid id, [FromBody] WorkWindowDto dto, CancellationToken ct) =>
         FromCreateResult(await service.AddWorkWindowAsync(id, dto, ct), x => x.Id);
 
