@@ -17,6 +17,17 @@ public class ControlPlaneDbContext(DbContextOptions<ControlPlaneDbContext> optio
 {
     public const string SchemaName = "control_plane";
 
+    /// <summary>
+    /// The options both hosts must apply when they open this context: its own
+    /// migrations history table, inside its own schema. If the two hosts spelled
+    /// this differently, each would believe the other's migrations had not run.
+    /// </summary>
+    public static void ConfigureOptions(DbContextOptionsBuilder options) =>
+        options
+            .UseSnakeCaseNamingConvention()
+            .UseNpgsql(npgsql => npgsql.MigrationsHistoryTable(
+                "__ef_migrations_history", SchemaName));
+
     public DbSet<Tenant> Tenants => Set<Tenant>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

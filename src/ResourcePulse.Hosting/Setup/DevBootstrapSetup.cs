@@ -1,5 +1,6 @@
 using ResourcePulse.Common.Tenancy;
 using ResourcePulse.Hosting.Seeding;
+using ResourcePulse.Persistence;
 
 namespace ResourcePulse.Hosting.Setup;
 

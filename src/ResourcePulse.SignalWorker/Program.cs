@@ -1,6 +1,4 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Npgsql;
 using ResourcePulse.Common.Auth;
 using ResourcePulse.Common.Tenancy;
 using ResourcePulse.Domain;
@@ -40,46 +38,23 @@ builder.Services.AddSingleton<IDbContextOptionsConfiguration<ResourcePulseDbCont
 // ── The application role, for the same reason as in the API ──────────────────
 // A Postgres superuser bypasses RLS unconditionally, so a sweep running as the
 // owner would read and write across every tenant while the policies looked
-// perfectly configured. This process writes; it must be constrained.
-var ownerConnectionString = builder.Configuration.GetConnectionString("resourcepulse-db");
-var appDbRole = builder.Configuration["Tenancy:AppDbRole"];
-var appDbPassword = builder.Configuration["Tenancy:AppDbPassword"];
+// perfectly configured. This process writes; it must be constrained. The
+// derivation is shared with the API (AppDbConnection, in Persistence): it used to
+// be a second copy here, which is one copy too many for a rule this load-bearing.
+var connections = AppDbConnection.Resolve(builder.Configuration, builder.Environment.IsDevelopment());
 
-string? appConnectionString = null;
-if (!string.IsNullOrWhiteSpace(ownerConnectionString) && !string.IsNullOrWhiteSpace(appDbRole))
+builder.AddNpgsqlDbContext<ResourcePulseDbContext>(AppDbConnection.ResourceName, settings =>
 {
-    var owner = new NpgsqlConnectionStringBuilder(ownerConnectionString);
-    appConnectionString = new NpgsqlConnectionStringBuilder(ownerConnectionString)
-    {
-        // Pin the database before swapping the user: Aspire's connection string
-        // carries no Database=, and Npgsql would then default it to the username.
-        Database = string.IsNullOrEmpty(owner.Database) ? owner.Username : owner.Database,
-        Username = appDbRole,
-        Password = appDbPassword
-    }.ConnectionString;
-}
-else if (!builder.Environment.IsDevelopment())
-{
-    throw new InvalidOperationException(
-        "Tenancy:AppDbRole is required outside Development: without a non-superuser role the " +
-        "row-level-security policies do not constrain the sweep.");
-}
-
-builder.AddNpgsqlDbContext<ResourcePulseDbContext>("resourcepulse-db", settings =>
-{
-    if (appConnectionString is not null) settings.ConnectionString = appConnectionString;
+    if (connections.Application is not null) settings.ConnectionString = connections.Application;
 });
 
 builder.AddNpgsqlDbContext<ControlPlaneDbContext>(
-    "resourcepulse-db",
+    AppDbConnection.ResourceName,
     settings =>
     {
-        if (appConnectionString is not null) settings.ConnectionString = appConnectionString;
+        if (connections.Application is not null) settings.ConnectionString = connections.Application;
     },
-    options => options
-        .UseSnakeCaseNamingConvention()
-        .UseNpgsql(npgsql => npgsql.MigrationsHistoryTable(
-            "__ef_migrations_history", ControlPlaneDbContext.SchemaName)));
+    ControlPlaneDbContext.ConfigureOptions);
 
 builder.Services.AddScoped(typeof(IRepository<,>), typeof(Repository<,>));
 
