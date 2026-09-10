@@ -113,7 +113,7 @@ public sealed class ProjectNodeService(
         {
             await repository.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return ServiceResult<ProjectNodeReadDto>.Conflict("Code is already in use under this parent.");
         }
@@ -142,7 +142,7 @@ public sealed class ProjectNodeService(
         {
             await repository.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return ServiceResult<ProjectNodeReadDto>.Conflict("Code is already in use under this parent.");
         }
@@ -179,7 +179,7 @@ public sealed class ProjectNodeService(
         {
             await repository.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsForeignKeyViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsForeignKeyViolation())
         {
             // The checks above are read-then-write and something can be attached in
             // between. Rare, and still a conflict rather than a fault.
@@ -632,14 +632,4 @@ public sealed class ProjectNodeService(
     // anywhere we touch owned state.
     private Task<ProjectNode?> LoadWithOwnedAsync(Guid id, CancellationToken ct) =>
         db.ProjectNodes.FirstOrDefaultAsync(n => n.Id == id, ct);
-
-    // Message inspection, like IsUniqueViolation below and for the same reason
-    // (the documented convention): the provider exception type stays out of the
-    // service layer.
-    private static bool IsForeignKeyViolation(DbUpdateException ex) =>
-        ex.InnerException?.Message.Contains("foreign key constraint", StringComparison.OrdinalIgnoreCase) == true;
-
-    private static bool IsUniqueViolation(DbUpdateException ex) =>
-        ex.InnerException?.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) == true ||
-        ex.InnerException?.Message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase) == true;
 }

@@ -16,6 +16,7 @@
 // The board bundle endpoint stays deferred (project-gap.md §★★ — page-shaped,
 // not domain).
 
+import { rootIdFromPath } from '@/lib/projectPath';
 import { useMemo } from 'react';
 import dayjs from 'dayjs';
 import { useAllocationsGetInRange } from '@/api/generated/allocations/allocations';
@@ -131,7 +132,7 @@ export function useProjectsBoard(domain: BoardDomain): ProjectsBoard {
     const rows = (nodesQ.data?.data ?? []) as ProjectNodeReadDto[];
     const map = new Map<string, ProjectNodeReadDto[]>();
     for (const n of rows) {
-      const rootId = n.path?.split('/').find((s) => s.length > 0);
+      const rootId = rootIdFromPath(n.path);
       if (!rootId) continue;
       const group = map.get(rootId);
       if (group) group.push(n);

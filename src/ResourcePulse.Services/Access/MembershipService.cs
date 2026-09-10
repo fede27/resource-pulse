@@ -89,7 +89,7 @@ public sealed class MembershipService(
         {
             await db.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return ServiceResult<MembershipReadDto>.Conflict(
                 $"'{membership.Email}' already has a membership in this tenant.");
@@ -173,8 +173,4 @@ public sealed class MembershipService(
         CreatedAt = m.CreatedAt,
         UpdatedAt = m.UpdatedAt
     };
-
-    private static bool IsUniqueViolation(DbUpdateException ex) =>
-        ex.InnerException?.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) == true ||
-        ex.InnerException?.Message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase) == true;
 }

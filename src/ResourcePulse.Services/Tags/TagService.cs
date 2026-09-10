@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
 using ResourcePulse.Domain.Tags;
+using ResourcePulse.Persistence;
 
 namespace ResourcePulse.Services.Tags;
 
@@ -43,7 +44,7 @@ public sealed class TagService(
         {
             await repository.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return ServiceResult<TagReadDto>.Conflict($"A tag named '{tag.Name}' already exists.");
         }
@@ -62,7 +63,7 @@ public sealed class TagService(
         {
             await repository.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return ServiceResult<TagReadDto>.Conflict($"A tag named '{tag.Name}' already exists.");
         }
@@ -80,8 +81,4 @@ public sealed class TagService(
         await repository.SaveChangesAsync(ct);
         return ServiceResult.Ok();
     }
-
-    private static bool IsUniqueViolation(DbUpdateException ex) =>
-        ex.InnerException?.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) == true ||
-        ex.InnerException?.Message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase) == true;
 }

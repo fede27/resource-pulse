@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
 using ResourcePulse.Domain.Teams;
+using ResourcePulse.Persistence;
 
 namespace ResourcePulse.Services.Teams;
 
@@ -43,7 +44,7 @@ public sealed class TeamService(
         {
             await repository.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return ServiceResult<TeamReadDto>.Conflict($"A team named '{team.Name}' already exists.");
         }
@@ -63,7 +64,7 @@ public sealed class TeamService(
         {
             await repository.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return ServiceResult<TeamReadDto>.Conflict($"A team named '{team.Name}' already exists.");
         }
@@ -81,18 +82,11 @@ public sealed class TeamService(
             repository.Remove(team);
             await repository.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsForeignKeyViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsForeignKeyViolation())
         {
             return ServiceResult.Conflict("Team is referenced by one or more resources.");
         }
 
         return ServiceResult.Ok();
     }
-
-    private static bool IsUniqueViolation(DbUpdateException ex) =>
-        ex.InnerException?.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) == true ||
-        ex.InnerException?.Message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase) == true;
-
-    private static bool IsForeignKeyViolation(DbUpdateException ex) =>
-        ex.InnerException?.Message.Contains("foreign key", StringComparison.OrdinalIgnoreCase) == true;
 }

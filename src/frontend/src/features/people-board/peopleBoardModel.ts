@@ -16,6 +16,7 @@
 // (The backend LoadPercent sentinel on /load is a domain signal for Phase 5
 // and stays untouched; this page derives its cells client-side.)
 
+import { rootIdFromPath } from '@/lib/projectPath';
 import dayjs from 'dayjs';
 import {
   AllocationStatus,
@@ -73,11 +74,6 @@ export type BoardBucket = {
 };
 
 // ── Normalization ────────────────────────────────────────────────────────
-
-// Root project node id = first segment of the materialized Path "/{rootId}/...".
-export function rootIdFromPath(path: string | null | undefined): string {
-  return path?.split('/').find((s) => s.length > 0) ?? '';
-}
 
 export function toBoardPerson(
   r: ResourceReadDto,

@@ -44,7 +44,7 @@ public static class SingletonSeed
             await repository.SaveChangesAsync(ct);
             return seeded;
         }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             // Somebody seeded it between our read and our insert. Their row is
             // just as good as ours would have been — these are defaults, not a
@@ -60,7 +60,4 @@ public static class SingletonSeed
 
     // Message-based, matching the house convention (see TeamService): the
     // provider-specific error code is not surfaced by DbUpdateException itself.
-    private static bool IsUniqueViolation(DbUpdateException ex) =>
-        ex.InnerException?.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) == true ||
-        ex.InnerException?.Message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase) == true;
 }

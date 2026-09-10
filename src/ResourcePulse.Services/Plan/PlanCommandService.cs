@@ -515,8 +515,7 @@ public sealed class PlanCommandService(
             .Where(p => p.Id == nodeId).Select(p => p.Path).FirstOrDefaultAsync(ct);
         if (path is null) return null; // node vanished; surfaced elsewhere
 
-        var rootIdStr = path.TrimStart('/').Split('/').FirstOrDefault();
-        if (!Guid.TryParse(rootIdStr, out var rootId))
+        if (!ProjectNodePath.TryGetRootId(path, out var rootId))
             return ServiceError.Failure("ProjectNode has an invalid materialized path.");
 
         var status = await db.ProjectNodes.AsNoTracking()
@@ -551,8 +550,7 @@ public sealed class PlanCommandService(
             .Where(p => p.Id == nodeId).Select(p => p.Path).FirstOrDefaultAsync(ct);
         if (path is null) return ServiceError.Failure($"ProjectNode {nodeId} disappeared while validating I6.");
 
-        var rootIdStr = path.TrimStart('/').Split('/').FirstOrDefault();
-        if (!Guid.TryParse(rootIdStr, out var rootId))
+        if (!ProjectNodePath.TryGetRootId(path, out var rootId))
             return ServiceError.Failure("ProjectNode has an invalid materialized path.");
 
         var level = await db.ProjectNodes.AsNoTracking()

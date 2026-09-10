@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
 using ResourcePulse.Domain.Roles;
+using ResourcePulse.Persistence;
 
 namespace ResourcePulse.Services.Roles;
 
@@ -43,7 +44,7 @@ public sealed class RoleService(
         {
             await repository.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return ServiceResult<RoleReadDto>.Conflict($"A role named '{role.Name}' already exists.");
         }
@@ -62,7 +63,7 @@ public sealed class RoleService(
         {
             await repository.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return ServiceResult<RoleReadDto>.Conflict($"A role named '{role.Name}' already exists.");
         }
@@ -80,19 +81,11 @@ public sealed class RoleService(
         {
             await repository.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsForeignKeyViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsForeignKeyViolation())
         {
             return ServiceResult.Conflict(
                 $"Role {id} is assigned to one or more resources and cannot be deleted.");
         }
         return ServiceResult.Ok();
     }
-
-    private static bool IsUniqueViolation(DbUpdateException ex) =>
-        ex.InnerException?.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) == true ||
-        ex.InnerException?.Message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase) == true;
-
-    private static bool IsForeignKeyViolation(DbUpdateException ex) =>
-        ex.InnerException?.Message.Contains("foreign key", StringComparison.OrdinalIgnoreCase) == true ||
-        ex.InnerException?.Message.Contains("violates foreign key", StringComparison.OrdinalIgnoreCase) == true;
 }

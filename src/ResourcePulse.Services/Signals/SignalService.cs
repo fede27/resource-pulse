@@ -3,6 +3,7 @@ using ResourcePulse.Common.Auth;
 using ResourcePulse.Common.Domain;
 using ResourcePulse.Common.Results;
 using ResourcePulse.Domain;
+using ResourcePulse.Domain.Projects;
 using ResourcePulse.Domain.Signals;
 using ResourcePulse.Persistence;
 
@@ -206,8 +207,8 @@ public sealed class SignalService(
             .Where(r => resourceIds.Contains(r.Id))
             .ToDictionaryAsync(r => r.Id, r => r.Name, ct);
 
-        projectIds.UnionWith(demands.Select(d => RootIdFromPath(d.Path)));
-        projectIds.UnionWith(allocations.Select(a => RootIdFromPath(a.Path)));
+        projectIds.UnionWith(demands.Select(d => ProjectNodePath.RootId(d.Path)));
+        projectIds.UnionWith(allocations.Select(a => ProjectNodePath.RootId(a.Path)));
 
         var projectNames = await db.ProjectNodes.AsNoTracking()
             .Where(n => projectIds.Contains(n.Id))
@@ -215,11 +216,11 @@ public sealed class SignalService(
 
         return new Labels(
             demands.ToDictionary(d => d.Id, d => new DemandLabel(
-                d.ProjectNodeId, d.RoleId, d.RoleName, RootIdFromPath(d.Path),
+                d.ProjectNodeId, d.RoleId, d.RoleName, ProjectNodePath.RootId(d.Path),
                 d.OwnerResourceId is Guid o ? resourceNames.GetValueOrDefault(o) : null)),
             allocations.ToDictionary(a => a.Id, a => new AllocationLabel(
                 a.DemandId, a.ResourceId, resourceNames.GetValueOrDefault(a.ResourceId, "—"),
-                a.RoleName, RootIdFromPath(a.Path))),
+                a.RoleName, ProjectNodePath.RootId(a.Path))),
             resourceNames,
             projectNames);
     }
@@ -375,11 +376,5 @@ public sealed class SignalService(
     {
         var user = currentUser.User;
         return string.IsNullOrWhiteSpace(user.Email) ? user.Sub : user.Email;
-    }
-
-    private static Guid RootIdFromPath(string path)
-    {
-        var first = path.TrimStart('/').Split('/', StringSplitOptions.RemoveEmptyEntries)[0];
-        return Guid.Parse(first);
     }
 }

@@ -220,7 +220,7 @@ public sealed class LiveLoadQueryService(
             .Select(p => new { p.Id, p.Path })
             .ToListAsync(ct);
 
-        var rootByNode = nodePaths.ToDictionary(p => p.Id, p => RootIdFromPath(p.Path));
+        var rootByNode = nodePaths.ToDictionary(p => p.Id, p => ProjectNodePath.RootId(p.Path));
 
         var segments = LoadCalculator.ResourceCommitmentProfile(
             resourceId, allocations, rootByNode, from, toInclusive);
@@ -298,7 +298,7 @@ public sealed class LiveLoadQueryService(
             .Select(p => new { p.Id, p.Path })
             .ToListAsync(ct);
 
-        var rootByNode = nodePaths.ToDictionary(p => p.Id, p => RootIdFromPath(p.Path));
+        var rootByNode = nodePaths.ToDictionary(p => p.Id, p => ProjectNodePath.RootId(p.Path));
 
         var rootIds = rootByNode.Values.Distinct().ToList();
         var rootNames = await db.ProjectNodes
@@ -442,7 +442,7 @@ public sealed class LiveLoadQueryService(
             return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Success([]);
 
         // Drop demands whose root project is Closed/Cancelled (I4).
-        var rootByDemand = candidates.ToDictionary(x => x.Demand.Id, x => RootIdFromPath(x.Path));
+        var rootByDemand = candidates.ToDictionary(x => x.Demand.Id, x => ProjectNodePath.RootId(x.Path));
         var rootIds = rootByDemand.Values.Distinct().ToList();
         var openRoots = await db.ProjectNodes.AsNoTracking()
             .Where(p => rootIds.Contains(p.Id)
@@ -497,7 +497,7 @@ public sealed class LiveLoadQueryService(
         if (candidates.Count == 0)
             return ServiceResult<IReadOnlyList<OpenDemandDto>>.Success([]);
 
-        var rootByDemand = candidates.ToDictionary(x => x.Demand.Id, x => RootIdFromPath(x.Path));
+        var rootByDemand = candidates.ToDictionary(x => x.Demand.Id, x => ProjectNodePath.RootId(x.Path));
 
         // Drop demands whose root project is Closed/Cancelled — I4 forbids creating
         // coverage there, so offering them as targets would be a dead end.
@@ -602,7 +602,7 @@ public sealed class LiveLoadQueryService(
             .Where(p => demandNodeIds.Contains(p.Id))
             .Select(p => new { p.Id, p.Path })
             .ToListAsync(ct);
-        var rootByNode = demandNodePaths.ToDictionary(p => p.Id, p => RootIdFromPath(p.Path));
+        var rootByNode = demandNodePaths.ToDictionary(p => p.Id, p => ProjectNodePath.RootId(p.Path));
         var rootIds = rootByNode.Values.Distinct().ToList();
         var rootNames = await db.ProjectNodes.AsNoTracking()
             .Where(p => rootIds.Contains(p.Id))
@@ -631,12 +631,5 @@ public sealed class LiveLoadQueryService(
         }).ToList();
 
         return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Success(dtos);
-    }
-
-    // Root project node id = first segment of the materialized Path "/{rootId}/...".
-    private static Guid RootIdFromPath(string path)
-    {
-        var first = path.TrimStart('/').Split('/', StringSplitOptions.RemoveEmptyEntries)[0];
-        return Guid.Parse(first);
     }
 }

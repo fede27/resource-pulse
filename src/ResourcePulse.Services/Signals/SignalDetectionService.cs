@@ -474,7 +474,7 @@ public sealed class SignalDetectionService(
                 .ToListAsync(ct);
 
             var stranded = demandPaths
-                .Where(x => closed.Contains(RootIdFromPath(x.Path)))
+                .Where(x => closed.Contains(ProjectNodePath.RootId(x.Path)))
                 .Select(x => x.Id)
                 .ToList();
 
@@ -555,7 +555,7 @@ public sealed class SignalDetectionService(
                 (d, n) => new { d.Id, d.DecideBy, n.Path, NodeStart = n.PlannedStart })
             .ToListAsync(ct);
 
-        var rootIds = rows.Select(r => RootIdFromPath(r.Path)).Distinct().ToList();
+        var rootIds = rows.Select(r => ProjectNodePath.RootId(r.Path)).Distinct().ToList();
         var roots = await db.ProjectNodes
             .Where(n => rootIds.Contains(n.Id))
             .Select(n => new { n.Id, n.PlannedStart, n.CommitmentLevel })
@@ -566,7 +566,7 @@ public sealed class SignalDetectionService(
 
         foreach (var row in rows)
         {
-            var rootId = RootIdFromPath(row.Path);
+            var rootId = ProjectNodePath.RootId(row.Path);
             rootById.TryGetValue(rootId, out var root);
 
             // The explicit override wins; otherwise derive from the node's planned
@@ -597,14 +597,14 @@ public sealed class SignalDetectionService(
 
         if (rows.Count == 0) return [];
 
-        var rootIds = rows.Select(r => RootIdFromPath(r.Path)).Distinct().ToList();
+        var rootIds = rows.Select(r => ProjectNodePath.RootId(r.Path)).Distinct().ToList();
         var datedRoots = await db.ProjectNodes
             .Where(n => rootIds.Contains(n.Id) && n.PlannedStart != null)
             .Select(n => n.Id)
             .ToListAsync(ct);
 
         var dated = datedRoots.ToHashSet();
-        return rows.Where(r => !dated.Contains(RootIdFromPath(r.Path))).Select(r => r.Id).ToList();
+        return rows.Where(r => !dated.Contains(ProjectNodePath.RootId(r.Path))).Select(r => r.Id).ToList();
     }
 
     // ── Shared reads ─────────────────────────────────────────────────────────
@@ -655,13 +655,6 @@ public sealed class SignalDetectionService(
         // Keep the most recent chunks: a gap on work that finished years ago is
         // not triage, and the walk must stay bounded.
         return chunks.Count <= MaxChunks ? chunks : chunks.TakeLast(MaxChunks);
-    }
-
-    // Root project node id = first segment of the materialized Path "/{rootId}/...".
-    private static Guid RootIdFromPath(string path)
-    {
-        var first = path.TrimStart('/').Split('/', StringSplitOptions.RemoveEmptyEntries)[0];
-        return Guid.Parse(first);
     }
 
     private sealed record ActiveRoot(Guid Id, DateOnly? PlannedStart, DateOnly? PlannedEnd, CommitmentLevel? CommitmentLevel);

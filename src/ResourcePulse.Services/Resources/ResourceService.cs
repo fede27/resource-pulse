@@ -170,7 +170,7 @@ public sealed class ResourceService(
         {
             await repository.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return ServiceResult<ResourceReadDto>.Conflict(DescribeUniqueViolation(ex));
         }
@@ -228,7 +228,7 @@ public sealed class ResourceService(
         {
             await repository.SaveChangesAsync(ct);
         }
-        catch (DbUpdateException ex) when (IsUniqueViolation(ex))
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             return ServiceResult<ResourceReadDto>.Conflict(DescribeUniqueViolation(ex));
         }
@@ -565,10 +565,6 @@ public sealed class ResourceService(
             ? ServiceResult<Guid>.Forbidden("Current user is not linked to a resource and cannot review skills.")
             : ServiceResult<Guid>.Success(reviewerId.Value);
     }
-
-    private static bool IsUniqueViolation(DbUpdateException ex) =>
-        ex.InnerException?.Message.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) == true ||
-        ex.InnerException?.Message.Contains("unique constraint", StringComparison.OrdinalIgnoreCase) == true;
 
     // Map the index name in the Postgres error message to a user-friendly
     // explanation. Falls back to a generic message when the constraint is

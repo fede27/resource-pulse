@@ -1,3 +1,4 @@
+import { rootIdFromPath } from '@/lib/projectPath';
 import { describe, expect, it } from 'vitest';
 import dayjs from 'dayjs';
 import { buildGeo } from '@/components/board';
@@ -19,7 +20,6 @@ import {
   personStats,
   proposalPercent,
   resolvePeriod,
-  rootIdFromPath,
   snapISO,
   sortPeople,
   subPeriods,
