@@ -1,42 +1,19 @@
-using FluentValidation;
-using Mapster;
-using MapsterMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Npgsql;
 using ResourcePulse.Common.Auth;
 using ResourcePulse.Common.Tenancy;
-using ResourcePulse.Domain;
 using ResourcePulse.Hosting;
 using ResourcePulse.Hosting.Auth;
-using ResourcePulse.Hosting.Seeding;
+using ResourcePulse.Hosting.Setup;
 using ResourcePulse.Http;
-using ResourcePulse.Persistence;
-using ResourcePulse.Persistence.ControlPlane;
 using ResourcePulse.Persistence.Tenancy;
-using ResourcePulse.Services;
-using ResourcePulse.Services.Access;
-using ResourcePulse.Services.Allocations;
-using ResourcePulse.Services.BusinessCalendars;
-using ResourcePulse.Services.Capacity;
-using ResourcePulse.Services.CompanyClosures;
-using ResourcePulse.Services.Configuration;
-using ResourcePulse.Services.Demands;
-using ResourcePulse.Services.Identity;
-using ResourcePulse.Services.Load;
-using ResourcePulse.Services.Plan;
-using ResourcePulse.Services.Projects;
-using ResourcePulse.Services.Resources;
-using ResourcePulse.Services.Roles;
-using ResourcePulse.Services.Signals;
-using ResourcePulse.Services.Skills;
-using ResourcePulse.Services.Tags;
-using ResourcePulse.Services.Teams;
-using ResourcePulse.Services.Tenancy;
 using Serilog;
+
+// The startup sequence, and as little else as possible. Each AddResourcePulse*
+// owns one concern and explains itself in its own file (Auth/ and Setup/); what
+// belongs HERE is the order, because in several places the order IS the
+// correctness — see the middleware pipeline at the bottom.
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,6 +32,8 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 if (builder.Environment.IsDevelopment())
     builder.Configuration.AddJsonFile("zitadel-dev.json", optional: true, reloadOnChange: false);
 
+// ── Identity and access ─────────────────────────────────────────────────────
+
 // Auth — provider selected by Auth:Provider (Fake | Zitadel). Fake is the
 // Development default so the zero-friction dev loop is unchanged.
 builder.AddResourcePulseAuthentication();
@@ -66,6 +45,14 @@ builder.AddResourcePulseAuthorization();
 // Gives a failed role policy a ProblemDetails body with a distinct `type`, so the
 // client can tell "not a member of this tenant" from "insufficient role".
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, AccessDeniedResultHandler>();
+
+// Our own login page (ADR-0031). The typed client carries the login client's
+// personal access token, which can finalise an authorization request for ANY
+// user — so it lives here, in the API, and never in the browser.
+builder.AddResourcePulseForwardedHeaders();
+builder.AddResourcePulseLoginClient();
+
+// ── Ambient request state ───────────────────────────────────────────────────
 
 builder.Services.AddHttpContextAccessor();
 // One clock for the whole process: the audit stamps, the detector, the plan
@@ -81,130 +68,10 @@ builder.Services.AddSingleton<ICurrentUserAccessor, HttpContextCurrentUserAccess
 // it, so it must be a singleton that resolves the ambient request at call time.
 builder.Services.AddSingleton<ITenantContext, HttpContextTenantContext>();
 
-// Mapster — scan Services assembly for IRegister implementations
-var mapsterConfig = TypeAdapterConfig.GlobalSettings;
-mapsterConfig.Scan(typeof(ServicesAssemblyMarker).Assembly);
-builder.Services.AddSingleton(mapsterConfig);
-builder.Services.AddScoped<IMapper, ServiceMapper>();
+// ── The application ─────────────────────────────────────────────────────────
 
-// FluentValidation — scan Services assembly for validators
-builder.Services.AddValidatorsFromAssembly(typeof(ServicesAssemblyMarker).Assembly);
-
-// Persistence
-// AuditInterceptor is singleton (safe — reads IHttpContextAccessor.HttpContext at call time).
-// Wired into the DbContextPool's shared options via IDbContextOptionsConfiguration<T>,
-// which is the EF Core-supported way to add interceptors when pooling is active.
-builder.Services.AddSingleton<AuditInterceptor>();
-// Tenant isolation (ADR-0029): the stamp interceptor sets tenant_id on insert,
-// the session interceptor publishes it to Postgres for the RLS policies.
-builder.Services.AddSingleton<TenantStampInterceptor>();
-builder.Services.AddSingleton<TenantSessionInterceptor>();
-builder.Services.AddSingleton<IDbContextOptionsConfiguration<ResourcePulseDbContext>, ResourcePulseDbContextOptionsConfiguration>();
-if (builder.Environment.IsDevelopment())
-{
-    // Adds EnableSensitiveDataLogging + EnableDetailedErrors. Composes with the
-    // base configuration above. Lives in Hosting because the env decision belongs here.
-    builder.Services.AddSingleton<IDbContextOptionsConfiguration<ResourcePulseDbContext>, DevDiagnosticsDbContextOptionsConfiguration>();
-}
-builder.Services.AddScoped(typeof(IRepository<,>), typeof(Repository<,>));
-
-// ── Two connections, deliberately ────────────────────────────────────────────
-// Aspire hands us the OWNER credentials. The API must not use them at runtime:
-// a Postgres superuser bypasses row-level security unconditionally, so every
-// tenant policy would be inert (ADR-0029). The request path therefore connects
-// as a dedicated NOSUPERUSER NOBYPASSRLS role created by the container init
-// script, while DDL — migrations and dev seeding — stays on the owner.
-var ownerConnectionString = builder.Configuration.GetConnectionString("resourcepulse-db");
-var appDbRole = builder.Configuration["Tenancy:AppDbRole"];
-var appDbPassword = builder.Configuration["Tenancy:AppDbPassword"];
-
-string? appConnectionString = null;
-if (!string.IsNullOrWhiteSpace(ownerConnectionString) && !string.IsNullOrWhiteSpace(appDbRole))
-{
-    var owner = new NpgsqlConnectionStringBuilder(ownerConnectionString);
-
-    appConnectionString = new NpgsqlConnectionStringBuilder(ownerConnectionString)
-    {
-        // Pin the database BEFORE swapping the user. Aspire's connection string
-        // carries no Database=, and Npgsql then defaults it to the username — so
-        // changing the username would silently retarget a database named after
-        // the application role, which does not exist.
-        Database = string.IsNullOrEmpty(owner.Database) ? owner.Username : owner.Database,
-        Username = appDbRole,
-        Password = appDbPassword
-    }.ConnectionString;
-}
-else if (!builder.Environment.IsDevelopment())
-{
-    throw new InvalidOperationException(
-        "Tenancy:AppDbRole is required outside Development: without a non-superuser role the " +
-        "row-level-security policies do not constrain the application.");
-}
-
-builder.AddNpgsqlDbContext<ResourcePulseDbContext>("resourcepulse-db", settings =>
-{
-    if (appConnectionString is not null) settings.ConnectionString = appConnectionString;
-});
-
-// The control-plane registry: read-only to the API, its own schema and its own
-// migrations history. Not tenant-scoped — it is what establishes the tenant.
-builder.AddNpgsqlDbContext<ControlPlaneDbContext>(
-    "resourcepulse-db",
-    settings =>
-    {
-        if (appConnectionString is not null) settings.ConnectionString = appConnectionString;
-    },
-    options => options
-        .UseSnakeCaseNamingConvention()
-        .UseNpgsql(npgsql => npgsql.MigrationsHistoryTable(
-            "__ef_migrations_history", ControlPlaneDbContext.SchemaName)));
-
-// Services
-builder.Services.AddScoped<IBusinessCalendarService, BusinessCalendarService>();
-builder.Services.AddScoped<ICompanyClosureService, CompanyClosureService>();
-builder.Services.AddScoped<IResourceService, ResourceService>();
-builder.Services.AddScoped<ICapacityQueryService, LiveCapacityQueryService>();
-builder.Services.AddScoped<ITeamService, TeamService>();
-builder.Services.AddScoped<IRoleService, RoleService>();
-builder.Services.AddScoped<ISkillService, SkillService>();
-builder.Services.AddScoped<ITagService, TagService>();
-builder.Services.AddScoped<IProjectNodeService, ProjectNodeService>();
-builder.Services.AddScoped<IAllocationService, AllocationService>();
-builder.Services.AddScoped<IDemandService, DemandService>();
-builder.Services.AddScoped<IPlanCommandService, PlanCommandService>();
-builder.Services.AddScoped<ILoadQueryService, LiveLoadQueryService>();
-builder.Services.AddScoped<IMeService, MeService>();
-builder.Services.AddScoped<ITenantResolver, TenantResolver>();
-
-// Our own login page (ADR-0031). The typed client carries the login client's
-// personal access token, which can finalise an authorization request for ANY
-// user — so it lives here, in the API, and never in the browser.
-builder.AddResourcePulseForwardedHeaders();
-builder.AddResourcePulseLoginClient();
-
-// Access control (ADR-0030): membership resolution + administration.
-builder.Services.AddScoped<IAccessResolver, AccessResolver>();
-builder.Services.AddScoped<IMembershipService, MembershipService>();
-if (builder.Environment.IsDevelopment())
-    builder.Services.AddScoped<IDevAccessService, DevAccessService>();
-
-// Org-level configuration singletons (ADR-0020): boundaries & thresholds.
-builder.Services.AddScoped<ILoadBandConfigurationService, LoadBandConfigurationService>();
-builder.Services.AddScoped<ITimeFenceConfigurationService, TimeFenceConfigurationService>();
-builder.Services.AddScoped<IBucketingDefaultsService, BucketingDefaultsService>();
-builder.Services.AddScoped<ICommitmentPolicyService, CommitmentPolicyService>();
-builder.Services.AddScoped<ISignalPolicyService, SignalPolicyService>();
-
-// Triage (ADR-0032). The detector is registered here too — the API never runs it
-// on a schedule (that is the dedicated worker's job, so N replicas cannot mean N
-// concurrent sweeps on the same tenant), but the resolve-only hook on the plan
-// envelope resolves it per request.
-builder.Services.AddScoped<ISignalDetectionService, SignalDetectionService>();
-builder.Services.AddScoped<ISignalService, SignalService>();
-// Operational, not organizational (ADR-0032 §12): the cadence belongs to the
-// worker's settings. The API only echoes the tolerance so no client invents one.
-builder.Services.AddSingleton<ISweepCadence>(_ => new SweepCadence(
-    builder.Configuration.GetValue("Signals:StaleAfterHours", SweepCadence.DefaultStaleAfterHours)));
+builder.AddResourcePulsePersistence();
+builder.AddResourcePulseApplicationServices();
 
 // MVC + global validation filter
 builder.Services
@@ -214,58 +81,13 @@ builder.Services
     .ConfigureApplicationPartManager(apm => apm.FeatureProviders.Add(
         new DevelopmentOnlyControllerFeatureProvider(builder.Environment.IsDevelopment())));
 
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen(c =>
-    {
-        // Required for orval/openapi codegen: default operationIds collide
-        // across controllers (every CRUD controller has GetAll/GetById/...).
-        c.CustomOperationIds(api =>
-            $"{api.ActionDescriptor.RouteValues["controller"]}_{api.ActionDescriptor.RouteValues["action"]}");
-
-        // Plan command union (ADR-0018): render the System.Text.Json polymorphic
-        // PlanCommand as `oneOf` + discriminator ("kind") so orval emits a tagged
-        // union on the client. Inheritance schemas use allOf.
-        c.UseOneOfForPolymorphism();
-        c.UseAllOfForInheritance();
-
-        // Drop request bodies from GET operations (DataSourceLoadOptionsBase
-        // would otherwise be emitted as a body, breaking GET semantics).
-        c.OperationFilter<StripBodyFromGetOperationFilter>();
-
-        // Annotate enum schemas with x-enum-varnames so codegen tools (orval,
-        // NSwag, ...) emit meaningful member names instead of NUMBER_0,
-        // NUMBER_1, ... The wire format stays integer.
-        c.SchemaFilter<EnumVarnamesSchemaFilter>();
-    });
-}
+builder.AddResourcePulseSwagger();
 
 var app = builder.Build();
 
-// Apply pending migrations on startup in Development
-// (Production migrations are applied out-of-band via CI/CD)
-if (app.Environment.IsDevelopment())
-{
-    // DDL runs on the OWNER connection: the application role deliberately has no
-    // rights to create tables or alter policies. Seeding below stays on the
-    // application connection, so it exercises the isolation rather than
-    // sidestepping it.
-    await DevDatabaseBootstrapper.MigrateAsync(ownerConnectionString, app.Logger);
+await app.RunResourcePulseDevBootstrapAsync();
 
-    // Everything below is tenant data, so it needs a tenant. Development gets a
-    // deterministic one, registered in the control plane against the fake
-    // organization FakeAuth issues — so even the fake path resolves its tenant
-    // through the real registry rather than bypassing it.
-    var devTenantId = await DevDatabaseBootstrapper.EnsureDevTenantAsync(
-        ownerConnectionString, app.Logger);
-
-    using (TenantScope.For(devTenantId))
-    {
-        await DevSeeder.SeedAsync(app.Services, app.Logger);
-        await BulkDevSeeder.SeedAsync(app.Services, app.Logger);
-    }
-}
+// ── The pipeline, where order is correctness ────────────────────────────────
 
 // FIRST, before anything reads the client address — the request logger and the
 // login throttle both do. Off unless configured (review finding 6).
@@ -273,11 +95,7 @@ app.UseResourcePulseForwardedHeaders();
 
 app.UseExceptionHandler();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseResourcePulseSwagger();
 
 // Serilog request logging enriched with current user Sub
 app.UseSerilogRequestLogging(opts =>
