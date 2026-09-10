@@ -5,7 +5,18 @@ using ResourcePulse.Domain;
 
 namespace ResourcePulse.Persistence;
 
-public sealed class AuditInterceptor(ICurrentUserAccessor currentUserAccessor) : SaveChangesInterceptor
+/// <summary>
+/// Stamps <see cref="IAuditable"/> rows with who saved them and when.
+/// </summary>
+/// <remarks>
+/// The clock is injected rather than read off <c>DateTime.UtcNow</c>: an audit
+/// stamp is a persisted fact, and a fact nothing can pin is a fact nothing can
+/// test. It is the same <see cref="TimeProvider"/> the detector and the plan
+/// envelope already take, so "when" means one thing across the process.
+/// </remarks>
+public sealed class AuditInterceptor(
+    ICurrentUserAccessor currentUserAccessor,
+    TimeProvider clock) : SaveChangesInterceptor
 {
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
@@ -31,7 +42,7 @@ public sealed class AuditInterceptor(ICurrentUserAccessor currentUserAccessor) :
             throw new InvalidOperationException(
                 "Cannot persist changes: current user Sub is empty. Ensure authentication is configured.");
 
-        var now = DateTime.UtcNow;
+        var now = clock.GetUtcNow().UtcDateTime;
 
         foreach (var entry in context.ChangeTracker.Entries<IAuditable>())
         {

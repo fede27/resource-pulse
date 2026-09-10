@@ -68,6 +68,10 @@ builder.AddResourcePulseAuthorization();
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, AccessDeniedResultHandler>();
 
 builder.Services.AddHttpContextAccessor();
+// One clock for the whole process: the audit stamps, the detector, the plan
+// envelope and the skill-approval workflow all read it, so "now" cannot mean
+// two different things depending on which layer asked.
+builder.Services.TryAddSingleton(TimeProvider.System);
 // Singleton required: Aspire's AddNpgsqlDbContext uses AddDbContextPool.
 // Pooled DbContexts are resolved from the root provider, so constructor-injected
 // dependencies must be singletons. HttpContextCurrentUserAccessor reads
@@ -195,7 +199,6 @@ builder.Services.AddScoped<ISignalPolicyService, SignalPolicyService>();
 // on a schedule (that is the dedicated worker's job, so N replicas cannot mean N
 // concurrent sweeps on the same tenant), but the resolve-only hook on the plan
 // envelope resolves it per request.
-builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ISignalDetectionService, SignalDetectionService>();
 builder.Services.AddScoped<ISignalService, SignalService>();
 // Operational, not organizational (ADR-0032 §12): the cadence belongs to the

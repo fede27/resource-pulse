@@ -17,7 +17,8 @@ public sealed class ResourceService(
     IRepository<Resource, Guid> repository,
     ResourcePulseDbContext db,
     IMapper mapper,
-    ICurrentUserAccessor currentUserAccessor) : IResourceService
+    ICurrentUserAccessor currentUserAccessor,
+    TimeProvider clock) : IResourceService
 {
     public async Task<ServiceResult<LoadResult>> GetAllAsync(
         DataSourceLoadOptionsBase? loadOptions = null,
@@ -531,7 +532,7 @@ public sealed class ResourceService(
 
         try
         {
-            transition(resource, reviewerResult.Value, DateTime.UtcNow);
+            transition(resource, reviewerResult.Value, clock.GetUtcNow().UtcDateTime);
         }
         catch (Common.Domain.DomainException ex)
         {
