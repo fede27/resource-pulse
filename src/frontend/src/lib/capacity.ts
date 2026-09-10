@@ -7,9 +7,10 @@ import { parseDurationHours } from '@/lib/duration';
 
 const ISO = 'YYYY-MM-DD';
 
-// The batch capacity read rejects a range wider than this (LiveCapacityQueryService
-// .MaxRangeDays) with a 400 — and a rejected read reads as "everybody has zero
-// hours", not as an error, which is the nastiest way for this to fail.
+// The batch capacity read rejects a range wider than this (DateRangeGuard
+// .MaxDays, which IS TimeFenceConfiguration.MaxHorizonDays) with a 400 — and a
+// rejected read reads as "everybody has zero hours", not as an error, which is
+// the nastiest way for this to fail.
 export const MAX_CAPACITY_RANGE_DAYS = 366;
 
 // Splits an inclusive range into contiguous chunks no wider than `maxDays`.

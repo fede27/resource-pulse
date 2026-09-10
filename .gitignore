@@ -95,6 +95,15 @@ secrets/
 src/ResourcePulse.Hosting/zitadel-dev.json
 src/ResourcePulse.AppHost/zitadel-machinekey/
 
+# Node. The SPA has its own .gitignore, but it is scoped to src/frontend/ —
+# anything Node-shaped that lands at the repository root falls through it.
+# That is how node_modules/.vite/vitest/<hash>/results.json came to be tracked:
+# a vitest run whose root resolved here, leaving a cache file that every later
+# run then modified.
+node_modules/
+dist/
+coverage/
+
 # Misc
 *.cache
 *.tmp
