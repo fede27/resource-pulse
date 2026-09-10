@@ -22,8 +22,15 @@ import {
   type InspectTarget,
   type Verdict,
 } from './boardModel';
-import { BoardTimeline, buildGeo, clampDomain, RowGap, useWindowedRows } from '@/components/board';
-import { useProjectsBoard, type BoardDomain } from './useProjectsBoard';
+import {
+  BoardTimeline,
+  buildGeo,
+  clampDomain,
+  RowGap,
+  useWindowedRows,
+  type BoardDomain,
+} from '@/components/board';
+import { useProjectsBoard } from './useProjectsBoard';
 import { BoardInspector } from './BoardInspector';
 import { NewProjectPanel } from './NewProjectPanel';
 import { ProjectReasonModal } from './ProjectReasonModal';

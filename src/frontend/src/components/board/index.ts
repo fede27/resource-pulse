@@ -30,7 +30,12 @@ export { useRefNode } from './useRefNode';
 export { RowGap } from './RowGap';
 export { BoardToolbar } from './BoardToolbar';
 export { BoardTimeFilter, type BoardTimeFilterProps } from './BoardTimeFilter';
-export { clampDomain, MAX_DOMAIN_DAYS, type BoardDomain } from './boardDomain';
+export {
+  clampDomain,
+  fetchRangeFor,
+  MAX_DOMAIN_DAYS,
+  type BoardDomain,
+} from './boardDomain';
 export {
   ENVELOPE_H,
   HEADER_FENCE_H,

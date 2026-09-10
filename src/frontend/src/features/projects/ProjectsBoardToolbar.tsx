@@ -4,7 +4,7 @@ import { FilterOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { green, neutral } from '@/app/palette';
-import { BoardTimeFilter, BoardToolbar } from '@/components/board';
+import { BoardTimeFilter, BoardToolbar, type BoardDomain } from '@/components/board';
 import type { Grain } from '@/components/timeline';
 import {
   activeFilterCount,
@@ -17,7 +17,7 @@ import {
 } from './boardModel';
 import { VERDICT_COLORS } from './boardColors';
 import type { PersonPoolEntry } from './useProjectsBoard';
-import type { BoardDomain } from './useProjectsBoard';
+
 import { useStyles } from './ProjectsBoardToolbar.styles';
 
 const LIFECYCLES: Lifecycle[] = ['future', 'active', 'closed'];

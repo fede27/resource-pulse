@@ -20,12 +20,10 @@ import { rootIdFromPath } from '@/lib/projectPath';
 import { useMemo } from 'react';
 import dayjs from 'dayjs';
 import { useAllocationsGetInRange } from '@/api/generated/allocations/allocations';
-import { useBucketingGet } from '@/api/generated/bucketing/bucketing';
 import {
   useLoadGetDemandCoverageInRange,
   useLoadGetResourceLoadProfiles,
 } from '@/api/generated/load/load';
-import { useLoadBandsGet } from '@/api/generated/load-bands/load-bands';
 import { useMeGet } from '@/api/generated/me/me';
 import { useAccess } from '@/auth/access';
 import { useProjectNodesGetAll } from '@/api/generated/project-nodes/project-nodes';
@@ -35,10 +33,8 @@ import {
   useResourcesGetCapacities,
 } from '@/api/generated/resources/resources';
 import { useRolesGetAll } from '@/api/generated/roles/roles';
-import { useTimeFenceGet } from '@/api/generated/time-fence/time-fence';
 import {
   AllocationStatus,
-  BucketGrain,
   DateSource,
   type AllocationReadDto,
   type DemandCoverageDto,
@@ -48,7 +44,8 @@ import {
   type RoleReadDto,
 } from '@/api/generated/schemas';
 import type { Grain } from '@/components/timeline';
-import { normalizeBands, overloadFloor, type LoadBand } from '@/lib/loadBands';
+import { useBoardConfig } from '@/lib/boardConfig';
+import type { LoadBand } from '@/lib/loadBands';
 import { capacityMapFromSegments, blockHoursInRange } from '@/lib/capacity';
 import {
   buildBoardProject,
@@ -57,26 +54,11 @@ import {
   type CoverageBlock,
   type CurrentUser,
 } from './boardModel';
-import { fenceEnd, type FenceBoundaries } from '@/components/board';
+import { fetchRangeFor, type BoardDomain, type FenceBoundaries } from '@/components/board';
 
 const ISO = 'YYYY-MM-DD';
-// The load/coverage endpoints cap the range at 366 inclusive days (400 beyond);
-// the fetch window is clamped so a wide visual domain never turns into a 400.
-const MAX_RANGE_DAYS = 366;
-
-export type BoardDomain = { minISO: string; maxISO: string };
 
 export type PersonPoolEntry = { id: string; name: string; roleName: string | null };
-
-const grainOf = (g: BucketGrain | undefined): Grain =>
-  g === BucketGrain.Day ? 'day' : g === BucketGrain.Month ? 'month' : 'week';
-
-export function clampRange(domain: BoardDomain): { from: string; to: string } {
-  const min = dayjs(domain.minISO);
-  const max = dayjs(domain.maxISO);
-  if (max.diff(min, 'day') + 1 <= MAX_RANGE_DAYS) return { from: domain.minISO, to: domain.maxISO };
-  return { from: domain.minISO, to: min.add(MAX_RANGE_DAYS - 1, 'day').format(ISO) };
-}
 
 export type ProjectsBoard = {
   isLoading: boolean; // first paint gate (config + roots)
@@ -103,11 +85,9 @@ export type ProjectsBoard = {
 
 export function useProjectsBoard(domain: BoardDomain): ProjectsBoard {
   const todayISO = dayjs().format(ISO);
-  const range = clampRange(domain);
+  const range = fetchRangeFor(domain);
 
-  const bandsQ = useLoadBandsGet();
-  const fenceQ = useTimeFenceGet();
-  const bucketingQ = useBucketingGet();
+  const config = useBoardConfig(todayISO);
   const meQ = useMeGet();
   const access = useAccess();
   const resourcesQ = useResourcesGetAll();
@@ -264,17 +244,6 @@ export function useProjectsBoard(domain: BoardDomain): ProjectsBoard {
     return map;
   }, [personPool]);
 
-  const bands = useMemo(() => normalizeBands(bandsQ.data?.bands), [bandsQ.data]);
-
-  const fence = useMemo<FenceBoundaries>(
-    () => ({
-      todayISO,
-      frozenEndISO: fenceEnd(todayISO, fenceQ.data?.frozenHorizon?.value, fenceQ.data?.frozenHorizon?.unit),
-      slushyEndISO: fenceEnd(todayISO, fenceQ.data?.slushyHorizon?.value, fenceQ.data?.slushyHorizon?.unit),
-    }),
-    [todayISO, fenceQ.data],
-  );
-
   const me = useMemo<CurrentUser>(
     () => ({
       resourceId: meQ.data?.resourceId ?? null,
@@ -290,16 +259,16 @@ export function useProjectsBoard(domain: BoardDomain): ProjectsBoard {
     (personIds.length > 0 && (profilesQ.isPending || capacitiesQ.isPending));
 
   return {
-    isLoading: projectsQ.isPending || bandsQ.isPending || fenceQ.isPending || bucketingQ.isPending,
+    isLoading: projectsQ.isPending || config.isPending,
     isFetching: projectsQ.isFetching || (roots.length > 0 && detailPending),
     isError: projectsQ.isError,
     projects,
-    bands,
-    overloadThreshold: overloadFloor(bands),
-    fence,
+    bands: config.bands,
+    overloadThreshold: config.overloadThreshold,
+    fence: config.fence,
     todayISO,
-    primaryGrain: grainOf(bucketingQ.data?.primaryGrain),
-    secondaryGrain: grainOf(bucketingQ.data?.secondaryGrain),
+    primaryGrain: config.primaryGrain,
+    secondaryGrain: config.secondaryGrain,
     me,
     personPool,
     personName: (id) => personNames.get(id) ?? '—',
