@@ -4,6 +4,7 @@ using ResourcePulse.Domain.Calendars;
 using ResourcePulse.Domain.Capacity;
 using ResourcePulse.Domain.Resources;
 using ResourcePulse.Persistence;
+using ResourcePulse.Services.Shared;
 
 namespace ResourcePulse.Services.Capacity;
 
@@ -13,30 +14,14 @@ namespace ResourcePulse.Services.Capacity;
 // owned collections in one query (per Phase 2 plan addendum).
 public sealed class LiveCapacityQueryService(ResourcePulseDbContext db) : ICapacityQueryService
 {
-    private const int MaxRangeDays = 366;
-
     public async Task<ServiceResult<IReadOnlyList<DailyCapacityDto>>> GetForResourceAsync(
         Guid resourceId,
         DateOnly from,
         DateOnly toInclusive,
         CancellationToken ct = default)
     {
-        if (from > toInclusive)
-        {
-            return ServiceResult<IReadOnlyList<DailyCapacityDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = ["'from' must be on or before 'to'."]
-            });
-        }
-
-        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
-        if (rangeDays > MaxRangeDays)
-        {
-            return ServiceResult<IReadOnlyList<DailyCapacityDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
-            });
-        }
+        if (DateRangeGuard.Validate(from, toInclusive) is { } rangeError)
+            return ServiceResult<IReadOnlyList<DailyCapacityDto>>.Failure(rangeError);
 
         // 1. Resource with filtered owned WorkWindows.
         var resourceData = await db.Set<Resource>()
@@ -112,22 +97,8 @@ public sealed class LiveCapacityQueryService(ResourcePulseDbContext db) : ICapac
         DateOnly toInclusive,
         CancellationToken ct = default)
     {
-        if (from > toInclusive)
-        {
-            return ServiceResult<IReadOnlyDictionary<Guid, IReadOnlyList<DailyCapacityDto>>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = ["'from' must be on or before 'to'."]
-            });
-        }
-
-        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
-        if (rangeDays > MaxRangeDays)
-        {
-            return ServiceResult<IReadOnlyDictionary<Guid, IReadOnlyList<DailyCapacityDto>>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
-            });
-        }
+        if (DateRangeGuard.Validate(from, toInclusive) is { } rangeError)
+            return ServiceResult<IReadOnlyDictionary<Guid, IReadOnlyList<DailyCapacityDto>>>.Failure(rangeError);
 
         // null/empty = the active population; explicit ids are honoured regardless
         // of IsActive (a coverage may reference a since-deactivated resource).

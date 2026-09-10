@@ -7,6 +7,7 @@ using ResourcePulse.Domain.Projects;
 using ResourcePulse.Persistence;
 using ResourcePulse.Services.Capacity;
 using ResourcePulse.Services.Demands;
+using ResourcePulse.Services.Shared;
 
 namespace ResourcePulse.Services.Load;
 
@@ -20,8 +21,6 @@ public sealed class LiveLoadQueryService(
     ResourcePulseDbContext db,
     ICapacityQueryService capacity) : ILoadQueryService
 {
-    private const int MaxRangeDays = 366;
-
     public async Task<ServiceResult<IReadOnlyList<DailyLoadDto>>> GetForResourceAsync(
         Guid resourceId,
         DateOnly from,
@@ -29,22 +28,8 @@ public sealed class LiveLoadQueryService(
         AllocationStatus? status = null,
         CancellationToken ct = default)
     {
-        if (from > toInclusive)
-        {
-            return ServiceResult<IReadOnlyList<DailyLoadDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = ["'from' must be on or before 'to'."]
-            });
-        }
-
-        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
-        if (rangeDays > MaxRangeDays)
-        {
-            return ServiceResult<IReadOnlyList<DailyLoadDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
-            });
-        }
+        if (DateRangeGuard.Validate(from, toInclusive) is { } rangeError)
+            return ServiceResult<IReadOnlyList<DailyLoadDto>>.Failure(rangeError);
 
         var resourceExists = await db.Resources.AnyAsync(r => r.Id == resourceId, ct);
         if (!resourceExists)
@@ -83,22 +68,8 @@ public sealed class LiveLoadQueryService(
         DateOnly toInclusive,
         CancellationToken ct = default)
     {
-        if (from > toInclusive)
-        {
-            return ServiceResult<IReadOnlyList<DailyNodeLoadDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = ["'from' must be on or before 'to'."]
-            });
-        }
-
-        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
-        if (rangeDays > MaxRangeDays)
-        {
-            return ServiceResult<IReadOnlyList<DailyNodeLoadDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
-            });
-        }
+        if (DateRangeGuard.Validate(from, toInclusive) is { } rangeError)
+            return ServiceResult<IReadOnlyList<DailyNodeLoadDto>>.Failure(rangeError);
 
         var nodeMeta = await db.ProjectNodes
             .AsNoTracking()
@@ -182,18 +153,8 @@ public sealed class LiveLoadQueryService(
         AllocationStatus? status = null,
         CancellationToken ct = default)
     {
-        if (from > toInclusive)
-            return ServiceResult<IReadOnlyList<LoadSegmentDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = ["'from' must be on or before 'to'."]
-            });
-
-        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
-        if (rangeDays > MaxRangeDays)
-            return ServiceResult<IReadOnlyList<LoadSegmentDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
-            });
+        if (DateRangeGuard.Validate(from, toInclusive) is { } rangeError)
+            return ServiceResult<IReadOnlyList<LoadSegmentDto>>.Failure(rangeError);
 
         var resourceExists = await db.Resources.AnyAsync(r => r.Id == resourceId, ct);
         if (!resourceExists)
@@ -248,18 +209,8 @@ public sealed class LiveLoadQueryService(
         AllocationStatus? status = null,
         CancellationToken ct = default)
     {
-        if (from > toInclusive)
-            return ServiceResult<IReadOnlyList<ResourceLoadProfileDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = ["'from' must be on or before 'to'."]
-            });
-
-        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
-        if (rangeDays > MaxRangeDays)
-            return ServiceResult<IReadOnlyList<ResourceLoadProfileDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
-            });
+        if (DateRangeGuard.Validate(from, toInclusive) is { } rangeError)
+            return ServiceResult<IReadOnlyList<ResourceLoadProfileDto>>.Failure(rangeError);
 
         // null/empty = the active population; explicit ids are honoured regardless
         // of IsActive; unknown ids are filtered out here (no per-id NotFound).
@@ -353,18 +304,8 @@ public sealed class LiveLoadQueryService(
     public async Task<ServiceResult<IReadOnlyList<DemandCoverageDto>>> GetDemandCoverageForProjectNodeAsync(
         Guid projectNodeId, DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
     {
-        if (from > toInclusive)
-            return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = ["'from' must be on or before 'to'."]
-            });
-
-        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
-        if (rangeDays > MaxRangeDays)
-            return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
-            });
+        if (DateRangeGuard.Validate(from, toInclusive) is { } rangeError)
+            return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Failure(rangeError);
 
         var nodePath = await db.ProjectNodes.AsNoTracking()
             .Where(p => p.Id == projectNodeId).Select(p => p.Path).FirstOrDefaultAsync(ct);
@@ -383,18 +324,8 @@ public sealed class LiveLoadQueryService(
     public async Task<ServiceResult<DemandCoverageDto>> GetDemandCoverageForDemandAsync(
         Guid demandId, DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
     {
-        if (from > toInclusive)
-            return ServiceResult<DemandCoverageDto>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = ["'from' must be on or before 'to'."]
-            });
-
-        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
-        if (rangeDays > MaxRangeDays)
-            return ServiceResult<DemandCoverageDto>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
-            });
+        if (DateRangeGuard.Validate(from, toInclusive) is { } rangeError)
+            return ServiceResult<DemandCoverageDto>.Failure(rangeError);
 
         var demand = await db.Demands.AsNoTracking().FirstOrDefaultAsync(d => d.Id == demandId, ct);
         if (demand is null)
@@ -416,18 +347,8 @@ public sealed class LiveLoadQueryService(
     public async Task<ServiceResult<IReadOnlyList<DemandCoverageDto>>> GetDemandCoverageInRangeAsync(
         DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
     {
-        if (from > toInclusive)
-            return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = ["'from' must be on or before 'to'."]
-            });
-
-        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
-        if (rangeDays > MaxRangeDays)
-            return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
-            });
+        if (DateRangeGuard.Validate(from, toInclusive) is { } rangeError)
+            return ServiceResult<IReadOnlyList<DemandCoverageDto>>.Failure(rangeError);
 
         // All demands with their node's Path, so the root is derivable in memory.
         var candidates = await db.Demands.AsNoTracking()
@@ -463,18 +384,8 @@ public sealed class LiveLoadQueryService(
     public async Task<ServiceResult<IReadOnlyList<OpenDemandDto>>> GetOpenDemandsAsync(
         Guid? roleId, DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
     {
-        if (from > toInclusive)
-            return ServiceResult<IReadOnlyList<OpenDemandDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = ["'from' must be on or before 'to'."]
-            });
-
-        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
-        if (rangeDays > MaxRangeDays)
-            return ServiceResult<IReadOnlyList<OpenDemandDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
-            });
+        if (DateRangeGuard.Validate(from, toInclusive) is { } rangeError)
+            return ServiceResult<IReadOnlyList<OpenDemandDto>>.Failure(rangeError);
 
         if (roleId is Guid rid)
         {

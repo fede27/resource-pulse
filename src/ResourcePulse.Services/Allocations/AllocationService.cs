@@ -5,6 +5,7 @@ using ResourcePulse.Common.Results;
 using ResourcePulse.Domain.Capacity;
 using ResourcePulse.Persistence;
 using ResourcePulse.Services.Capacity;
+using ResourcePulse.Services.Shared;
 
 namespace ResourcePulse.Services.Allocations;
 
@@ -15,8 +16,6 @@ public sealed class AllocationService(
     ResourcePulseDbContext db,
     ICapacityQueryService capacity) : IAllocationService
 {
-    private const int MaxRangeDays = 366;
-
     public async Task<ServiceResult<LoadResult>> GetAllAsync(
         DataSourceLoadOptionsBase? loadOptions = null,
         CancellationToken ct = default)
@@ -38,8 +37,10 @@ public sealed class AllocationService(
     public async Task<ServiceResult<IReadOnlyList<AllocationReadDto>>> GetForResourceAsync(
         Guid resourceId, DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
     {
-        if (from > toInclusive)
-            return RangeValidation<IReadOnlyList<AllocationReadDto>>();
+        // One resource's coverage: bounded by the plan, not by the span asked
+        // for, so the ordering check is the whole guard here.
+        if (DateRangeGuard.ValidateOrdering(from, toInclusive) is { } rangeError)
+            return ServiceResult<IReadOnlyList<AllocationReadDto>>.Failure(rangeError);
 
         var list = await BuildReadQuery()
             .Where(x => x.ResourceId == resourceId
@@ -53,8 +54,9 @@ public sealed class AllocationService(
     public async Task<ServiceResult<IReadOnlyList<AllocationReadDto>>> GetForProjectNodeAsync(
         Guid projectNodeId, DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
     {
-        if (from > toInclusive)
-            return RangeValidation<IReadOnlyList<AllocationReadDto>>();
+        // One subtree's coverage — bounded the same way. See above.
+        if (DateRangeGuard.ValidateOrdering(from, toInclusive) is { } rangeError)
+            return ServiceResult<IReadOnlyList<AllocationReadDto>>.Failure(rangeError);
 
         // Subtree aggregation (ADR-0022): the node + every descendant via the
         // materialized-path prefix, not just the exact node. A project that staffs
@@ -86,17 +88,8 @@ public sealed class AllocationService(
     public async Task<ServiceResult<IReadOnlyList<AllocationReadDto>>> GetInRangeAsync(
         DateOnly from, DateOnly toInclusive, CancellationToken ct = default)
     {
-        if (from > toInclusive)
-            return RangeValidation<IReadOnlyList<AllocationReadDto>>();
-
-        var rangeDays = toInclusive.DayNumber - from.DayNumber + 1;
-        if (rangeDays > MaxRangeDays)
-        {
-            return ServiceResult<IReadOnlyList<AllocationReadDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["range"] = [$"Date range must not exceed {MaxRangeDays} days (requested {rangeDays})."]
-            });
-        }
+        if (DateRangeGuard.Validate(from, toInclusive) is { } rangeError)
+            return ServiceResult<IReadOnlyList<AllocationReadDto>>.Failure(rangeError);
 
         var list = await BuildReadQuery()
             .Where(x => x.PeriodStart <= toInclusive && x.PeriodEnd >= from)
@@ -226,10 +219,4 @@ public sealed class AllocationService(
         foreach (var d in capacityResult.Value) total += d.Hours;
         return ServiceResult<TimeSpan>.Success(total);
     }
-
-    private static ServiceResult<T> RangeValidation<T>() =>
-        ServiceResult<T>.Validation(new Dictionary<string, string[]>
-        {
-            ["range"] = ["'from' must be on or before 'to'."]
-        });
 }

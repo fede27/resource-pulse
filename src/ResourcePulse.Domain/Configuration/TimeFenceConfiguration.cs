@@ -33,8 +33,8 @@ public sealed record FenceBoundaries(DateOnly FrozenUntil, DateOnly SlushyUntil)
 public sealed class TimeFenceConfiguration : Entity<Guid>, IAuditable
 {
     // The committing horizon is not just a label: the detector MEASURES it, through
-    // read models that refuse a range wider than this (LiveLoadQueryService's
-    // MaxRangeDays, SignalDetectionService's ChunkDays — the three must agree). A
+    // read models that refuse a range wider than this (DateRangeGuard.MaxDays,
+    // SignalDetectionService's ChunkDays — both now ARE this constant). A
     // longer horizon would make every read on it fail, and a detector that cannot
     // look is a dashboard saying "the plan holds" about a plan nobody examined. So
     // the boundary is bounded here, where it is chosen, rather than discovered as

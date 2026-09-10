@@ -11,6 +11,7 @@ using ResourcePulse.Domain.Configuration;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Persistence;
 using ResourcePulse.Services.Configuration;
+using ResourcePulse.Services.Shared;
 
 namespace ResourcePulse.Services.Projects;
 
@@ -505,11 +506,9 @@ public sealed class ProjectNodeService(
     public async Task<ServiceResult<IReadOnlyList<ProjectNodeReadDto>>> GetProjectsActiveInRangeAsync(
         DateOnly from, DateOnly to, DateSource dateSource, CancellationToken ct = default)
     {
-        if (from > to)
-            return ServiceResult<IReadOnlyList<ProjectNodeReadDto>>.Validation(new Dictionary<string, string[]>
-            {
-                ["from"] = ["'from' must be on or before 'to'."]
-            });
+        // Bounded by the number of projects, not by the span, so ordering only.
+        if (DateRangeGuard.ValidateOrdering(from, to) is { } rangeError)
+            return ServiceResult<IReadOnlyList<ProjectNodeReadDto>>.Failure(rangeError);
 
         IQueryable<ProjectNode> baseQuery = db.ProjectNodes
             .AsNoTracking()
