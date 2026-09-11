@@ -33,6 +33,12 @@ namespace ResourcePulse.Services.Plan;
 [JsonDerivedType(typeof(CreateDemandCommand), "createDemand")]
 [JsonDerivedType(typeof(EditDemandCommand), "editDemand")]
 [JsonDerivedType(typeof(DeleteDemandCommand), "deleteDemand")]
+[JsonDerivedType(typeof(SetAnchorCommand), "setAnchor")]
+[JsonDerivedType(typeof(PinCommand), "pin")]
+[JsonDerivedType(typeof(ReplanNodeCommand), "replanNode")]
+[JsonDerivedType(typeof(MoveSubtreeCommand), "moveSubtree")]
+[JsonDerivedType(typeof(SetAvailabilityCommand), "setAvailability")]
+[JsonDerivedType(typeof(MoveConstraintCommand), "moveConstraint")]
 public abstract class PlanCommand
 {
     // When true: compute the consequence and return it without persisting.
@@ -103,6 +109,13 @@ public sealed class CreateCommand : PlanCommand
     public decimal Percent { get; init; }
     public AllocationStatus Status { get; init; } = AllocationStatus.Tentative;
     public string? Notes { get; init; }
+
+    // Boundary anchors (ADR-0034 §6). Null = Pinned. For an anchored edge the
+    // REFERENT's date wins over the submitted PeriodStart/PeriodEnd — the snap
+    // is the point of the gesture ("allocate until the phase ends"); dryRun
+    // shows where the block landed.
+    public AnchorSpec? StartAnchor { get; init; }
+    public AnchorSpec? EndAnchor { get; init; }
 }
 
 // Quantity-shaped coverage creation ("Y hours over this window"). Resolved to a
@@ -116,6 +129,13 @@ public sealed class CreateByHoursCommand : PlanCommand
     public TimeSpan TargetHours { get; init; }
     public AllocationStatus Status { get; init; } = AllocationStatus.Tentative;
     public string? Notes { get; init; }
+
+    // Boundary anchors (ADR-0034 §6). Null = Pinned. For an anchored edge the
+    // REFERENT's date wins over the submitted PeriodStart/PeriodEnd — the snap
+    // is the point of the gesture ("allocate until the phase ends"); dryRun
+    // shows where the block landed.
+    public AnchorSpec? StartAnchor { get; init; }
+    public AnchorSpec? EndAnchor { get; init; }
 }
 
 // Demand-from-gesture coverage (revision §5, amendment C3 — attach-first). "Just
@@ -135,6 +155,13 @@ public sealed class CoverInferredCommand : PlanCommand
     public string? Notes { get; init; }
     // Owner seeded onto the demand when the fallback materializes an Inferred one.
     public Guid? OwnerResourceId { get; init; }
+
+    // Boundary anchors (ADR-0034 §6). Null = Pinned. For an anchored edge the
+    // REFERENT's date wins over the submitted PeriodStart/PeriodEnd — the snap
+    // is the point of the gesture ("allocate until the phase ends"); dryRun
+    // shows where the block landed.
+    public AnchorSpec? StartAnchor { get; init; }
+    public AnchorSpec? EndAnchor { get; init; }
 }
 
 // ── Edit in place ─────────────────────────────────────────────────────────
@@ -224,4 +251,84 @@ public sealed class ChangeStatusCommand : PlanCommand
 public sealed class DeleteCommand : PlanCommand
 {
     public Guid Id { get; init; }
+}
+
+// ── Boundaries (ADR-0034) ─────────────────────────────────────────────────
+
+// The wire shape of an anchor: kind + the referent the kind takes (NodeId for
+// NodeStart/NodeEnd, ConstraintId for External, nothing for Pinned and
+// ResourceAvailability). Validated per kind at the boundary; resolved to a
+// referent DATE by the service (I9) after checking scope (I10).
+public sealed class AnchorSpec
+{
+    public AnchorKind Kind { get; init; }
+    public Guid? NodeId { get; init; }
+    public Guid? ConstraintId { get; init; }
+}
+
+// Tie one edge of a block to a referent and SNAP the edge to the referent's
+// date — "allocate until the phase ends", decided after the fact. Conflict if
+// the referent has no date or the snap would invert the span.
+public sealed class SetAnchorCommand : PlanCommand
+{
+    public Guid Id { get; init; }
+    public BoundaryEdge Edge { get; init; }
+    public AnchorSpec Anchor { get; init; } = new();
+}
+
+// Release one edge WITHOUT moving it. Explicit on purpose: "break the tie but
+// keep the date" is a decision with a name, not a side effect of an edit.
+public sealed class PinCommand : PlanCommand
+{
+    public Guid Id { get; init; }
+    public BoundaryEdge Edge { get; init; }
+}
+
+// ── Referent movement (ADR-0034 §5) ───────────────────────────────────────
+//
+// A referent with anchored boundaries hanging off it is not moved from the
+// anagrafica: it moves through the envelope, and dryRun is the countable
+// confirmation ("move the N blocks inside the phase as well?"). The dragged
+// blocks come back in Changes as Modified, the nodes in NodeChanges.
+
+// Set ONE node's planned dates; every boundary anchored to that node's start
+// or end re-snaps (I9). Clearing a date that anchored boundaries follow is a
+// Conflict with the count — pin them first. A node with no anchored dependants
+// can still be replanned from the project endpoint; this kind is for the case
+// where something moves with it.
+public sealed class ReplanNodeCommand : PlanCommand
+{
+    public Guid NodeId { get; init; }
+    public DateOnly? PlannedStart { get; init; }
+    public DateOnly? PlannedEnd { get; init; }
+}
+
+// Translate the planned dates of a node AND its whole subtree by DeltaDays;
+// every boundary anchored to any of them re-snaps. This is the "spostare una
+// fase" of §8 — the subtree cascade ADR-0019 deferred — and the name the
+// earlier ADRs promised.
+public sealed class MoveSubtreeCommand : PlanCommand
+{
+    public Guid NodeId { get; init; }
+    public int DeltaDays { get; init; }
+}
+
+// Set a person's declared availability boundary (ADR-0034 §3); every boundary
+// of their blocks anchored to ResourceAvailability re-snaps — start edges to
+// AvailableFrom, end edges to AvailableUntil. Clearing a date that boundaries
+// follow is a Conflict with the count. Capacity is untouched.
+public sealed class SetAvailabilityCommand : PlanCommand
+{
+    public Guid ResourceId { get; init; }
+    public DateOnly? AvailableFrom { get; init; }
+    public DateOnly? AvailableUntil { get; init; }
+}
+
+// Move an imposed date (ADR-0034 §4); every boundary anchored to it re-snaps.
+// The renegotiation gesture: the customer moved the deadline, the plan follows
+// — behind the countable confirmation, never silently.
+public sealed class MoveConstraintCommand : PlanCommand
+{
+    public Guid ConstraintId { get; init; }
+    public DateOnly Date { get; init; }
 }

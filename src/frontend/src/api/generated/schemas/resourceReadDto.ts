@@ -25,6 +25,12 @@ export interface ResourceReadDto {
   /** @nullable */
   userSub?: string | null;
   /** @nullable */
+  availableFrom?: string | null;
+  /** @nullable */
+  availableUntil?: string | null;
+  /** @nullable */
+  anchoredEdgeCount?: number | null;
+  /** @nullable */
   workWindows?: WorkWindowDto[] | null;
   /** @nullable */
   adjustments?: IndividualAdjustmentDto[] | null;

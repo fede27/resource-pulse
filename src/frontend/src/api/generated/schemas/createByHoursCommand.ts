@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0
  */
 import type { AllocationStatus } from './allocationStatus';
+import type { AnchorSpec } from './anchorSpec';
 import type { PlanCommand } from './planCommand';
 
 export type CreateByHoursCommand = PlanCommand & ({
@@ -17,4 +18,6 @@ export type CreateByHoursCommand = PlanCommand & ({
   status?: AllocationStatus;
   /** @nullable */
   notes?: string | null;
+  startAnchor?: AnchorSpec;
+  endAnchor?: AnchorSpec;
 });

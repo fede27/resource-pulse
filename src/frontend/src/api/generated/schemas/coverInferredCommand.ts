@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0
  */
 import type { AllocationStatus } from './allocationStatus';
+import type { AnchorSpec } from './anchorSpec';
 import type { PlanCommand } from './planCommand';
 
 export type CoverInferredCommand = PlanCommand & ({
@@ -20,4 +21,6 @@ export type CoverInferredCommand = PlanCommand & ({
   notes?: string | null;
   /** @nullable */
   ownerResourceId?: string | null;
+  startAnchor?: AnchorSpec;
+  endAnchor?: AnchorSpec;
 });

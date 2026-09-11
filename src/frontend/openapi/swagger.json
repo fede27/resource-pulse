@@ -2414,6 +2414,548 @@
         }
       }
     },
+    "/api/projects/{rootId}/constraints": {
+      "get": {
+        "tags": [
+          "ExternalConstraints"
+        ],
+        "operationId": "ExternalConstraints_GetForRoot",
+        "parameters": [
+          {
+            "name": "rootId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExternalConstraintReadDto"
+                  }
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExternalConstraintReadDto"
+                  }
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExternalConstraintReadDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ExternalConstraints"
+        ],
+        "operationId": "ExternalConstraints_Create",
+        "parameters": [
+          {
+            "name": "rootId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExternalConstraintDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExternalConstraintDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExternalConstraintDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalConstraintReadDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalConstraintReadDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalConstraintReadDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{rootId}/constraints/{id}": {
+      "get": {
+        "tags": [
+          "ExternalConstraints"
+        ],
+        "operationId": "ExternalConstraints_GetById",
+        "parameters": [
+          {
+            "name": "rootId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalConstraintReadDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalConstraintReadDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalConstraintReadDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "ExternalConstraints"
+        ],
+        "operationId": "ExternalConstraints_Update",
+        "parameters": [
+          {
+            "name": "rootId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExternalConstraintDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExternalConstraintDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExternalConstraintDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalConstraintReadDto"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalConstraintReadDto"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalConstraintReadDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "ExternalConstraints"
+        ],
+        "operationId": "ExternalConstraints_Delete",
+        "parameters": [
+          {
+            "name": "rootId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProblemDetails"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/resources/{id}/load": {
       "get": {
         "tags": [
@@ -4154,6 +4696,24 @@
                   },
                   {
                     "$ref": "#/components/schemas/DeleteCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetAnchorCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PinCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReplanNodeCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveSubtreeCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetAvailabilityCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveConstraintCommand"
                   }
                 ]
               }
@@ -4208,6 +4768,24 @@
                   },
                   {
                     "$ref": "#/components/schemas/DeleteCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetAnchorCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PinCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReplanNodeCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveSubtreeCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetAvailabilityCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveConstraintCommand"
                   }
                 ]
               }
@@ -4262,6 +4840,24 @@
                   },
                   {
                     "$ref": "#/components/schemas/DeleteCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetAnchorCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PinCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReplanNodeCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveSubtreeCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetAvailabilityCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveConstraintCommand"
                   }
                 ]
               }
@@ -10767,6 +11363,12 @@
             "type": "string",
             "nullable": true
           },
+          "startAnchor": {
+            "$ref": "#/components/schemas/BoundaryAnchorDto"
+          },
+          "endAnchor": {
+            "$ref": "#/components/schemas/BoundaryAnchorDto"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -10816,6 +11418,43 @@
           "Tentative",
           "Hard"
         ]
+      },
+      "AnchorKind": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "Pinned",
+          "NodeStart",
+          "NodeEnd",
+          "ResourceAvailability",
+          "External"
+        ]
+      },
+      "AnchorSpec": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/AnchorKind"
+          },
+          "nodeId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "constraintId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "AppRole": {
         "enum": [
@@ -10909,6 +11548,41 @@
           }
         },
         "additionalProperties": false
+      },
+      "BoundaryAnchorDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/AnchorKind"
+          },
+          "nodeId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "constraintId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "referentName": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "BoundaryEdge": {
+        "enum": [
+          0,
+          1
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "Start",
+          "End"
+        ]
       },
       "BucketGrain": {
         "enum": [
@@ -11096,6 +11770,18 @@
         },
         "additionalProperties": false
       },
+      "ConstraintAuthority": {
+        "enum": [
+          0,
+          1
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "Desiderata",
+          "Contractual"
+        ]
+      },
       "CoverInferredCommand": {
         "allOf": [
           {
@@ -11139,6 +11825,12 @@
                 "type": "string",
                 "format": "uuid",
                 "nullable": true
+              },
+              "startAnchor": {
+                "$ref": "#/components/schemas/AnchorSpec"
+              },
+              "endAnchor": {
+                "$ref": "#/components/schemas/AnchorSpec"
               }
             },
             "additionalProperties": false
@@ -11199,6 +11891,12 @@
               "notes": {
                 "type": "string",
                 "nullable": true
+              },
+              "startAnchor": {
+                "$ref": "#/components/schemas/AnchorSpec"
+              },
+              "endAnchor": {
+                "$ref": "#/components/schemas/AnchorSpec"
               }
             },
             "additionalProperties": false
@@ -11239,6 +11937,12 @@
               "notes": {
                 "type": "string",
                 "nullable": true
+              },
+              "startAnchor": {
+                "$ref": "#/components/schemas/AnchorSpec"
+              },
+              "endAnchor": {
+                "$ref": "#/components/schemas/AnchorSpec"
               }
             },
             "additionalProperties": false
@@ -11302,6 +12006,27 @@
             "additionalProperties": false
           }
         ]
+      },
+      "CreateExternalConstraintDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "authority": {
+            "$ref": "#/components/schemas/ConstraintAuthority"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "CreateProjectNodeDto": {
         "type": "object",
@@ -11378,6 +12103,16 @@
           },
           "userSub": {
             "type": "string",
+            "nullable": true
+          },
+          "availableFrom": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "availableUntil": {
+            "type": "string",
+            "format": "date",
             "nullable": true
           },
           "windows": {
@@ -11977,6 +12712,56 @@
           }
         ]
       },
+      "ExternalConstraintReadDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rootProjectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "authority": {
+            "$ref": "#/components/schemas/ConstraintAuthority"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "anchoredEdgeCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "GroupingInfo": {
         "allOf": [
           {
@@ -12320,6 +13105,48 @@
           }
         ]
       },
+      "MoveConstraintCommand": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlanCommand"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "constraintId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "date": {
+                "type": "string",
+                "format": "date"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "MoveSubtreeCommand": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlanCommand"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "nodeId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "deltaDays": {
+                "type": "integer",
+                "format": "int32"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
       "NodeLoadByResourceDto": {
         "type": "object",
         "properties": {
@@ -12402,6 +13229,26 @@
         },
         "additionalProperties": false
       },
+      "PinCommand": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlanCommand"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "edge": {
+                "$ref": "#/components/schemas/BoundaryEdge"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
       "PlanBlockChange": {
         "type": "object",
         "properties": {
@@ -12442,6 +13289,12 @@
           "notes": {
             "type": "string",
             "nullable": true
+          },
+          "startAnchor": {
+            "$ref": "#/components/schemas/BoundaryAnchorDto"
+          },
+          "endAnchor": {
+            "$ref": "#/components/schemas/BoundaryAnchorDto"
           }
         },
         "additionalProperties": false
@@ -12497,6 +13350,13 @@
               "$ref": "#/components/schemas/PlanDemandChange"
             },
             "nullable": true
+          },
+          "referentChanges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanReferentChange"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -12537,6 +13397,49 @@
             "nullable": true
           },
           "decideBy": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlanReferentChange": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/PlanChangeKind"
+          },
+          "referent": {
+            "$ref": "#/components/schemas/ReferentKind"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "nodeType": {
+            "$ref": "#/components/schemas/ProjectNodeType"
+          },
+          "oldStart": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "oldEnd": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "newStart": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "newEnd": {
             "type": "string",
             "format": "date",
             "nullable": true
@@ -12707,6 +13610,11 @@
             "type": "boolean",
             "nullable": true
           },
+          "anchoredEdgeCount": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
           "skillRequirements": {
             "type": "array",
             "items": {
@@ -12844,6 +13752,20 @@
         },
         "additionalProperties": false
       },
+      "ReferentKind": {
+        "enum": [
+          0,
+          1,
+          2
+        ],
+        "type": "integer",
+        "format": "int32",
+        "x-enum-varnames": [
+          "Node",
+          "Resource",
+          "ExternalConstraint"
+        ]
+      },
       "ReparentDto": {
         "type": "object",
         "properties": {
@@ -12869,6 +13791,33 @@
           }
         },
         "additionalProperties": false
+      },
+      "ReplanNodeCommand": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlanCommand"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "nodeId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "plannedStart": {
+                "type": "string",
+                "format": "date",
+                "nullable": true
+              },
+              "plannedEnd": {
+                "type": "string",
+                "format": "date",
+                "nullable": true
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "ResizeCommand": {
         "allOf": [
@@ -12965,6 +13914,21 @@
           },
           "userSub": {
             "type": "string",
+            "nullable": true
+          },
+          "availableFrom": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "availableUntil": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "anchoredEdgeCount": {
+            "type": "integer",
+            "format": "int32",
             "nullable": true
           },
           "workWindows": {
@@ -13068,6 +14032,56 @@
           }
         },
         "additionalProperties": false
+      },
+      "SetAnchorCommand": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlanCommand"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "edge": {
+                "$ref": "#/components/schemas/BoundaryEdge"
+              },
+              "anchor": {
+                "$ref": "#/components/schemas/AnchorSpec"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "SetAvailabilityCommand": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlanCommand"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "resourceId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "availableFrom": {
+                "type": "string",
+                "format": "date",
+                "nullable": true
+              },
+              "availableUntil": {
+                "type": "string",
+                "format": "date",
+                "nullable": true
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "SetPlanningModeDto": {
         "type": "object",
@@ -13658,6 +14672,27 @@
         },
         "additionalProperties": false
       },
+      "UpdateExternalConstraintDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "authority": {
+            "$ref": "#/components/schemas/ConstraintAuthority"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "UpdateLoadBandConfigurationDto": {
         "type": "object",
         "properties": {
@@ -13743,6 +14778,16 @@
           },
           "userSub": {
             "type": "string",
+            "nullable": true
+          },
+          "availableFrom": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "availableUntil": {
+            "type": "string",
+            "format": "date",
             "nullable": true
           }
         },
@@ -13910,6 +14955,9 @@
     },
     {
       "name": "DevAccess"
+    },
+    {
+      "name": "ExternalConstraints"
     },
     {
       "name": "Load"

@@ -15,7 +15,13 @@ public sealed class ResourceConfiguration : IEntityTypeConfiguration<Resource>
 {
     public void Configure(EntityTypeBuilder<Resource> builder)
     {
-        builder.ToTable("resources");
+        builder.ToTable("resources", t =>
+        {
+            // Availability boundary (ADR-0034 §3): ordered when both are set.
+            t.HasCheckConstraint(
+                "ck_resources_availability_ordered",
+                "available_from IS NULL OR available_until IS NULL OR available_from <= available_until");
+        });
         builder.HasKey(r => r.Id);
         builder.HasTenantId();
 
@@ -25,6 +31,8 @@ public sealed class ResourceConfiguration : IEntityTypeConfiguration<Resource>
         // Email uses citext so a single unique index handles case-insensitive
         // duplicates ("user@x" vs "User@X"). Filtered to allow many NULLs.
         builder.Property(r => r.Email).HasColumnType("citext");
+        builder.Property(r => r.AvailableFrom).HasColumnType("date");
+        builder.Property(r => r.AvailableUntil).HasColumnType("date");
         builder.Property(r => r.CreatedBy).HasMaxLength(256).IsRequired();
         builder.Property(r => r.UpdatedBy).HasMaxLength(256);
 

@@ -44,6 +44,12 @@ public class PlanCommandSerializationTests
     [InlineData("createDemand")]
     [InlineData("editDemand")]
     [InlineData("deleteDemand")]
+    [InlineData("setAnchor")]
+    [InlineData("pin")]
+    [InlineData("replanNode")]
+    [InlineData("moveSubtree")]
+    [InlineData("setAvailability")]
+    [InlineData("moveConstraint")]
     public void EveryKind_DeserializesToConcreteCommand(string kind)
     {
         var json = $$"""{ "kind": "{{kind}}", "id": "{{Guid.NewGuid()}}" }""";
@@ -87,5 +93,41 @@ public class PlanCommandSerializationTests
         var act = () => JsonSerializer.Deserialize<PlanCommand>(json, Options);
 
         act.Should().Throw<JsonException>();
+    }
+
+    // Enums travel as integers (no JsonStringEnumConverter is registered; the
+    // OpenAPI document carries the names via x-enum-varnames), so the wire
+    // samples here use the numeric values: BoundaryEdge.End = 1, AnchorKind.NodeEnd = 2.
+    [Fact]
+    public void SetAnchor_DeserializesEdgeAndAnchorSpec()
+    {
+        var json = """
+            { "kind": "setAnchor", "id": "11111111-1111-1111-1111-111111111111",
+              "edge": 1, "anchor": { "kind": 2, "nodeId": "22222222-2222-2222-2222-222222222222" } }
+            """;
+
+        var cmd = JsonSerializer.Deserialize<PlanCommand>(json, Options);
+
+        cmd.Should().BeOfType<SetAnchorCommand>();
+        var set = (SetAnchorCommand)cmd!;
+        set.Edge.Should().Be(BoundaryEdge.End);
+        set.Anchor.Kind.Should().Be(AnchorKind.NodeEnd);
+        set.Anchor.NodeId.Should().Be(Guid.Parse("22222222-2222-2222-2222-222222222222"));
+    }
+
+    [Fact]
+    public void Create_DeserializesOptionalAnchors_NullWhenAbsent()
+    {
+        var json = """
+            { "kind": "create", "demandId": "11111111-1111-1111-1111-111111111111",
+              "resourceId": "22222222-2222-2222-2222-222222222222",
+              "periodStart": "2026-06-01", "periodEnd": "2026-06-14", "percent": 50,
+              "endAnchor": { "kind": 2, "nodeId": "33333333-3333-3333-3333-333333333333" } }
+            """;
+
+        var cmd = (CreateCommand)JsonSerializer.Deserialize<PlanCommand>(json, Options)!;
+
+        cmd.StartAnchor.Should().BeNull();
+        cmd.EndAnchor!.Kind.Should().Be(AnchorKind.NodeEnd);
     }
 }

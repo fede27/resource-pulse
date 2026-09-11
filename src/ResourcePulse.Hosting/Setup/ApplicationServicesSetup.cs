@@ -9,6 +9,7 @@ using ResourcePulse.Services.Capacity;
 using ResourcePulse.Services.CompanyClosures;
 using ResourcePulse.Services.Configuration;
 using ResourcePulse.Services.Demands;
+using ResourcePulse.Services.ExternalConstraints;
 using ResourcePulse.Services.Identity;
 using ResourcePulse.Services.Load;
 using ResourcePulse.Services.Plan;
@@ -54,6 +55,7 @@ public static class ApplicationServicesSetup
         builder.Services.AddScoped<ISkillService, SkillService>();
         builder.Services.AddScoped<ITagService, TagService>();
         builder.Services.AddScoped<IProjectNodeService, ProjectNodeService>();
+        builder.Services.AddScoped<IExternalConstraintService, ExternalConstraintService>();
         builder.Services.AddScoped<IAllocationService, AllocationService>();
         builder.Services.AddScoped<IDemandService, DemandService>();
         builder.Services.AddScoped<IPlanCommandService, PlanCommandService>();

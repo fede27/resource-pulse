@@ -28,11 +28,17 @@ import type {
   EditDemandCommand,
   HttpValidationProblemDetails,
   MoveCommand,
+  MoveConstraintCommand,
+  MoveSubtreeCommand,
+  PinCommand,
   PlanCommandResult,
   ProblemDetails,
   ReassignCommand,
+  ReplanNodeCommand,
   ResizeCommand,
   RetargetCommand,
+  SetAnchorCommand,
+  SetAvailabilityCommand,
   ShiftFromCommand,
   SplitAtCommand,
   ValidationProblemDetails
@@ -47,7 +53,7 @@ type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
 
 export const planCommandsExecute = (
-    createDemandCommandEditDemandCommandDeleteDemandCommandCreateCommandCreateByHoursCommandCoverInferredCommandEditCommandSplitAtCommandChangeRateFromCommandMoveCommandRetargetCommandResizeCommandShiftFromCommandReassignCommandChangeStatusCommandDeleteCommand?: BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand>| EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand,
+    createDemandCommandEditDemandCommandDeleteDemandCommandCreateCommandCreateByHoursCommandCoverInferredCommandEditCommandSplitAtCommandChangeRateFromCommandMoveCommandRetargetCommandResizeCommandShiftFromCommandReassignCommandChangeStatusCommandDeleteCommandSetAnchorCommandPinCommandReplanNodeCommandMoveSubtreeCommandSetAvailabilityCommandMoveConstraintCommand?: BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand | SetAnchorCommand | PinCommand | ReplanNodeCommand | MoveSubtreeCommand | SetAvailabilityCommand | MoveConstraintCommand>| EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand | SetAnchorCommand | PinCommand | ReplanNodeCommand | MoveSubtreeCommand | SetAvailabilityCommand | MoveConstraintCommand,
  options?: SecondParameter<typeof apiClient>,signal?: AbortSignal
 ) => {
 
@@ -55,7 +61,7 @@ export const planCommandsExecute = (
       return apiClient<PlanCommandResult>(
       {url: `/api/plan/commands`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
-      data: createDemandCommandEditDemandCommandDeleteDemandCommandCreateCommandCreateByHoursCommandCoverInferredCommandEditCommandSplitAtCommandChangeRateFromCommandMoveCommandRetargetCommandResizeCommandShiftFromCommandReassignCommandChangeStatusCommandDeleteCommand, signal
+      data: createDemandCommandEditDemandCommandDeleteDemandCommandCreateCommandCreateByHoursCommandCoverInferredCommandEditCommandSplitAtCommandChangeRateFromCommandMoveCommandRetargetCommandResizeCommandShiftFromCommandReassignCommandChangeStatusCommandDeleteCommandSetAnchorCommandPinCommandReplanNodeCommandMoveSubtreeCommandSetAvailabilityCommandMoveConstraintCommand, signal
     },
       options);
     }
@@ -63,8 +69,8 @@ export const planCommandsExecute = (
 
 
 export const getPlanCommandsExecuteMutationOptions = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof planCommandsExecute>>, TError,{data?: BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand>}, TContext>, request?: SecondParameter<typeof apiClient>}
-): UseMutationOptions<Awaited<ReturnType<typeof planCommandsExecute>>, TError,{data?: BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof planCommandsExecute>>, TError,{data?: BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand | SetAnchorCommand | PinCommand | ReplanNodeCommand | MoveSubtreeCommand | SetAvailabilityCommand | MoveConstraintCommand>}, TContext>, request?: SecondParameter<typeof apiClient>}
+): UseMutationOptions<Awaited<ReturnType<typeof planCommandsExecute>>, TError,{data?: BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand | SetAnchorCommand | PinCommand | ReplanNodeCommand | MoveSubtreeCommand | SetAvailabilityCommand | MoveConstraintCommand>}, TContext> => {
 
 const mutationKey = ['planCommandsExecute'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -76,7 +82,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof planCommandsExecute>>, {data?: BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof planCommandsExecute>>, {data?: BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand | SetAnchorCommand | PinCommand | ReplanNodeCommand | MoveSubtreeCommand | SetAvailabilityCommand | MoveConstraintCommand>}> = (props) => {
           const {data} = props ?? {};
 
           return  planCommandsExecute(data,requestOptions)
@@ -90,15 +96,15 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type PlanCommandsExecuteMutationResult = NonNullable<Awaited<ReturnType<typeof planCommandsExecute>>>
-    export type PlanCommandsExecuteMutationBody = BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand> | undefined
+    export type PlanCommandsExecuteMutationBody = BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand | SetAnchorCommand | PinCommand | ReplanNodeCommand | MoveSubtreeCommand | SetAvailabilityCommand | MoveConstraintCommand> | undefined
     export type PlanCommandsExecuteMutationError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>
 
     export const usePlanCommandsExecute = <TError = ErrorType<ValidationProblemDetails | ProblemDetails | HttpValidationProblemDetails>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof planCommandsExecute>>, TError,{data?: BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand>}, TContext>, request?: SecondParameter<typeof apiClient>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof planCommandsExecute>>, TError,{data?: BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand | SetAnchorCommand | PinCommand | ReplanNodeCommand | MoveSubtreeCommand | SetAvailabilityCommand | MoveConstraintCommand>}, TContext>, request?: SecondParameter<typeof apiClient>}
  , queryClient?: QueryClient): UseMutationResult<
         Awaited<ReturnType<typeof planCommandsExecute>>,
         TError,
-        {data?: BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand>},
+        {data?: BodyType<CreateDemandCommand | EditDemandCommand | DeleteDemandCommand | CreateCommand | CreateByHoursCommand | CoverInferredCommand | EditCommand | SplitAtCommand | ChangeRateFromCommand | MoveCommand | RetargetCommand | ResizeCommand | ShiftFromCommand | ReassignCommand | ChangeStatusCommand | DeleteCommand | SetAnchorCommand | PinCommand | ReplanNodeCommand | MoveSubtreeCommand | SetAvailabilityCommand | MoveConstraintCommand>},
         TContext
       > => {
       return useMutation(getPlanCommandsExecuteMutationOptions(options), queryClient);

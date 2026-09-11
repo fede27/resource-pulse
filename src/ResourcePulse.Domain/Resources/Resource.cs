@@ -28,6 +28,15 @@ public sealed partial class Resource : Entity<Guid>, IAuditable
     // e.g. to attribute skill-approval reviews to the acting supervisor.
     public string? UserSub { get; private set; }
 
+    // The person's declared availability boundary (ADR-0034 §3, model §9):
+    // "the edge beyond which the resource is not there", stated once. Both
+    // optional. A REFERENT for ResourceAvailability anchors — a start boundary
+    // follows AvailableFrom, an end boundary follows AvailableUntil — and
+    // nothing else: capacity does not read it. A block past the boundary is a
+    // visible violation, not a refused block (surface, don't enforce).
+    public DateOnly? AvailableFrom { get; private set; }
+    public DateOnly? AvailableUntil { get; private set; }
+
     public IReadOnlyCollection<WorkWindow> WorkWindows => _workWindows.AsReadOnly();
     public IReadOnlyCollection<IndividualAdjustment> Adjustments => _adjustments.AsReadOnly();
     public IReadOnlyCollection<ResourceSkill> Skills => _skills.AsReadOnly();
@@ -87,6 +96,14 @@ public sealed partial class Resource : Entity<Guid>, IAuditable
 
     public void Activate() => IsActive = true;
     public void Deactivate() => IsActive = false;
+
+    public void SetAvailability(DateOnly? availableFrom, DateOnly? availableUntil)
+    {
+        if (availableFrom is { } f && availableUntil is { } u && f > u)
+            throw new DomainException("AvailableFrom must be on or before AvailableUntil.");
+        AvailableFrom = availableFrom;
+        AvailableUntil = availableUntil;
+    }
 
     public void ChangeBusinessCalendar(Guid businessCalendarId)
     {

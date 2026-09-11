@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0
  */
 import type { AllocationStatus } from './allocationStatus';
+import type { BoundaryAnchorDto } from './boundaryAnchorDto';
 
 export interface AllocationReadDto {
   id?: string;
@@ -34,6 +35,8 @@ export interface AllocationReadDto {
   resolvedHours?: string | null;
   /** @nullable */
   notes?: string | null;
+  startAnchor?: BoundaryAnchorDto;
+  endAnchor?: BoundaryAnchorDto;
   createdAt?: string;
   /** @nullable */
   createdBy?: string | null;

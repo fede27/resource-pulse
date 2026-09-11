@@ -38,7 +38,8 @@ public sealed class ProjectNodeService(
         if (node is null) return ServiceResult<ProjectNodeReadDto>.NotFound($"ProjectNode {id} not found.");
         var policy = await commitmentPolicy.GetConfigurationAsync(ct);
         var leadNames = await ResolveLeadNamesAsync([node], ct);
-        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames));
+        var anchoredCounts = await ResolveAnchoredEdgeCountsAsync([node], ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames, anchoredCounts));
     }
 
     public async Task<ServiceResult<IReadOnlyList<ProjectNodeReadDto>>> GetSubtreeAsync(Guid id, CancellationToken ct = default)
@@ -60,7 +61,8 @@ public sealed class ProjectNodeService(
 
         var policy = await commitmentPolicy.GetConfigurationAsync(ct);
         var leadNames = await ResolveLeadNamesAsync(nodes, ct);
-        var dtos = nodes.Select(n => ToDtoWithMetrics(n, policy, leadNames)).ToList();
+        var anchoredCounts = await ResolveAnchoredEdgeCountsAsync(nodes, ct);
+        var dtos = nodes.Select(n => ToDtoWithMetrics(n, policy, leadNames, anchoredCounts)).ToList();
         return ServiceResult<IReadOnlyList<ProjectNodeReadDto>>.Success(dtos);
     }
 
@@ -121,7 +123,8 @@ public sealed class ProjectNodeService(
 
         var policy = await commitmentPolicy.GetConfigurationAsync(ct);
         var leadNames = await ResolveLeadNamesAsync([node], ct);
-        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames));
+        var anchoredCounts = await ResolveAnchoredEdgeCountsAsync([node], ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames, anchoredCounts));
     }
 
     public async Task<ServiceResult<ProjectNodeReadDto>> UpdateAsync(Guid id, UpdateProjectNodeDto dto, CancellationToken ct = default)
@@ -150,7 +153,8 @@ public sealed class ProjectNodeService(
 
         var policy = await commitmentPolicy.GetConfigurationAsync(ct);
         var leadNames = await ResolveLeadNamesAsync([node], ct);
-        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames));
+        var anchoredCounts = await ResolveAnchoredEdgeCountsAsync([node], ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames, anchoredCounts));
     }
 
     public async Task<ServiceResult<Unit>> DeleteAsync(Guid id, CancellationToken ct = default)
@@ -173,6 +177,19 @@ public sealed class ProjectNodeService(
             return ServiceResult.Conflict(
                 $"Cannot delete a node that still carries {demandCount} demand(s) and " +
                 $"{coverageCount} coverage block(s). Delete them through the plan commands first.");
+
+        // The fourth Restrict FK into project_nodes (ADR-0034): boundaries of
+        // blocks elsewhere, anchored to this node's dates. Pin them first.
+        var anchored = await AnchoredEdgeCountAsync(id, ct);
+        if (anchored > 0)
+            return ServiceResult.Conflict(
+                $"Cannot delete a node that {anchored} coverage boundary(ies) are anchored to. Pin them first.");
+
+        // And the fifth: imposed dates on a root (ADR-0034 §4).
+        var constraints = await db.ExternalConstraints.CountAsync(x => x.RootProjectId == id, ct);
+        if (constraints > 0)
+            return ServiceResult.Conflict(
+                $"Cannot delete a project that still carries {constraints} external constraint(s). Delete them first.");
 
         repository.Remove(node);
 
@@ -232,8 +249,16 @@ public sealed class ProjectNodeService(
     public Task<ServiceResult<Unit>> RebaselineAsync(Guid id, RebaselineDto dto, CancellationToken ct = default) =>
         MutateAsync(id, n => n.Rebaseline(dto.Start, dto.End, dto.Reason), ct);
 
-    public Task<ServiceResult<Unit>> ReplanAsync(Guid id, ReplanDto dto, CancellationToken ct = default) =>
-        MutateAsync(id, n => n.Replan(dto.Start, dto.End), ct);
+    // A node whose planned dates other blocks are anchored to is not replanned
+    // from here (ADR-0034 §5): that is a plan mutation — replanNode / moveSubtree
+    // on the envelope, where dryRun shows what moves — and this endpoint refuses
+    // it with the count, the same way the commitment downgrade refuses with the
+    // number of Hard blocks it would demote.
+    public async Task<ServiceResult<Unit>> ReplanAsync(Guid id, ReplanDto dto, CancellationToken ct = default)
+    {
+        if (await AnchoredDependantsGuardAsync(id, "replan", ct) is { } guard) return guard;
+        return await MutateAsync(id, n => n.Replan(dto.Start, dto.End), ct);
+    }
 
     public Task<ServiceResult<Unit>> BackfillActualsAsync(Guid id, BackfillActualsDto dto, CancellationToken ct = default) =>
         MutateAsync(id, n => n.BackfillActuals(dto.Start, dto.End), ct);
@@ -248,6 +273,7 @@ public sealed class ProjectNodeService(
     {
         var node = await repository.GetByIdAsync(id, ct);
         if (node is null) return ServiceResult.NotFound($"ProjectNode {id} not found.");
+        if (await AnchoredDependantsGuardAsync(id, "roll up", ct) is { } guard) return guard;
 
         var children = await db.ProjectNodes.Where(p => p.ParentId == id).ToListAsync(ct);
         try
@@ -399,7 +425,8 @@ public sealed class ProjectNodeService(
         await repository.SaveChangesAsync(ct);
         // Reuse the policy already fetched above for the cascade-demotion check.
         var leadNames = await ResolveLeadNamesAsync([node], ct);
-        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames));
+        var anchoredCounts = await ResolveAnchoredEdgeCountsAsync([node], ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames, anchoredCounts));
     }
 
     // ── Project-only: state transitions ─────────────────────────────────────
@@ -536,7 +563,8 @@ public sealed class ProjectNodeService(
 
         var policy = await commitmentPolicy.GetConfigurationAsync(ct);
         var leadNames = await ResolveLeadNamesAsync(results, ct);
-        var dtos = results.Select(n => ToDtoWithMetrics(n, policy, leadNames)).ToList();
+        var anchoredCounts = await ResolveAnchoredEdgeCountsAsync(results, ct);
+        var dtos = results.Select(n => ToDtoWithMetrics(n, policy, leadNames, anchoredCounts)).ToList();
         return ServiceResult<IReadOnlyList<ProjectNodeReadDto>>.Success(dtos);
     }
 
@@ -583,9 +611,13 @@ public sealed class ProjectNodeService(
     private ProjectNodeReadDto ToDtoWithMetrics(
         ProjectNode node,
         CommitmentPolicyConfiguration policy,
-        IReadOnlyDictionary<Guid, string>? leadNames = null)
+        IReadOnlyDictionary<Guid, string>? leadNames = null,
+        IReadOnlyDictionary<Guid, int>? anchoredCounts = null)
     {
         var dto = mapper.Map<ProjectNodeReadDto>(node);
+        // ADR-0034 §8: how many boundaries follow this node's dates — the
+        // client knows BEFORE a date edit whether it must go through the envelope.
+        dto.AnchoredEdgeCount = anchoredCounts?.GetValueOrDefault(node.Id) ?? 0;
         dto.ScheduleVarianceStart = ProjectNodeMetrics.ScheduleVarianceStart(node);
         dto.ScheduleVarianceEnd = ProjectNodeMetrics.ScheduleVarianceEnd(node);
         dto.ForecastVarianceEnd = ProjectNodeMetrics.ForecastVarianceEnd(node);
@@ -603,6 +635,46 @@ public sealed class ProjectNodeService(
         if (node.LeadResourceId is { } lid && leadNames is not null)
             dto.LeadResourceName = leadNames.GetValueOrDefault(lid);
         return dto;
+    }
+
+    // Boundaries anchored to this node (start or end), across all coverage.
+    private Task<int> AnchoredEdgeCountAsync(Guid nodeId, CancellationToken ct) =>
+        db.Allocations.AsNoTracking()
+            .CountAsync(a => a.StartAnchor.NodeId == nodeId || a.EndAnchor.NodeId == nodeId, ct);
+
+    private async Task<ServiceResult<Unit>?> AnchoredDependantsGuardAsync(Guid nodeId, string verb, CancellationToken ct)
+    {
+        var count = await AnchoredEdgeCountAsync(nodeId, ct);
+        if (count == 0) return null;
+        return ServiceResult.Conflict(
+            $"{count} coverage boundary(ies) are anchored to this node's planned dates; cannot {verb} it from here. " +
+            "Use the plan command 'replanNode' (or 'moveSubtree') to move them with it, or pin them first.");
+    }
+
+    // Batch-resolve anchored-boundary counts for a set of nodes (ADR-0034 §8).
+    // A block anchored on both edges to the same node counts twice: the count is
+    // of BOUNDARIES that would move, which is what the confirmation shows.
+    private async Task<IReadOnlyDictionary<Guid, int>> ResolveAnchoredEdgeCountsAsync(
+        IEnumerable<ProjectNode> nodes, CancellationToken ct)
+    {
+        var ids = nodes.Select(n => n.Id).Distinct().ToList();
+        var counts = new Dictionary<Guid, int>();
+        if (ids.Count == 0) return counts;
+
+        var starts = await db.Allocations.AsNoTracking()
+            .Where(a => a.StartAnchor.NodeId != null && ids.Contains(a.StartAnchor.NodeId.Value))
+            .GroupBy(a => a.StartAnchor.NodeId!.Value)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        var ends = await db.Allocations.AsNoTracking()
+            .Where(a => a.EndAnchor.NodeId != null && ids.Contains(a.EndAnchor.NodeId.Value))
+            .GroupBy(a => a.EndAnchor.NodeId!.Value)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        foreach (var s in starts) counts[s.Key] = counts.GetValueOrDefault(s.Key) + s.Count;
+        foreach (var e in ends) counts[e.Key] = counts.GetValueOrDefault(e.Key) + e.Count;
+        return counts;
     }
 
     // Batch-resolve lead (PM) names for a set of nodes (gap #7 / ADR-0024).

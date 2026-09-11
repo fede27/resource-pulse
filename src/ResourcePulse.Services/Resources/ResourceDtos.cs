@@ -39,6 +39,17 @@ public sealed class ResourceReadDto
     public Guid? TeamId { get; init; }
     public Guid? RoleId { get; init; }
     public string? UserSub { get; init; }
+
+    // Declared availability boundary (ADR-0034 §3). Null = none declared.
+    public DateOnly? AvailableFrom { get; init; }
+    public DateOnly? AvailableUntil { get; init; }
+
+    // Coverage boundaries anchored to this person's availability (ADR-0034
+    // §8). Non-zero means a change of AvailableFrom/Until is a plan mutation:
+    // it goes through setAvailability, and PUT refuses it. Populated on the
+    // detail read; null on the DevExtreme list projection.
+    public int? AnchoredEdgeCount { get; set; }
+
     public IReadOnlyList<WorkWindowDto> WorkWindows { get; init; } = Array.Empty<WorkWindowDto>();
     public IReadOnlyList<IndividualAdjustmentDto> Adjustments { get; init; } = Array.Empty<IndividualAdjustmentDto>();
     public IReadOnlyList<ResourceSkillDto> Skills { get; init; } = Array.Empty<ResourceSkillDto>();
@@ -53,6 +64,8 @@ public sealed class CreateResourceDto
     public Guid? TeamId { get; init; }
     public Guid? RoleId { get; init; }
     public string? UserSub { get; init; }
+    public DateOnly? AvailableFrom { get; init; }
+    public DateOnly? AvailableUntil { get; init; }
     public IReadOnlyList<WorkWindowDto>? Windows { get; init; }
     public IReadOnlyList<IndividualAdjustmentDto>? Adjustments { get; init; }
     public IReadOnlyList<ResourceSkillDto>? Skills { get; init; }
@@ -67,6 +80,10 @@ public sealed class UpdateResourceDto
     public Guid BusinessCalendarId { get; init; }
     public Guid? RoleId { get; init; }
     public string? UserSub { get; init; }
+    // Changing a boundary that anchored coverage follows is refused here with
+    // the count (ADR-0034 §5) — use the plan command setAvailability.
+    public DateOnly? AvailableFrom { get; init; }
+    public DateOnly? AvailableUntil { get; init; }
 }
 
 public sealed class AssignTeamDto

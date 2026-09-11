@@ -7,6 +7,7 @@
  */
 import type { PlanBlockChange } from './planBlockChange';
 import type { PlanDemandChange } from './planDemandChange';
+import type { PlanReferentChange } from './planReferentChange';
 
 export interface PlanCommandResult {
   /** @nullable */
@@ -17,4 +18,6 @@ export interface PlanCommandResult {
   changes?: PlanBlockChange[] | null;
   /** @nullable */
   demandChanges?: PlanDemandChange[] | null;
+  /** @nullable */
+  referentChanges?: PlanReferentChange[] | null;
 }

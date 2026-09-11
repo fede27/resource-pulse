@@ -6,6 +6,7 @@ using ResourcePulse.Domain.Capacity;
 using ResourcePulse.Domain.Demands;
 using ResourcePulse.Domain.Projects;
 using ResourcePulse.Persistence;
+using ResourcePulse.Services.Allocations;
 using ResourcePulse.Services.Capacity;
 using ResourcePulse.Services.Configuration;
 
@@ -50,6 +51,12 @@ public sealed class PlanCommandService(
             CreateDemandCommand c => CreateDemandAsync(c, ct),
             EditDemandCommand c => EditDemandAsync(c, ct),
             DeleteDemandCommand c => DeleteDemandAsync(c, ct),
+            SetAnchorCommand c => SetAnchorAsync(c, ct),
+            PinCommand c => PinAsync(c, ct),
+            ReplanNodeCommand c => ReplanNodeAsync(c, ct),
+            MoveSubtreeCommand c => MoveSubtreeAsync(c, ct),
+            SetAvailabilityCommand c => SetAvailabilityAsync(c, ct),
+            MoveConstraintCommand c => MoveConstraintAsync(c, ct),
             _ => Task.FromResult(Fail(ServiceError.Validation(new Dictionary<string, string[]>
             {
                 ["kind"] = [$"Unknown command type {command.GetType().Name}."]
@@ -67,8 +74,11 @@ public sealed class PlanCommandService(
         if (c.Status == AllocationStatus.Hard && await CheckHardCommitmentAsync(node, ct) is { } e4)
             return Fail(e4);
 
+        var (snapErr, snap) = await SnapToAnchorsAsync(c.StartAnchor, c.EndAnchor, node, c.ResourceId, c.PeriodStart, c.PeriodEnd, ct);
+        if (snapErr is { } e5) return Fail(e5);
+
         return await CreateCoverageAsync(
-            c, c.DemandId, node, c.ResourceId, c.PeriodStart, c.PeriodEnd, c.Percent, c.Status, c.Notes, "create", ct);
+            c, c.DemandId, node, c.ResourceId, snap, c.Percent, c.Status, c.Notes, "create", ct);
     }
 
     private async Task<ServiceResult<PlanCommandResult>> CreateByHoursAsync(CreateByHoursCommand c, CancellationToken ct)
@@ -80,11 +90,15 @@ public sealed class PlanCommandService(
         if (c.Status == AllocationStatus.Hard && await CheckHardCommitmentAsync(node, ct) is { } e4)
             return Fail(e4);
 
-        var pct = await ResolvePercentForHoursAsync(c.ResourceId, c.PeriodStart, c.PeriodEnd, c.TargetHours, ct);
+        // Snap first: the hours are spread over the window the anchors define.
+        var (snapErr, snap) = await SnapToAnchorsAsync(c.StartAnchor, c.EndAnchor, node, c.ResourceId, c.PeriodStart, c.PeriodEnd, ct);
+        if (snapErr is { } e5) return Fail(e5);
+
+        var pct = await ResolvePercentForHoursAsync(c.ResourceId, snap.Start, snap.End, c.TargetHours, ct);
         if (pct.IsFailure) return Fail(pct.Error!);
 
         return await CreateCoverageAsync(
-            c, c.DemandId, node, c.ResourceId, c.PeriodStart, c.PeriodEnd, pct.Value, c.Status, c.Notes, "createByHours", ct);
+            c, c.DemandId, node, c.ResourceId, snap, pct.Value, c.Status, c.Notes, "createByHours", ct);
     }
 
     // coverInferred (attach-first, amendment C3). See CoverInferredCommand.
@@ -97,6 +111,9 @@ public sealed class PlanCommandService(
         if (await CheckProjectStatusByNodeAsync(c.ProjectNodeId, ct) is { } e4) return Fail(e4);
         if (c.Status == AllocationStatus.Hard && await CheckHardCommitmentAsync(c.ProjectNodeId, ct) is { } e5)
             return Fail(e5);
+
+        var (snapErr, snap) = await SnapToAnchorsAsync(c.StartAnchor, c.EndAnchor, c.ProjectNodeId, c.ResourceId, c.PeriodStart, c.PeriodEnd, ct);
+        if (snapErr is { } e6) return Fail(e6);
 
         // Find uncovered demands on (node, role): best-effort, or covered < required.
         var candidates = await UncoveredDemandsAsync(c.ProjectNodeId, c.RoleId, ct);
@@ -123,7 +140,7 @@ public sealed class PlanCommandService(
             var target = candidates[0];
             return await CreateCoverageAsync(
                 c, target.Id, target.ProjectNodeId, c.ResourceId,
-                c.PeriodStart, c.PeriodEnd, c.Percent, c.Status, c.Notes, "coverInferred", ct);
+                snap, c.Percent, c.Status, c.Notes, "coverInferred", ct);
         }
 
         // Fallback: materialize an Inferred, best-effort demand and cover it.
@@ -134,7 +151,8 @@ public sealed class PlanCommandService(
             demand = Demand.Create(
                 c.ProjectNodeId, c.RoleId, requiredHours: null, DemandProvenance.Inferred, c.OwnerResourceId);
             a = Allocation.CreateCoverage(
-                demand.Id, c.ProjectNodeId, c.ResourceId, c.PeriodStart, c.PeriodEnd, c.Percent, c.Notes, c.Status);
+                demand.Id, c.ProjectNodeId, c.ResourceId, snap.Start, snap.End, c.Percent, c.Notes, c.Status);
+            snap.ApplyTo(a, "coverInferred");
         }
         catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
 
@@ -144,11 +162,15 @@ public sealed class PlanCommandService(
     }
 
     private async Task<ServiceResult<PlanCommandResult>> CreateCoverageAsync(
-        PlanCommand cmd, Guid demandId, Guid projectNodeId, Guid resourceId, DateOnly start, DateOnly end,
+        PlanCommand cmd, Guid demandId, Guid projectNodeId, Guid resourceId, SnappedWindow window,
         decimal percent, AllocationStatus status, string? notes, string kind, CancellationToken ct)
     {
         Allocation a;
-        try { a = Allocation.CreateCoverage(demandId, projectNodeId, resourceId, start, end, percent, notes, status); }
+        try
+        {
+            a = Allocation.CreateCoverage(demandId, projectNodeId, resourceId, window.Start, window.End, percent, notes, status);
+            window.ApplyTo(a, kind);
+        }
         catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
 
         return await FinalizeAsync(cmd, kind, [ToChange(a, PlanChangeKind.Created)], toAdd: [a], toRemove: null, ct);
@@ -256,6 +278,10 @@ public sealed class PlanCommandService(
         try { a.RetargetToDemand(c.DemandId, newNode); }
         catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
 
+        // I10 on the new target: a node anchor whose referent is not in the new
+        // root no longer means anything to this coverage — it breaks (ADR-0034 §6).
+        if (await PinAnchorsOutsideRootAsync(a, newNode, "Retarget", ct) is { } e3) return Fail(e3);
+
         return await FinalizeAsync(c, "retarget", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
     }
 
@@ -340,6 +366,473 @@ public sealed class PlanCommandService(
         return await FinalizeAsync(c, "delete", [change], toAdd: null, toRemove: [a], ct);
     }
 
+    // ── Boundaries (ADR-0034) ────────────────────────────────────────────────
+
+    // setAnchor — tie an edge to a referent and snap it there (I9). The referent
+    // is checked for scope (I10) and for having a date; the span rule may still
+    // refuse the snap (start > end) and that is a Conflict, not a silent resize.
+    private async Task<ServiceResult<PlanCommandResult>> SetAnchorAsync(SetAnchorCommand c, CancellationToken ct)
+    {
+        var a = await LoadAsync(c.Id, ct);
+        if (a is null) return NotFound(c.Id);
+        if (await CheckProjectStatusByNodeAsync(a.ProjectNodeId, ct) is { } e) return Fail(e);
+
+        var (err, resolved) = await ResolveAnchorAsync(c.Anchor, c.Edge, a.ProjectNodeId, a.ResourceId, "Anchor", ct);
+        if (err is { } e1) return Fail(e1);
+
+        try { a.Anchor(c.Edge, resolved!.Anchor, resolved.Date, "SetAnchor"); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+
+        return await FinalizeAsync(c, "setAnchor", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
+    }
+
+    // pin — release an edge, date untouched. No project-status guard: nothing in
+    // the plan moves, the block only stops following.
+    private async Task<ServiceResult<PlanCommandResult>> PinAsync(PinCommand c, CancellationToken ct)
+    {
+        var a = await LoadAsync(c.Id, ct);
+        if (a is null) return NotFound(c.Id);
+
+        try { a.Pin(c.Edge, "Pin"); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+
+        return await FinalizeAsync(c, "pin", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
+    }
+
+    // ── Referent movement: replanNode / moveSubtree (ADR-0034 §5) ───────────
+
+    private async Task<ServiceResult<PlanCommandResult>> ReplanNodeAsync(ReplanNodeCommand c, CancellationToken ct)
+    {
+        var node = await db.ProjectNodes.FindAsync([c.NodeId], ct);
+        if (node is null) return NodeNotFound(c.NodeId);
+        if (await CheckProjectStatusByNodeAsync(node.Id, ct) is { } e) return Fail(e);
+
+        var before = NodeWindow.Of(node);
+        try { node.Replan(c.PlannedStart, c.PlannedEnd); }
+        catch (DomainException ex) { db.ChangeTracker.Clear(); return Fail(ServiceError.Conflict(ex.Message)); }
+
+        var (propErr, dragged) = await PropagateAsync(new Dictionary<Guid, ProjectNode> { [node.Id] = node }, "ReplanNode", ct);
+        if (propErr is { } e2) { db.ChangeTracker.Clear(); return Fail(e2); }
+
+        return await FinalizeAsync(c, "replanNode", dragged, null, null, ct,
+            referentChanges: [ToNodeChange(node, before)]);
+    }
+
+    private async Task<ServiceResult<PlanCommandResult>> MoveSubtreeAsync(MoveSubtreeCommand c, CancellationToken ct)
+    {
+        var node = await db.ProjectNodes.FindAsync([c.NodeId], ct);
+        if (node is null) return NodeNotFound(c.NodeId);
+        if (await CheckProjectStatusByNodeAsync(node.Id, ct) is { } e) return Fail(e);
+
+        // The node and every descendant (Path prefix), tracked. Only nodes that
+        // carry a planned date move; the others have nothing to translate.
+        var prefix = node.Path + "/";
+        var subtree = await db.ProjectNodes
+            .Where(p => p.Id == node.Id || p.Path.StartsWith(prefix))
+            .OrderBy(p => p.Path)
+            .ToListAsync(ct);
+        var dated = subtree.Where(p => p.PlannedStart is not null || p.PlannedEnd is not null).ToList();
+
+        var befores = dated.ToDictionary(p => p.Id, NodeWindow.Of);
+        try
+        {
+            foreach (var p in dated)
+                p.Replan(p.PlannedStart?.AddDays(c.DeltaDays), p.PlannedEnd?.AddDays(c.DeltaDays));
+        }
+        catch (DomainException ex) { db.ChangeTracker.Clear(); return Fail(ServiceError.Conflict(ex.Message)); }
+
+        var (propErr, dragged) = await PropagateAsync(dated.ToDictionary(p => p.Id), "MoveSubtree", ct);
+        if (propErr is { } e2) { db.ChangeTracker.Clear(); return Fail(e2); }
+
+        return await FinalizeAsync(c, "moveSubtree", dragged, null, null, ct,
+            referentChanges: dated.Select(p => ToNodeChange(p, befores[p.Id])).ToList());
+    }
+
+    // Re-snaps every boundary anchored to one of `movedNodes` (I9). A block
+    // anchored on both edges follows both at once (FollowReferents), so a shift
+    // longer than the block does not invert it half-way. Returns the blocks whose
+    // window actually changed — that count is the confirmation §8 asks for.
+    //
+    // Two refusals, both Conflict, nothing applied: a moved node lost the date
+    // some boundary follows (clearing a date with dependants — pin them first),
+    // and a re-snap that would invert a block (the phase shrank past the block's
+    // other edge — no silent shortening).
+    private async Task<(ServiceError? err, IReadOnlyList<PlanBlockChange> dragged)> PropagateAsync(
+        IReadOnlyDictionary<Guid, ProjectNode> movedNodes, string reason, CancellationToken ct)
+    {
+        var ids = movedNodes.Keys.ToList();
+        var dependants = await db.Allocations
+            .Where(a => (a.StartAnchor.NodeId != null && ids.Contains(a.StartAnchor.NodeId.Value))
+                     || (a.EndAnchor.NodeId != null && ids.Contains(a.EndAnchor.NodeId.Value)))
+            .OrderBy(a => a.PeriodStart)
+            .ToListAsync(ct);
+
+        var dragged = new List<PlanBlockChange>();
+        foreach (var a in dependants)
+        {
+            var (startErr, newStart) = FollowingDate(a.StartAnchor, movedNodes, dependants);
+            if (startErr is not null) return (startErr, []);
+            var (endErr, newEnd) = FollowingDate(a.EndAnchor, movedNodes, dependants);
+            if (endErr is not null) return (endErr, []);
+
+            var oldStart = a.PeriodStart;
+            var oldEnd = a.PeriodEnd;
+            try { a.FollowReferents(newStart, newEnd, reason); }
+            catch (DomainException ex)
+            {
+                return (ServiceError.Conflict(
+                    $"Coverage {a.Id} ({oldStart:yyyy-MM-dd} to {oldEnd:yyyy-MM-dd}) cannot follow its referent: {ex.Message} " +
+                    "Pin or shorten the block first."), []);
+            }
+
+            if (a.PeriodStart != oldStart || a.PeriodEnd != oldEnd)
+                dragged.Add(ToChange(a, PlanChangeKind.Modified));
+        }
+        return (null, dragged);
+    }
+
+    // The date an anchored edge must take after its referent moved, or null when
+    // the edge does not follow one of the moved nodes. Error when the referent
+    // lost the date this edge follows.
+    private static (ServiceError? err, DateOnly? date) FollowingDate(
+        BoundaryAnchor anchor, IReadOnlyDictionary<Guid, ProjectNode> movedNodes,
+        IReadOnlyList<Allocation> dependants)
+    {
+        if (!anchor.RequiresNode || !movedNodes.TryGetValue(anchor.NodeId!.Value, out var referent))
+            return (null, null);
+
+        var date = anchor.Kind == AnchorKind.NodeStart ? referent.PlannedStart : referent.PlannedEnd;
+        if (date is not null) return (null, date);
+
+        var following = dependants.Count(d => d.StartAnchor.Equals(anchor)) + dependants.Count(d => d.EndAnchor.Equals(anchor));
+        var which = anchor.Kind == AnchorKind.NodeStart ? "start" : "end";
+        return (ServiceError.Conflict(
+            $"ProjectNode {referent.Id} ('{referent.Name}'): {following} anchored boundary(ies) follow its planned {which}, " +
+            "which cannot be cleared. Pin them first."), null);
+    }
+
+    // setAvailability — the person's boundary moves; the blocks anchored to it
+    // follow (start edges -> AvailableFrom, end edges -> AvailableUntil). Same
+    // refusals as the node case: clearing a followed date, or a re-snap that
+    // would invert a block.
+    private async Task<ServiceResult<PlanCommandResult>> SetAvailabilityAsync(SetAvailabilityCommand c, CancellationToken ct)
+    {
+        var person = await db.Resources.FindAsync([c.ResourceId], ct);
+        if (person is null) return ServiceResult<PlanCommandResult>.NotFound($"Resource {c.ResourceId} not found.");
+
+        var before = new NodeWindow(person.AvailableFrom, person.AvailableUntil);
+        try { person.SetAvailability(c.AvailableFrom, c.AvailableUntil); }
+        catch (DomainException ex) { db.ChangeTracker.Clear(); return Fail(ServiceError.Conflict(ex.Message)); }
+
+        var dependants = await db.Allocations
+            .Where(a => a.ResourceId == c.ResourceId
+                     && (a.StartAnchor.Kind == AnchorKind.ResourceAvailability
+                      || a.EndAnchor.Kind == AnchorKind.ResourceAvailability))
+            .OrderBy(a => a.PeriodStart)
+            .ToListAsync(ct);
+
+        var startFollowers = dependants.Count(a => a.StartAnchor.Kind == AnchorKind.ResourceAvailability);
+        var endFollowers = dependants.Count(a => a.EndAnchor.Kind == AnchorKind.ResourceAvailability);
+        if (startFollowers > 0 && person.AvailableFrom is null)
+        {
+            db.ChangeTracker.Clear();
+            return Fail(ServiceError.Conflict(
+                $"Resource {person.Id} ('{person.Name}'): {startFollowers} anchored boundary(ies) follow AvailableFrom, which cannot be cleared. Pin them first."));
+        }
+        if (endFollowers > 0 && person.AvailableUntil is null)
+        {
+            db.ChangeTracker.Clear();
+            return Fail(ServiceError.Conflict(
+                $"Resource {person.Id} ('{person.Name}'): {endFollowers} anchored boundary(ies) follow AvailableUntil, which cannot be cleared. Pin them first."));
+        }
+
+        var dragged = new List<PlanBlockChange>();
+        foreach (var a in dependants)
+        {
+            var newStart = a.StartAnchor.Kind == AnchorKind.ResourceAvailability ? person.AvailableFrom : null;
+            var newEnd = a.EndAnchor.Kind == AnchorKind.ResourceAvailability ? person.AvailableUntil : null;
+            var oldStart = a.PeriodStart;
+            var oldEnd = a.PeriodEnd;
+            try { a.FollowReferents(newStart, newEnd, "SetAvailability"); }
+            catch (DomainException ex)
+            {
+                db.ChangeTracker.Clear();
+                return Fail(ServiceError.Conflict(
+                    $"Coverage {a.Id} ({oldStart:yyyy-MM-dd} to {oldEnd:yyyy-MM-dd}) cannot follow its referent: {ex.Message} " +
+                    "Pin or shorten the block first."));
+            }
+            if (a.PeriodStart != oldStart || a.PeriodEnd != oldEnd)
+                dragged.Add(ToChange(a, PlanChangeKind.Modified));
+        }
+
+        return await FinalizeAsync(c, "setAvailability", dragged, null, null, ct,
+            referentChanges:
+            [
+                new PlanReferentChange
+                {
+                    Kind = PlanChangeKind.Modified,
+                    Referent = ReferentKind.Resource,
+                    Id = person.Id,
+                    Name = person.Name,
+                    OldStart = before.Start,
+                    OldEnd = before.End,
+                    NewStart = person.AvailableFrom,
+                    NewEnd = person.AvailableUntil
+                }
+            ]);
+    }
+
+    private sealed record NodeWindow(DateOnly? Start, DateOnly? End)
+    {
+        public static NodeWindow Of(ProjectNode n) => new(n.PlannedStart, n.PlannedEnd);
+    }
+
+    private static PlanReferentChange ToNodeChange(ProjectNode n, NodeWindow before) => new()
+    {
+        Kind = PlanChangeKind.Modified,
+        Referent = ReferentKind.Node,
+        Id = n.Id,
+        Name = n.Name,
+        NodeType = n.NodeType,
+        OldStart = before.Start,
+        OldEnd = before.End,
+        NewStart = n.PlannedStart,
+        NewEnd = n.PlannedEnd
+    };
+
+    private static ServiceResult<PlanCommandResult> NodeNotFound(Guid id) =>
+        ServiceResult<PlanCommandResult>.NotFound($"ProjectNode {id} not found.");
+
+    private sealed record ResolvedAnchor(BoundaryAnchor Anchor, DateOnly Date);
+
+    // The window a creation command lands on once its anchors are resolved: the
+    // submitted dates, overridden per edge by the referent's date. ApplyTo ties
+    // the (already snapped) edges after the aggregate is built, so the anchor is
+    // set without a second move.
+    private sealed record SnappedWindow(DateOnly Start, DateOnly End, ResolvedAnchor? StartAnchor, ResolvedAnchor? EndAnchor)
+    {
+        public void ApplyTo(Allocation a, string reason)
+        {
+            if (StartAnchor is { } s) a.Anchor(BoundaryEdge.Start, s.Anchor, s.Date, reason);
+            if (EndAnchor is { } e) a.Anchor(BoundaryEdge.End, e.Anchor, e.Date, reason);
+        }
+    }
+
+    private async Task<(ServiceError? err, SnappedWindow window)> SnapToAnchorsAsync(
+        AnchorSpec? startSpec, AnchorSpec? endSpec, Guid coverageNodeId, Guid resourceId, DateOnly start, DateOnly end, CancellationToken ct)
+    {
+        ResolvedAnchor? s = null, e = null;
+        if (startSpec is not null)
+        {
+            var (err, r) = await ResolveAnchorAsync(startSpec, BoundaryEdge.Start, coverageNodeId, resourceId, "StartAnchor", ct);
+            if (err is not null) return (err, null!);
+            s = r;
+        }
+        if (endSpec is not null)
+        {
+            var (err, r) = await ResolveAnchorAsync(endSpec, BoundaryEdge.End, coverageNodeId, resourceId, "EndAnchor", ct);
+            if (err is not null) return (err, null!);
+            e = r;
+        }
+
+        var snappedStart = s?.Date ?? start;
+        var snappedEnd = e?.Date ?? end;
+        if (snappedStart > snappedEnd)
+            return (ServiceError.Conflict(
+                $"Anchoring would invert the span: start {snappedStart:yyyy-MM-dd} is after end {snappedEnd:yyyy-MM-dd}."), null!);
+
+        return (null, new SnappedWindow(snappedStart, snappedEnd, s, e));
+    }
+
+    // Resolves a wire anchor to (domain anchor, referent date) for a coverage on
+    // `coverageNodeId` by `resourceId`. I10: a node referent must be
+    // planning-level and in the same root; the availability referent is the
+    // block's own person. I9: the referent must carry the date the kind reads —
+    // a phase without PlannedEnd, a person without AvailableUntil, cannot be
+    // anchored to (Conflict, not a guessed date).
+    private async Task<(ServiceError? err, ResolvedAnchor? resolved)> ResolveAnchorAsync(
+        AnchorSpec spec, BoundaryEdge edge, Guid coverageNodeId, Guid resourceId, string field, CancellationToken ct)
+    {
+        BoundaryAnchor anchor;
+        try { anchor = BoundaryAnchor.Of(spec.Kind, spec.NodeId, spec.ConstraintId); }
+        catch (DomainException ex) { return (FieldError(field, ex.Message), null); }
+
+        switch (anchor.Kind)
+        {
+            case AnchorKind.NodeStart:
+            case AnchorKind.NodeEnd:
+            {
+                var referent = await db.ProjectNodes.AsNoTracking()
+                    .Where(p => p.Id == anchor.NodeId)
+                    .Select(p => new { p.NodeType, p.Path, p.PlannedStart, p.PlannedEnd })
+                    .FirstOrDefaultAsync(ct);
+                if (referent is null)
+                    return (FieldError(field, $"ProjectNode {anchor.NodeId} does not exist."), null);
+                if (referent.NodeType != ProjectNodeType.Project && referent.NodeType != ProjectNodeType.Phase)
+                    return (FieldError(field, $"Anchors target Project or Phase nodes (got {referent.NodeType})."), null);
+
+                var (rootErr, coverageRoot) = await RootIdOfNodeAsync(coverageNodeId, ct);
+                if (rootErr is not null) return (rootErr, null);
+                if (!ProjectNodePath.TryGetRootId(referent.Path, out var referentRoot))
+                    return (ServiceError.Failure("ProjectNode has an invalid materialized path."), null);
+                if (referentRoot != coverageRoot)
+                    return (FieldError(field, "Anchor referent must belong to the same root project as the coverage (I10)."), null);
+
+                var date = anchor.Kind == AnchorKind.NodeStart ? referent.PlannedStart : referent.PlannedEnd;
+                if (date is null)
+                {
+                    var which = anchor.Kind == AnchorKind.NodeStart ? "start" : "end";
+                    return (ServiceError.Conflict(
+                        $"ProjectNode {anchor.NodeId} has no planned {which} to anchor the {edge} boundary to."), null);
+                }
+
+                return (null, new ResolvedAnchor(anchor, date.Value));
+            }
+            case AnchorKind.ResourceAvailability:
+            {
+                var person = await db.Resources.AsNoTracking()
+                    .Where(r => r.Id == resourceId)
+                    .Select(r => new { r.AvailableFrom, r.AvailableUntil })
+                    .FirstOrDefaultAsync(ct);
+                if (person is null)
+                    return (FieldError(field, $"Resource {resourceId} does not exist."), null);
+
+                var date = edge == BoundaryEdge.Start ? person.AvailableFrom : person.AvailableUntil;
+                if (date is null)
+                {
+                    var which = edge == BoundaryEdge.Start ? "AvailableFrom" : "AvailableUntil";
+                    return (ServiceError.Conflict(
+                        $"Resource {resourceId} has no declared {which} to anchor the {edge} boundary to."), null);
+                }
+                return (null, new ResolvedAnchor(anchor, date.Value));
+            }
+            case AnchorKind.External:
+            {
+                var constraint = await db.ExternalConstraints.AsNoTracking()
+                    .Where(x => x.Id == anchor.ConstraintId)
+                    .Select(x => new { x.RootProjectId, x.Date })
+                    .FirstOrDefaultAsync(ct);
+                if (constraint is null)
+                    return (FieldError(field, $"External constraint {anchor.ConstraintId} does not exist."), null);
+
+                var (rootErr, coverageRoot) = await RootIdOfNodeAsync(coverageNodeId, ct);
+                if (rootErr is not null) return (rootErr, null);
+                if (constraint.RootProjectId != coverageRoot)
+                    return (FieldError(field, "Anchor referent must belong to the same root project as the coverage (I10)."), null);
+
+                // An imposed date always has a date: nothing to refuse on I9.
+                return (null, new ResolvedAnchor(anchor, constraint.Date));
+            }
+            default:
+                return (ServiceError.Conflict($"Anchor kind {anchor.Kind} cannot be resolved."), null);
+        }
+    }
+
+    // After a retarget: node and constraint anchors whose referent lies outside
+    // the new root are pinned (I10 re-checked on the new target). Returns an
+    // error only if a referent is unreadable.
+    private async Task<ServiceError?> PinAnchorsOutsideRootAsync(Allocation a, Guid newNodeId, string reason, CancellationToken ct)
+    {
+        static bool Scoped(BoundaryAnchor x) => x.RequiresNode || x.RequiresConstraint;
+        if (!Scoped(a.StartAnchor) && !Scoped(a.EndAnchor)) return null;
+
+        var (rootErr, newRoot) = await RootIdOfNodeAsync(newNodeId, ct);
+        if (rootErr is not null) return rootErr;
+
+        foreach (var edge in new[] { BoundaryEdge.Start, BoundaryEdge.End })
+        {
+            var anchor = a.AnchorOf(edge);
+            if (!Scoped(anchor)) continue;
+
+            Guid? referentRoot;
+            if (anchor.RequiresNode)
+            {
+                var (err, root) = await RootIdOfNodeAsync(anchor.NodeId!.Value, ct);
+                if (err is not null) return err;
+                referentRoot = root;
+            }
+            else
+            {
+                referentRoot = await db.ExternalConstraints.AsNoTracking()
+                    .Where(x => x.Id == anchor.ConstraintId)
+                    .Select(x => (Guid?)x.RootProjectId)
+                    .FirstOrDefaultAsync(ct);
+                if (referentRoot is null)
+                    return ServiceError.Failure($"External constraint {anchor.ConstraintId} disappeared while resolving its root.");
+            }
+
+            if (referentRoot != newRoot) a.Pin(edge, reason);
+        }
+        return null;
+    }
+
+    // moveConstraint — the imposed date moves; the boundaries anchored to it
+    // follow. Same refusal as the other referents on a re-snap that would
+    // invert a block. I4 on the constraint's root.
+    private async Task<ServiceResult<PlanCommandResult>> MoveConstraintAsync(MoveConstraintCommand c, CancellationToken ct)
+    {
+        var constraint = await db.ExternalConstraints.FindAsync([c.ConstraintId], ct);
+        if (constraint is null)
+            return ServiceResult<PlanCommandResult>.NotFound($"External constraint {c.ConstraintId} not found.");
+        if (await CheckProjectStatusByNodeAsync(constraint.RootProjectId, ct) is { } e) return Fail(e);
+
+        var before = constraint.Date;
+        constraint.MoveTo(c.Date);
+
+        var dependants = await db.Allocations
+            .Where(a => a.StartAnchor.ConstraintId == c.ConstraintId || a.EndAnchor.ConstraintId == c.ConstraintId)
+            .OrderBy(a => a.PeriodStart)
+            .ToListAsync(ct);
+
+        var dragged = new List<PlanBlockChange>();
+        foreach (var a in dependants)
+        {
+            var newStart = a.StartAnchor.ConstraintId == c.ConstraintId ? c.Date : (DateOnly?)null;
+            var newEnd = a.EndAnchor.ConstraintId == c.ConstraintId ? c.Date : (DateOnly?)null;
+            var oldStart = a.PeriodStart;
+            var oldEnd = a.PeriodEnd;
+            try { a.FollowReferents(newStart, newEnd, "MoveConstraint"); }
+            catch (DomainException ex)
+            {
+                db.ChangeTracker.Clear();
+                return Fail(ServiceError.Conflict(
+                    $"Coverage {a.Id} ({oldStart:yyyy-MM-dd} to {oldEnd:yyyy-MM-dd}) cannot follow its referent: {ex.Message} " +
+                    "Pin or shorten the block first."));
+            }
+            if (a.PeriodStart != oldStart || a.PeriodEnd != oldEnd)
+                dragged.Add(ToChange(a, PlanChangeKind.Modified));
+        }
+
+        return await FinalizeAsync(c, "moveConstraint", dragged, null, null, ct,
+            referentChanges:
+            [
+                new PlanReferentChange
+                {
+                    Kind = PlanChangeKind.Modified,
+                    Referent = ReferentKind.ExternalConstraint,
+                    Id = constraint.Id,
+                    Name = constraint.Name,
+                    OldStart = before,
+                    OldEnd = before,
+                    NewStart = constraint.Date,
+                    NewEnd = constraint.Date
+                }
+            ]);
+    }
+
+    private async Task<(ServiceError? err, Guid rootId)> RootIdOfNodeAsync(Guid nodeId, CancellationToken ct)
+    {
+        var path = await db.ProjectNodes.AsNoTracking()
+            .Where(p => p.Id == nodeId).Select(p => p.Path).FirstOrDefaultAsync(ct);
+        if (path is null) return (ServiceError.Failure($"ProjectNode {nodeId} disappeared while resolving its root."), Guid.Empty);
+        if (!ProjectNodePath.TryGetRootId(path, out var rootId))
+            return (ServiceError.Failure("ProjectNode has an invalid materialized path."), Guid.Empty);
+        return (null, rootId);
+    }
+
+    private static ServiceError FieldError(string field, string message) =>
+        ServiceError.Validation(new Dictionary<string, string[]> { [field] = [message] });
+
     // ── Demand mutation (Phase 5.0) ──────────────────────────────────────────
 
     private async Task<ServiceResult<PlanCommandResult>> CreateDemandAsync(CreateDemandCommand c, CancellationToken ct)
@@ -416,7 +909,8 @@ public sealed class PlanCommandService(
         IReadOnlyList<Allocation>? toAdd, IReadOnlyList<Allocation>? toRemove, CancellationToken ct,
         IReadOnlyList<PlanDemandChange>? demandChanges = null,
         IReadOnlyList<Demand>? demandsToAdd = null,
-        IReadOnlyList<Demand>? demandsToRemove = null)
+        IReadOnlyList<Demand>? demandsToRemove = null,
+        IReadOnlyList<PlanReferentChange>? referentChanges = null)
     {
         if (!cmd.DryRun)
         {
@@ -441,7 +935,8 @@ public sealed class PlanCommandService(
             DryRun = cmd.DryRun,
             Committed = !cmd.DryRun,
             Changes = changes,
-            DemandChanges = demandChanges ?? []
+            DemandChanges = demandChanges ?? [],
+            ReferentChanges = referentChanges ?? []
         });
     }
 
@@ -481,7 +976,9 @@ public sealed class PlanCommandService(
         PeriodEnd = a.PeriodEnd,
         AllocationPercent = a.AllocationPercent,
         Status = a.Status,
-        Notes = a.Notes
+        Notes = a.Notes,
+        StartAnchor = BoundaryAnchorDto.From(a.StartAnchor),
+        EndAnchor = BoundaryAnchorDto.From(a.EndAnchor)
     };
 
     // ── Cross-aggregate guards (ported from AllocationService) ────────────────

@@ -36,6 +36,9 @@ public class EndpointAuthorizationTests
         ["PlanCommandsController"] = AccessPolicies.Planner,
         ["ProjectsController"] = AccessPolicies.Planner,
         ["ProjectNodesController"] = AccessPolicies.Planner,
+        // Imposed dates on a project (ADR-0034 §4): a project artefact, planned by
+        // the same hands that plan the project.
+        ["ExternalConstraintsController"] = AccessPolicies.Planner,
         // Operational registry — a planner who cannot add the person they are
         // about to staff is crippled.
         ["ResourcesController"] = AccessPolicies.Planner,

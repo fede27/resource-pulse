@@ -36,9 +36,9 @@ public sealed class ResourceService(
             .ProjectToType<ResourceReadDto>()
             .FirstOrDefaultAsync(ct);
 
-        return dto is null
-            ? ServiceResult<ResourceReadDto>.NotFound($"Resource {id} not found.")
-            : ServiceResult<ResourceReadDto>.Success(dto);
+        if (dto is null) return ServiceResult<ResourceReadDto>.NotFound($"Resource {id} not found.");
+        dto.AnchoredEdgeCount = await AnchoredEdgeCountAsync(id, ct);
+        return ServiceResult<ResourceReadDto>.Success(dto);
     }
 
     public async Task<ServiceResult<ResourceReadDto>> CreateAsync(CreateResourceDto dto, CancellationToken ct = default)
@@ -130,6 +130,7 @@ public sealed class ResourceService(
         {
             resource = Resource.Create(dto.Name, calendarId);
             resource.SetEmail(dto.Email);
+            resource.SetAvailability(dto.AvailableFrom, dto.AvailableUntil);
         }
         catch (Common.Domain.DomainException ex)
         {
@@ -224,6 +225,31 @@ public sealed class ResourceService(
         resource.AssignToRole(dto.RoleId);
         if (dto.IsActive) resource.Activate(); else resource.Deactivate();
         resource.LinkToUser(dto.UserSub);
+
+        // Availability is a REFERENT (ADR-0034 §5): a boundary that anchored
+        // coverage follows is not moved from here. Refuse with the count and
+        // point at the envelope, per edge — only the edge that changes counts.
+        if (dto.AvailableFrom != resource.AvailableFrom || dto.AvailableUntil != resource.AvailableUntil)
+        {
+            var (startCount, endCount) = await AvailabilityDependantsAsync(id, ct);
+            var blocking = (dto.AvailableFrom != resource.AvailableFrom ? startCount : 0)
+                         + (dto.AvailableUntil != resource.AvailableUntil ? endCount : 0);
+            if (blocking > 0)
+                return ServiceResult<ResourceReadDto>.Conflict(
+                    $"{blocking} coverage boundary(ies) are anchored to this person's availability; cannot change it from here. " +
+                    "Use the plan command 'setAvailability' to move them with it, or pin them first.");
+            try
+            {
+                resource.SetAvailability(dto.AvailableFrom, dto.AvailableUntil);
+            }
+            catch (Common.Domain.DomainException ex)
+            {
+                return ServiceResult<ResourceReadDto>.Validation(new Dictionary<string, string[]>
+                {
+                    [nameof(UpdateResourceDto.AvailableFrom)] = [ex.Message]
+                });
+            }
+        }
 
         try
         {
@@ -587,4 +613,22 @@ public sealed class ResourceService(
     // this loader anywhere we touch owned state.
     private Task<Resource?> LoadWithOwnedAsync(Guid id, CancellationToken ct) =>
         db.Resources.FirstOrDefaultAsync(r => r.Id == id, ct);
+    // ── Availability as a referent (ADR-0034) ─────────────────────────────
+
+    // Boundaries of this person's blocks anchored to their availability:
+    // (start edges following AvailableFrom, end edges following AvailableUntil).
+    private async Task<(int startCount, int endCount)> AvailabilityDependantsAsync(Guid resourceId, CancellationToken ct)
+    {
+        var starts = await db.Allocations.AsNoTracking().CountAsync(
+            a => a.ResourceId == resourceId && a.StartAnchor.Kind == Domain.Allocations.AnchorKind.ResourceAvailability, ct);
+        var ends = await db.Allocations.AsNoTracking().CountAsync(
+            a => a.ResourceId == resourceId && a.EndAnchor.Kind == Domain.Allocations.AnchorKind.ResourceAvailability, ct);
+        return (starts, ends);
+    }
+
+    private async Task<int> AnchoredEdgeCountAsync(Guid resourceId, CancellationToken ct)
+    {
+        var (s, e) = await AvailabilityDependantsAsync(resourceId, ct);
+        return s + e;
+    }
 }

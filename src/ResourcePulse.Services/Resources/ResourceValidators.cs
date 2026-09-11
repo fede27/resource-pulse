@@ -51,6 +51,9 @@ public sealed class CreateResourceDtoValidator : AbstractValidator<CreateResourc
 {
     public CreateResourceDtoValidator()
     {
+        RuleFor(x => x.AvailableFrom!.Value).LessThanOrEqualTo(x => x.AvailableUntil!.Value)
+            .When(x => x.AvailableFrom.HasValue && x.AvailableUntil.HasValue)
+            .WithMessage("AvailableFrom must be on or before AvailableUntil.");
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Email)
             .EmailAddress().MaximumLength(256)
@@ -72,6 +75,9 @@ public sealed class UpdateResourceDtoValidator : AbstractValidator<UpdateResourc
             .When(x => !string.IsNullOrWhiteSpace(x.Email));
         RuleFor(x => x.BusinessCalendarId).NotEqual(Guid.Empty)
             .WithMessage("BusinessCalendarId is required.");
+        RuleFor(x => x.AvailableFrom!.Value).LessThanOrEqualTo(x => x.AvailableUntil!.Value)
+            .When(x => x.AvailableFrom.HasValue && x.AvailableUntil.HasValue)
+            .WithMessage("AvailableFrom must be on or before AvailableUntil.");
     }
 }
 

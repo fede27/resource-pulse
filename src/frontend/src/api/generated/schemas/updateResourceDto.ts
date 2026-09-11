@@ -17,4 +17,8 @@ export interface UpdateResourceDto {
   roleId?: string | null;
   /** @nullable */
   userSub?: string | null;
+  /** @nullable */
+  availableFrom?: string | null;
+  /** @nullable */
+  availableUntil?: string | null;
 }

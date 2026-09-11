@@ -24,6 +24,10 @@ export interface CreateResourceDto {
   /** @nullable */
   userSub?: string | null;
   /** @nullable */
+  availableFrom?: string | null;
+  /** @nullable */
+  availableUntil?: string | null;
+  /** @nullable */
   windows?: WorkWindowDto[] | null;
   /** @nullable */
   adjustments?: IndividualAdjustmentDto[] | null;

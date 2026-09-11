@@ -97,6 +97,52 @@ internal sealed class PlanCommandHarness
 
     public int AllocationCount() => Db.Allocations.AsNoTracking().Count();
 
+    // ── Anchor helpers (ADR-0034) ───────────────────────────────────────────
+
+    // Persists a Phase under the given root with the given planned window and
+    // returns its id. A phase is the natural anchor referent ("until the phase
+    // ends"); null dates make it un-anchorable on that edge.
+    public Guid SeedPhase(Guid rootId, DateOnly? plannedStart, DateOnly? plannedEnd, string name = "Fase")
+    {
+        var root = Db.ProjectNodes.AsNoTracking().Single(p => p.Id == rootId);
+        var phase = ProjectNode.CreateChild(root, ProjectNodeType.Phase, name, null);
+        if (plannedStart is not null || plannedEnd is not null) phase.Replan(plannedStart, plannedEnd);
+        Db.ProjectNodes.Add(phase);
+        Db.SaveChanges();
+        Db.ChangeTracker.Clear();
+        return phase.Id;
+    }
+
+    // Declares the seeded resource's availability boundary directly (arrange).
+    public void SetResourceAvailability(Guid resourceId, DateOnly? from, DateOnly? until)
+    {
+        var r = Db.Resources.Single(x => x.Id == resourceId);
+        r.SetAvailability(from, until);
+        Db.SaveChanges();
+        Db.ChangeTracker.Clear();
+    }
+
+    // Persists an imposed date on a root (ADR-0034 §4) and returns its id.
+    public Guid SeedConstraint(Guid rootId, DateOnly date, string name = "Go-live",
+        ConstraintAuthority authority = ConstraintAuthority.Contractual)
+    {
+        var c = ExternalConstraint.Create(rootId, name, date, authority);
+        Db.ExternalConstraints.Add(c);
+        Db.SaveChanges();
+        Db.ChangeTracker.Clear();
+        return c.Id;
+    }
+
+    // Persists a second root project (for I10 / retarget arrange).
+    public Guid SeedRoot(string name = "Proj2", CommitmentLevel commitment = CommitmentLevel.Committed)
+    {
+        var node = ProjectNode.CreateRoot(name, name, ProjectType.Internal, commitment, leadResourceId: null);
+        Db.ProjectNodes.Add(node);
+        Db.SaveChanges();
+        Db.ChangeTracker.Clear();
+        return node.Id;
+    }
+
     public Allocation Reload(Guid id) =>
         Db.Allocations.AsNoTracking().Single(a => a.Id == id);
 

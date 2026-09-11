@@ -64,6 +64,8 @@ export interface ProjectNodeReadDto {
   /** @nullable */
   isProposed?: boolean | null;
   /** @nullable */
+  anchoredEdgeCount?: number | null;
+  /** @nullable */
   skillRequirements?: ProjectSkillRequirementDto[] | null;
   /** @nullable */
   tags?: ProjectNodeTagDto[] | null;

@@ -48,6 +48,11 @@ public sealed class AllocationReadDto
 
     public string? Notes { get; init; }
 
+    // Boundary semantics (ADR-0034 §8): what each edge is tied to, with the
+    // referent's name resolved on the read. Pinned is the plain case.
+    public BoundaryAnchorDto StartAnchor { get; init; } = new();
+    public BoundaryAnchorDto EndAnchor { get; init; } = new();
+
     public DateTime CreatedAt { get; init; }
     public string CreatedBy { get; init; } = string.Empty;
     public DateTime? UpdatedAt { get; init; }

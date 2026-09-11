@@ -60,6 +60,7 @@ public class ResourcePulseDbContext(DbContextOptions<ResourcePulseDbContext> opt
     public DbSet<Skill> Skills => Set<Skill>();
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<ProjectNode> ProjectNodes => Set<ProjectNode>();
+    public DbSet<ExternalConstraint> ExternalConstraints => Set<ExternalConstraint>();
     public DbSet<Demand> Demands => Set<Demand>();
     public DbSet<Allocation> Allocations => Set<Allocation>();
 
