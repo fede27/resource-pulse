@@ -1,7 +1,6 @@
 using ResourcePulse.Domain.Allocations;
 using ResourcePulse.Domain.Demands;
 using ResourcePulse.Domain.Projects;
-using ResourcePulse.Services.Allocations;
 
 namespace ResourcePulse.Services.Plan;
 
@@ -35,9 +34,10 @@ public sealed class PlanBlockChange
     public AllocationStatus Status { get; init; }
     public string? Notes { get; init; }
 
-    // Boundary semantics (ADR-0034). Structural — no referent name here.
-    public BoundaryAnchorDto StartAnchor { get; init; } = new();
-    public BoundaryAnchorDto EndAnchor { get; init; } = new();
+    // Boundary state (ADR-0035): FollowsNode or Pinned per edge. The referent
+    // needs no name here — it is ProjectNodeId, already on this row.
+    public AnchorKind StartAnchor { get; init; }
+    public AnchorKind EndAnchor { get; init; }
 }
 
 // The structural consequence of one demand under a command. Two typed lists
@@ -58,27 +58,17 @@ public sealed class PlanDemandChange
     public DateOnly? DecideBy { get; init; }
 }
 
-// What kind of referent moved (ADR-0034 §5).
-public enum ReferentKind
-{
-    Node = 0,
-    Resource = 1,
-    ExternalConstraint = 2
-}
-
-// The structural consequence of one REFERENT under a referent-moving command
-// (ADR-0034 §5): its window before and after. For a node the window is
-// PlannedStart/End; for a resource AvailableFrom/Until; for an external
-// constraint the single date sits in both Start and End. Name and type are
-// carried so a preview can say "Fase 2: 8 Jun -> 15 Jun" without a lookup.
+// The structural consequence of the moved REFERENT under replanNode /
+// moveSubtree (ADR-0035 §5): its planned window before and after. There is one
+// referent type since ADR-0035 — the project node — so there is no discriminator
+// to carry. Name and type are carried so a preview can say
+// "Fase 2 · Build: 30 ago -> 9 set" without a lookup.
 public sealed class PlanReferentChange
 {
     public PlanChangeKind Kind { get; init; }
-    public ReferentKind Referent { get; init; }
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
-    // Only for Referent = Node.
-    public ProjectNodeType? NodeType { get; init; }
+    public ProjectNodeType NodeType { get; init; }
     public DateOnly? OldStart { get; init; }
     public DateOnly? OldEnd { get; init; }
     public DateOnly? NewStart { get; init; }
@@ -97,8 +87,7 @@ public sealed class PlanCommandResult
     public bool Committed { get; init; }
     public IReadOnlyList<PlanBlockChange> Changes { get; init; } = [];
     public IReadOnlyList<PlanDemandChange> DemandChanges { get; init; } = [];
-    // Referents moved by replanNode / moveSubtree / setAvailability /
-    // moveConstraint (ADR-0034). Empty for every other kind. The dragged blocks
-    // are in Changes; their count IS the confirmation.
+    // Nodes moved by replanNode / moveSubtree (ADR-0035). Empty for every other
+    // kind. The dragged blocks are in Changes; their count IS the confirmation.
     public IReadOnlyList<PlanReferentChange> ReferentChanges { get; init; } = [];
 }

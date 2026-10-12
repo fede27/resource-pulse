@@ -16,7 +16,6 @@ export interface ExternalConstraintReadDto {
   authority?: ConstraintAuthority;
   /** @nullable */
   notes?: string | null;
-  anchoredEdgeCount?: number;
   createdAt?: string;
   /** @nullable */
   createdBy?: string | null;

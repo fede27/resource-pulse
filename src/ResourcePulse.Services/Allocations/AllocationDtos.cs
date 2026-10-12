@@ -28,6 +28,16 @@ public sealed class AllocationReadDto
     public Guid ProjectNodeId { get; init; }
     public string ProjectNodePath { get; init; } = string.Empty;
 
+    // The node IS the referent (ADR-0035), so its name and planned window travel
+    // with every block: the client needs them to label a following edge ("moves
+    // with the end of Fase 2 · Build"), to place the snap target of a drag, and
+    // to tell a pinned edge that happens to sit on the boundary from one that
+    // follows it. Null dates mean the node is unplanned — then no edge can
+    // follow, and both are necessarily pinned.
+    public string ProjectNodeName { get; init; } = string.Empty;
+    public DateOnly? NodePlannedStart { get; init; }
+    public DateOnly? NodePlannedEnd { get; init; }
+
     // Root project of the node the coverage sits on (first segment of the
     // materialized Path), resolved in the read projection (ADR-0024 pattern,
     // gap #4 / consolidation P3) — no more client-side Path parsing + join.
@@ -48,10 +58,11 @@ public sealed class AllocationReadDto
 
     public string? Notes { get; init; }
 
-    // Boundary semantics (ADR-0034 §8): what each edge is tied to, with the
-    // referent's name resolved on the read. Pinned is the plain case.
-    public BoundaryAnchorDto StartAnchor { get; init; } = new();
-    public BoundaryAnchorDto EndAnchor { get; init; } = new();
+    // Boundary state (ADR-0035 §8): FollowsNode — the default and the silent
+    // case — or Pinned, which is the one thing the board marks. There is no
+    // referent to name: it is ProjectNode* above.
+    public AnchorKind StartAnchor { get; init; }
+    public AnchorKind EndAnchor { get; init; }
 
     public DateTime CreatedAt { get; init; }
     public string CreatedBy { get; init; } = string.Empty;

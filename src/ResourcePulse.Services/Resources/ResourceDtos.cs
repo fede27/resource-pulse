@@ -40,15 +40,12 @@ public sealed class ResourceReadDto
     public Guid? RoleId { get; init; }
     public string? UserSub { get; init; }
 
-    // Declared availability boundary (ADR-0034 §3). Null = none declared.
+    // Declared availability boundary (ADR-0035 §3). Null = none declared.
+    // DISPLAYED, never propagated: coverage past AvailableUntil is a visible
+    // violation (the board hatches it), not a refused or shortened block, and
+    // capacity does not read these dates at all.
     public DateOnly? AvailableFrom { get; init; }
     public DateOnly? AvailableUntil { get; init; }
-
-    // Coverage boundaries anchored to this person's availability (ADR-0034
-    // §8). Non-zero means a change of AvailableFrom/Until is a plan mutation:
-    // it goes through setAvailability, and PUT refuses it. Populated on the
-    // detail read; null on the DevExtreme list projection.
-    public int? AnchoredEdgeCount { get; set; }
 
     public IReadOnlyList<WorkWindowDto> WorkWindows { get; init; } = Array.Empty<WorkWindowDto>();
     public IReadOnlyList<IndividualAdjustmentDto> Adjustments { get; init; } = Array.Empty<IndividualAdjustmentDto>();
@@ -80,8 +77,8 @@ public sealed class UpdateResourceDto
     public Guid BusinessCalendarId { get; init; }
     public Guid? RoleId { get; init; }
     public string? UserSub { get; init; }
-    // Changing a boundary that anchored coverage follows is refused here with
-    // the count (ADR-0034 §5) — use the plan command setAvailability.
+    // Freely editable (ADR-0035 §3): nothing follows these dates, so changing
+    // them moves no block and is never refused.
     public DateOnly? AvailableFrom { get; init; }
     public DateOnly? AvailableUntil { get; init; }
 }

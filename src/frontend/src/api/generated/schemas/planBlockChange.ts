@@ -6,7 +6,7 @@
  * OpenAPI spec version: 1.0
  */
 import type { AllocationStatus } from './allocationStatus';
-import type { BoundaryAnchorDto } from './boundaryAnchorDto';
+import type { AnchorKind } from './anchorKind';
 import type { PlanChangeKind } from './planChangeKind';
 
 export interface PlanBlockChange {
@@ -21,6 +21,6 @@ export interface PlanBlockChange {
   status?: AllocationStatus;
   /** @nullable */
   notes?: string | null;
-  startAnchor?: BoundaryAnchorDto;
-  endAnchor?: BoundaryAnchorDto;
+  startAnchor?: AnchorKind;
+  endAnchor?: AnchorKind;
 }

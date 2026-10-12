@@ -5,12 +5,10 @@
  * ResourcePulse.Hosting
  * OpenAPI spec version: 1.0
  */
-import type { AnchorSpec } from './anchorSpec';
 import type { BoundaryEdge } from './boundaryEdge';
 import type { PlanCommand } from './planCommand';
 
-export type SetAnchorCommand = PlanCommand & {
+export type FollowNodeCommand = PlanCommand & {
   id?: string;
   edge?: BoundaryEdge;
-  anchor?: AnchorSpec;
 };

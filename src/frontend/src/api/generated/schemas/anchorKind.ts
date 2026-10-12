@@ -11,8 +11,5 @@ export type AnchorKind = typeof AnchorKind[keyof typeof AnchorKind];
 
 export const AnchorKind = {
   Pinned: 0,
-  NodeStart: 1,
-  NodeEnd: 2,
-  ResourceAvailability: 3,
-  External: 4,
+  FollowsNode: 1,
 } as const;

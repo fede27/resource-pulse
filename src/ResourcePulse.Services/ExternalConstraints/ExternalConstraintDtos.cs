@@ -11,11 +11,6 @@ public sealed class ExternalConstraintReadDto
     public ConstraintAuthority Authority { get; init; }
     public string? Notes { get; init; }
 
-    // Coverage boundaries anchored to this date (ADR-0034 §8). Non-zero means
-    // moving the date is a plan mutation: moveConstraint on the envelope, and
-    // PUT refuses it with the count.
-    public int AnchoredEdgeCount { get; set; }
-
     public DateTime CreatedAt { get; init; }
     public string CreatedBy { get; init; } = string.Empty;
     public DateTime? UpdatedAt { get; init; }
@@ -33,8 +28,8 @@ public sealed class CreateExternalConstraintDto
 public sealed class UpdateExternalConstraintDto
 {
     public string Name { get; init; } = string.Empty;
-    // A date change with anchored dependants is refused here with the count
-    // (ADR-0034 §5) — use the plan command moveConstraint.
+    // Freely editable (ADR-0035 §4): no boundary follows an imposed date, so
+    // moving it moves nothing in the plan — it moves the delta.
     public DateOnly Date { get; init; }
     public ConstraintAuthority Authority { get; init; }
     public string? Notes { get; init; }

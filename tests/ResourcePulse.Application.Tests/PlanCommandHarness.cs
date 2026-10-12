@@ -97,11 +97,11 @@ internal sealed class PlanCommandHarness
 
     public int AllocationCount() => Db.Allocations.AsNoTracking().Count();
 
-    // ── Anchor helpers (ADR-0034) ───────────────────────────────────────────
+    // ── Boundary helpers (ADR-0035) ─────────────────────────────────────────
 
     // Persists a Phase under the given root with the given planned window and
-    // returns its id. A phase is the natural anchor referent ("until the phase
-    // ends"); null dates make it un-anchorable on that edge.
+    // returns its id. A phase is the natural home of a coverage, and therefore
+    // its referent; null dates make that edge impossible to follow.
     public Guid SeedPhase(Guid rootId, DateOnly? plannedStart, DateOnly? plannedEnd, string name = "Fase")
     {
         var root = Db.ProjectNodes.AsNoTracking().Single(p => p.Id == rootId);
@@ -113,7 +113,37 @@ internal sealed class PlanCommandHarness
         return phase.Id;
     }
 
+    // Sets a node's planned window directly (arrange). The default root is
+    // seeded UNPLANNED on purpose: a coverage created with no dates on it must
+    // fail, and that is a case worth having in the suite.
+    public void PlanNode(Guid nodeId, DateOnly? start, DateOnly? end)
+    {
+        var n = Db.ProjectNodes.Single(p => p.Id == nodeId);
+        n.Replan(start, end);
+        Db.SaveChanges();
+        Db.ChangeTracker.Clear();
+    }
+
+    // Persists a coverage on `demandId` whose edges FOLLOW the node, spanning
+    // exactly the node's planned window (arrange for propagation tests).
+    public Guid SeedFollowingCoverage(Guid demandId, decimal percent = 50m, Guid? resourceId = null)
+    {
+        var nodeId = Db.Demands.AsNoTracking().Where(d => d.Id == demandId).Select(d => d.ProjectNodeId).Single();
+        var node = Db.ProjectNodes.AsNoTracking().Single(p => p.Id == nodeId);
+        var from = node.PlannedStart!.Value;
+        var to = node.PlannedEnd!.Value;
+
+        var a = Allocation.CreateCoverage(demandId, nodeId, resourceId ?? ResourceId, from, to, percent);
+        a.FollowNode(BoundaryEdge.Start, from);
+        a.FollowNode(BoundaryEdge.End, to);
+        Db.Allocations.Add(a);
+        Db.SaveChanges();
+        Db.ChangeTracker.Clear();
+        return a.Id;
+    }
+
     // Declares the seeded resource's availability boundary directly (arrange).
+    // Under ADR-0035 this is decoration, never propagation — nothing follows it.
     public void SetResourceAvailability(Guid resourceId, DateOnly? from, DateOnly? until)
     {
         var r = Db.Resources.Single(x => x.Id == resourceId);
@@ -122,7 +152,9 @@ internal sealed class PlanCommandHarness
         Db.ChangeTracker.Clear();
     }
 
-    // Persists an imposed date on a root (ADR-0034 §4) and returns its id.
+    // Persists an imposed date on a root and returns its id. Since ADR-0035 a
+    // constraint is a registry object and the origin of the negotiation delta —
+    // never a referent, so nothing here can be followed.
     public Guid SeedConstraint(Guid rootId, DateOnly date, string name = "Go-live",
         ConstraintAuthority authority = ConstraintAuthority.Contractual)
     {
@@ -133,7 +165,7 @@ internal sealed class PlanCommandHarness
         return c.Id;
     }
 
-    // Persists a second root project (for I10 / retarget arrange).
+    // Persists a second root project (for retarget arrange).
     public Guid SeedRoot(string name = "Proj2", CommitmentLevel commitment = CommitmentLevel.Committed)
     {
         var node = ProjectNode.CreateRoot(name, name, ProjectType.Internal, commitment, leadResourceId: null);

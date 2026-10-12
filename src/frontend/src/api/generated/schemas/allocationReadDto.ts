@@ -6,7 +6,7 @@
  * OpenAPI spec version: 1.0
  */
 import type { AllocationStatus } from './allocationStatus';
-import type { BoundaryAnchorDto } from './boundaryAnchorDto';
+import type { AnchorKind } from './anchorKind';
 
 export interface AllocationReadDto {
   id?: string;
@@ -24,6 +24,12 @@ export interface AllocationReadDto {
   projectNodeId?: string;
   /** @nullable */
   projectNodePath?: string | null;
+  /** @nullable */
+  projectNodeName?: string | null;
+  /** @nullable */
+  nodePlannedStart?: string | null;
+  /** @nullable */
+  nodePlannedEnd?: string | null;
   rootProjectId?: string;
   /** @nullable */
   rootProjectName?: string | null;
@@ -35,8 +41,8 @@ export interface AllocationReadDto {
   resolvedHours?: string | null;
   /** @nullable */
   notes?: string | null;
-  startAnchor?: BoundaryAnchorDto;
-  endAnchor?: BoundaryAnchorDto;
+  startAnchor?: AnchorKind;
+  endAnchor?: AnchorKind;
   createdAt?: string;
   /** @nullable */
   createdBy?: string | null;

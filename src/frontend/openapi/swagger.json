@@ -4698,7 +4698,7 @@
                     "$ref": "#/components/schemas/DeleteCommand"
                   },
                   {
-                    "$ref": "#/components/schemas/SetAnchorCommand"
+                    "$ref": "#/components/schemas/FollowNodeCommand"
                   },
                   {
                     "$ref": "#/components/schemas/PinCommand"
@@ -4708,12 +4708,6 @@
                   },
                   {
                     "$ref": "#/components/schemas/MoveSubtreeCommand"
-                  },
-                  {
-                    "$ref": "#/components/schemas/SetAvailabilityCommand"
-                  },
-                  {
-                    "$ref": "#/components/schemas/MoveConstraintCommand"
                   }
                 ]
               }
@@ -4770,7 +4764,7 @@
                     "$ref": "#/components/schemas/DeleteCommand"
                   },
                   {
-                    "$ref": "#/components/schemas/SetAnchorCommand"
+                    "$ref": "#/components/schemas/FollowNodeCommand"
                   },
                   {
                     "$ref": "#/components/schemas/PinCommand"
@@ -4780,12 +4774,6 @@
                   },
                   {
                     "$ref": "#/components/schemas/MoveSubtreeCommand"
-                  },
-                  {
-                    "$ref": "#/components/schemas/SetAvailabilityCommand"
-                  },
-                  {
-                    "$ref": "#/components/schemas/MoveConstraintCommand"
                   }
                 ]
               }
@@ -4842,7 +4830,7 @@
                     "$ref": "#/components/schemas/DeleteCommand"
                   },
                   {
-                    "$ref": "#/components/schemas/SetAnchorCommand"
+                    "$ref": "#/components/schemas/FollowNodeCommand"
                   },
                   {
                     "$ref": "#/components/schemas/PinCommand"
@@ -4852,12 +4840,6 @@
                   },
                   {
                     "$ref": "#/components/schemas/MoveSubtreeCommand"
-                  },
-                  {
-                    "$ref": "#/components/schemas/SetAvailabilityCommand"
-                  },
-                  {
-                    "$ref": "#/components/schemas/MoveConstraintCommand"
                   }
                 ]
               }
@@ -11331,6 +11313,20 @@
             "type": "string",
             "nullable": true
           },
+          "projectNodeName": {
+            "type": "string",
+            "nullable": true
+          },
+          "nodePlannedStart": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "nodePlannedEnd": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
           "rootProjectId": {
             "type": "string",
             "format": "uuid"
@@ -11364,10 +11360,10 @@
             "nullable": true
           },
           "startAnchor": {
-            "$ref": "#/components/schemas/BoundaryAnchorDto"
+            "$ref": "#/components/schemas/AnchorKind"
           },
           "endAnchor": {
-            "$ref": "#/components/schemas/BoundaryAnchorDto"
+            "$ref": "#/components/schemas/AnchorKind"
           },
           "createdAt": {
             "type": "string",
@@ -11422,39 +11418,14 @@
       "AnchorKind": {
         "enum": [
           0,
-          1,
-          2,
-          3,
-          4
+          1
         ],
         "type": "integer",
         "format": "int32",
         "x-enum-varnames": [
           "Pinned",
-          "NodeStart",
-          "NodeEnd",
-          "ResourceAvailability",
-          "External"
+          "FollowsNode"
         ]
-      },
-      "AnchorSpec": {
-        "type": "object",
-        "properties": {
-          "kind": {
-            "$ref": "#/components/schemas/AnchorKind"
-          },
-          "nodeId": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
-          },
-          "constraintId": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
       },
       "AppRole": {
         "enum": [
@@ -11545,29 +11516,6 @@
           "end": {
             "type": "string",
             "format": "date"
-          }
-        },
-        "additionalProperties": false
-      },
-      "BoundaryAnchorDto": {
-        "type": "object",
-        "properties": {
-          "kind": {
-            "$ref": "#/components/schemas/AnchorKind"
-          },
-          "nodeId": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
-          },
-          "constraintId": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
-          },
-          "referentName": {
-            "type": "string",
-            "nullable": true
           }
         },
         "additionalProperties": false
@@ -11804,11 +11752,13 @@
               },
               "periodStart": {
                 "type": "string",
-                "format": "date"
+                "format": "date",
+                "nullable": true
               },
               "periodEnd": {
                 "type": "string",
-                "format": "date"
+                "format": "date",
+                "nullable": true
               },
               "percent": {
                 "type": "number",
@@ -11825,12 +11775,6 @@
                 "type": "string",
                 "format": "uuid",
                 "nullable": true
-              },
-              "startAnchor": {
-                "$ref": "#/components/schemas/AnchorSpec"
-              },
-              "endAnchor": {
-                "$ref": "#/components/schemas/AnchorSpec"
               }
             },
             "additionalProperties": false
@@ -11875,11 +11819,13 @@
               },
               "periodStart": {
                 "type": "string",
-                "format": "date"
+                "format": "date",
+                "nullable": true
               },
               "periodEnd": {
                 "type": "string",
-                "format": "date"
+                "format": "date",
+                "nullable": true
               },
               "targetHours": {
                 "type": "string",
@@ -11891,12 +11837,6 @@
               "notes": {
                 "type": "string",
                 "nullable": true
-              },
-              "startAnchor": {
-                "$ref": "#/components/schemas/AnchorSpec"
-              },
-              "endAnchor": {
-                "$ref": "#/components/schemas/AnchorSpec"
               }
             },
             "additionalProperties": false
@@ -11921,11 +11861,13 @@
               },
               "periodStart": {
                 "type": "string",
-                "format": "date"
+                "format": "date",
+                "nullable": true
               },
               "periodEnd": {
                 "type": "string",
-                "format": "date"
+                "format": "date",
+                "nullable": true
               },
               "percent": {
                 "type": "number",
@@ -11937,12 +11879,6 @@
               "notes": {
                 "type": "string",
                 "nullable": true
-              },
-              "startAnchor": {
-                "$ref": "#/components/schemas/AnchorSpec"
-              },
-              "endAnchor": {
-                "$ref": "#/components/schemas/AnchorSpec"
               }
             },
             "additionalProperties": false
@@ -12738,10 +12674,6 @@
             "type": "string",
             "nullable": true
           },
-          "anchoredEdgeCount": {
-            "type": "integer",
-            "format": "int32"
-          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -12761,6 +12693,26 @@
           }
         },
         "additionalProperties": false
+      },
+      "FollowNodeCommand": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlanCommand"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "edge": {
+                "$ref": "#/components/schemas/BoundaryEdge"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "GroupingInfo": {
         "allOf": [
@@ -13105,27 +13057,6 @@
           }
         ]
       },
-      "MoveConstraintCommand": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/PlanCommand"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "constraintId": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "date": {
-                "type": "string",
-                "format": "date"
-              }
-            },
-            "additionalProperties": false
-          }
-        ]
-      },
       "MoveSubtreeCommand": {
         "allOf": [
           {
@@ -13291,10 +13222,10 @@
             "nullable": true
           },
           "startAnchor": {
-            "$ref": "#/components/schemas/BoundaryAnchorDto"
+            "$ref": "#/components/schemas/AnchorKind"
           },
           "endAnchor": {
-            "$ref": "#/components/schemas/BoundaryAnchorDto"
+            "$ref": "#/components/schemas/AnchorKind"
           }
         },
         "additionalProperties": false
@@ -13409,9 +13340,6 @@
         "properties": {
           "kind": {
             "$ref": "#/components/schemas/PlanChangeKind"
-          },
-          "referent": {
-            "$ref": "#/components/schemas/ReferentKind"
           },
           "id": {
             "type": "string",
@@ -13752,20 +13680,6 @@
         },
         "additionalProperties": false
       },
-      "ReferentKind": {
-        "enum": [
-          0,
-          1,
-          2
-        ],
-        "type": "integer",
-        "format": "int32",
-        "x-enum-varnames": [
-          "Node",
-          "Resource",
-          "ExternalConstraint"
-        ]
-      },
       "ReparentDto": {
         "type": "object",
         "properties": {
@@ -13926,11 +13840,6 @@
             "format": "date",
             "nullable": true
           },
-          "anchoredEdgeCount": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
           "workWindows": {
             "type": "array",
             "items": {
@@ -14032,56 +13941,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "SetAnchorCommand": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/PlanCommand"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "edge": {
-                "$ref": "#/components/schemas/BoundaryEdge"
-              },
-              "anchor": {
-                "$ref": "#/components/schemas/AnchorSpec"
-              }
-            },
-            "additionalProperties": false
-          }
-        ]
-      },
-      "SetAvailabilityCommand": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/PlanCommand"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "resourceId": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "availableFrom": {
-                "type": "string",
-                "format": "date",
-                "nullable": true
-              },
-              "availableUntil": {
-                "type": "string",
-                "format": "date",
-                "nullable": true
-              }
-            },
-            "additionalProperties": false
-          }
-        ]
       },
       "SetPlanningModeDto": {
         "type": "object",

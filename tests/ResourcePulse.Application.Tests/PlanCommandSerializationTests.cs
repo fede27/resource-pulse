@@ -44,12 +44,10 @@ public class PlanCommandSerializationTests
     [InlineData("createDemand")]
     [InlineData("editDemand")]
     [InlineData("deleteDemand")]
-    [InlineData("setAnchor")]
+    [InlineData("followNode")]
     [InlineData("pin")]
     [InlineData("replanNode")]
     [InlineData("moveSubtree")]
-    [InlineData("setAvailability")]
-    [InlineData("moveConstraint")]
     public void EveryKind_DeserializesToConcreteCommand(string kind)
     {
         var json = $$"""{ "kind": "{{kind}}", "id": "{{Guid.NewGuid()}}" }""";
@@ -97,37 +95,64 @@ public class PlanCommandSerializationTests
 
     // Enums travel as integers (no JsonStringEnumConverter is registered; the
     // OpenAPI document carries the names via x-enum-varnames), so the wire
-    // samples here use the numeric values: BoundaryEdge.End = 1, AnchorKind.NodeEnd = 2.
+    // sample here uses the numeric value: BoundaryEdge.End = 1.
     [Fact]
-    public void SetAnchor_DeserializesEdgeAndAnchorSpec()
+    public void FollowNode_DeserializesTheEdge_AndTakesNoReferent()
     {
         var json = """
-            { "kind": "setAnchor", "id": "11111111-1111-1111-1111-111111111111",
-              "edge": 1, "anchor": { "kind": 2, "nodeId": "22222222-2222-2222-2222-222222222222" } }
+            { "kind": "followNode", "id": "11111111-1111-1111-1111-111111111111", "edge": 1 }
             """;
 
         var cmd = JsonSerializer.Deserialize<PlanCommand>(json, Options);
 
-        cmd.Should().BeOfType<SetAnchorCommand>();
-        var set = (SetAnchorCommand)cmd!;
-        set.Edge.Should().Be(BoundaryEdge.End);
-        set.Anchor.Kind.Should().Be(AnchorKind.NodeEnd);
-        set.Anchor.NodeId.Should().Be(Guid.Parse("22222222-2222-2222-2222-222222222222"));
+        cmd.Should().BeOfType<FollowNodeCommand>();
+        ((FollowNodeCommand)cmd!).Edge.Should().Be(BoundaryEdge.End);
     }
 
     [Fact]
-    public void Create_DeserializesOptionalAnchors_NullWhenAbsent()
+    public void Create_AcceptsAnEmptyWindow_BothEndsNull()
     {
+        // The wire shape of "born as wide as the node" (ADR-0035 §2): the
+        // absence of a date IS the instruction to follow.
         var json = """
             { "kind": "create", "demandId": "11111111-1111-1111-1111-111111111111",
-              "resourceId": "22222222-2222-2222-2222-222222222222",
-              "periodStart": "2026-06-01", "periodEnd": "2026-06-14", "percent": 50,
-              "endAnchor": { "kind": 2, "nodeId": "33333333-3333-3333-3333-333333333333" } }
+              "resourceId": "22222222-2222-2222-2222-222222222222", "percent": 60 }
             """;
 
         var cmd = (CreateCommand)JsonSerializer.Deserialize<PlanCommand>(json, Options)!;
 
-        cmd.StartAnchor.Should().BeNull();
-        cmd.EndAnchor!.Kind.Should().Be(AnchorKind.NodeEnd);
+        cmd.PeriodStart.Should().BeNull();
+        cmd.PeriodEnd.Should().BeNull();
+        cmd.Percent.Should().Be(60m);
+    }
+
+    [Fact]
+    public void Create_AcceptsOneEndOnly()
+    {
+        var json = """
+            { "kind": "create", "demandId": "11111111-1111-1111-1111-111111111111",
+              "resourceId": "22222222-2222-2222-2222-222222222222",
+              "periodEnd": "2026-06-14", "percent": 50 }
+            """;
+
+        var cmd = (CreateCommand)JsonSerializer.Deserialize<PlanCommand>(json, Options)!;
+
+        cmd.PeriodStart.Should().BeNull();
+        cmd.PeriodEnd.Should().Be(new DateOnly(2026, 6, 14));
+    }
+
+    [Theory]
+    [InlineData("setAnchor")]
+    [InlineData("setAvailability")]
+    [InlineData("moveConstraint")]
+    public void RetiredKinds_NoLongerDeserialize(string kind)
+    {
+        // ADR-0035 removed these. A client still sending one must fail loudly
+        // rather than have it silently ignored.
+        var json = $$"""{ "kind": "{{kind}}", "id": "{{Guid.NewGuid()}}" }""";
+
+        var act = () => JsonSerializer.Deserialize<PlanCommand>(json, Options);
+
+        act.Should().Throw<JsonException>();
     }
 }

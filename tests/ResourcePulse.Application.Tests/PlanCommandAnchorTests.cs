@@ -4,351 +4,370 @@ using ResourcePulse.Services.Plan;
 
 namespace ResourcePulse.Application.Tests;
 
-// Anchoring through the envelope (ADR-0034, plan step A): anchors on the
-// creation kinds snap to the referent's date (I9) and are scoped to the same
-// root (I10); setAnchor / pin are gestures with a name; dryRun shows where the
-// block lands without persisting; retarget across roots breaks node anchors.
+// Boundaries through the envelope (ADR-0035). The referent is implicit — the
+// node the demand lives on — so creation takes an OPTIONAL window (a missing
+// edge follows the node), followNode/pin are the two halves of one switch, and
+// there is nothing to scope: the old I10 has no subject any more.
 public class PlanCommandAnchorTests
 {
-    private static readonly DateOnly D1 = new(2026, 6, 1);
-    private static readonly DateOnly D14 = new(2026, 6, 14);
-    private static readonly DateOnly PhaseStart = new(2026, 6, 8);
-    private static readonly DateOnly PhaseEnd = new(2026, 6, 30);
+    private static readonly DateOnly NodeStart = new(2026, 6, 1);
+    private static readonly DateOnly NodeEnd = new(2026, 6, 30);
+    private static readonly DateOnly Mid = new(2026, 6, 14);
 
-    private static AnchorSpec NodeEnd(Guid id) => new() { Kind = AnchorKind.NodeEnd, NodeId = id };
-    private static AnchorSpec NodeStart(Guid id) => new() { Kind = AnchorKind.NodeStart, NodeId = id };
-
-    // ── Creation with anchors: the referent's date wins ──────────────────────
-
-    [Fact]
-    public async Task Create_WithEndAnchor_SnapsTheEndToThePhaseEnd_AndPersistsTheTie()
+    private static PlanCommandHarness Planned()
     {
         var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
+        h.PlanNode(h.ProjectNodeId, NodeStart, NodeEnd);
+        return h;
+    }
+
+    // ── Creation: the window is optional, and that is the normal case ────────
+
+    [Fact]
+    public async Task Create_WithNoDates_BornAsWideAsTheNode_FollowingOnBothEdges()
+    {
+        // The gesture the design cares most about: "cover this demand at 60%".
+        // No drag, no dates, no referent to pick.
+        var h = Planned();
 
         var result = await h.Service.ExecuteAsync(new CreateCommand
         {
             DemandId = h.DemandId,
             ResourceId = h.ResourceId,
-            PeriodStart = D1,
-            PeriodEnd = D14,           // submitted — overridden by the anchor
-            Percent = 50m,
-            EndAnchor = NodeEnd(phase)
+            Percent = 60m
         });
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
         var change = result.Value.Changes.Single();
-        change.PeriodStart.Should().Be(D1);
-        change.PeriodEnd.Should().Be(PhaseEnd);
-        change.EndAnchor.Kind.Should().Be(AnchorKind.NodeEnd);
-        change.EndAnchor.NodeId.Should().Be(phase);
-        change.StartAnchor.Kind.Should().Be(AnchorKind.Pinned);
+        change.PeriodStart.Should().Be(NodeStart);
+        change.PeriodEnd.Should().Be(NodeEnd);
+        change.StartAnchor.Should().Be(AnchorKind.FollowsNode);
+        change.EndAnchor.Should().Be(AnchorKind.FollowsNode);
 
         var stored = h.Reload(change.Id);
-        stored.PeriodEnd.Should().Be(PhaseEnd);
-        stored.EndAnchor.Should().Be(BoundaryAnchor.ToNodeEnd(phase));
+        stored.PeriodEnd.Should().Be(NodeEnd);
+        stored.EndAnchor.Should().Be(AnchorKind.FollowsNode);
     }
 
     [Fact]
-    public async Task Create_StartAnchoredToAPhaseEnd_IsLegal_TheKindIsIndependentOfTheEdge()
+    public async Task Create_WithOnlyAnEndDate_PinsThatEdge_AndLetsTheOtherFollow()
     {
-        var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, new DateOnly(2026, 6, 10));
+        // "…but only until 14 Jun": exactly one supplied date, exactly one pin.
+        var h = Planned();
 
-        // "Start when phase 1 ends."
         var result = await h.Service.ExecuteAsync(new CreateCommand
         {
             DemandId = h.DemandId,
             ResourceId = h.ResourceId,
-            PeriodStart = D1,
-            PeriodEnd = PhaseEnd,
-            Percent = 50m,
-            StartAnchor = NodeEnd(phase)
+            PeriodEnd = Mid,
+            Percent = 60m
         });
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
-        result.Value.Changes.Single().PeriodStart.Should().Be(new DateOnly(2026, 6, 10));
-        result.Value.Changes.Single().StartAnchor.Kind.Should().Be(AnchorKind.NodeEnd);
+        var change = result.Value.Changes.Single();
+        change.PeriodStart.Should().Be(NodeStart);
+        change.PeriodEnd.Should().Be(Mid);
+        change.StartAnchor.Should().Be(AnchorKind.FollowsNode);
+        change.EndAnchor.Should().Be(AnchorKind.Pinned);
     }
 
     [Fact]
-    public async Task CreateByHours_SpreadsTheHoursOverTheSnappedWindow()
+    public async Task Create_WithBothDates_PinsBothEdges_EvenWhenTheyMatchTheNode()
     {
-        // 8h/day fixed capacity; the snapped window is D1..PhaseEnd (30 days ⇒ 240h).
-        var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
+        // A coincidence is not a decision: the server never infers a tie from
+        // dates that happen to line up. The client sends what it means.
+        var h = Planned();
+
+        var result = await h.Service.ExecuteAsync(new CreateCommand
+        {
+            DemandId = h.DemandId,
+            ResourceId = h.ResourceId,
+            PeriodStart = NodeStart,
+            PeriodEnd = NodeEnd,
+            Percent = 60m
+        });
+
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
+        var change = result.Value.Changes.Single();
+        change.StartAnchor.Should().Be(AnchorKind.Pinned);
+        change.EndAnchor.Should().Be(AnchorKind.Pinned);
+    }
+
+    [Fact]
+    public async Task Create_WithNoDatesOnAnUnplannedNode_IsRefused_NamingTheNode()
+    {
+        var h = PlanCommandHarness.Create(); // root left unplanned
+
+        var result = await h.Service.ExecuteAsync(new CreateCommand
+        {
+            DemandId = h.DemandId,
+            ResourceId = h.ResourceId,
+            Percent = 60m
+        });
+
+        result.IsSuccess.Should().BeFalse();
+        result.Error!.Kind.Should().Be(ServiceErrorKind.Conflict);
+        result.Error.Message.Should().Contain("no planned start");
+        h.AllocationCount().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Create_OnAPhase_FollowsThePhase_NotTheRoot()
+    {
+        var h = Planned();
+        var phase = h.SeedPhase(h.ProjectNodeId, new DateOnly(2026, 7, 1), new DateOnly(2026, 8, 30));
+        var demand = h.SeedDemandOn(phase);
+
+        var result = await h.Service.ExecuteAsync(new CreateCommand
+        {
+            DemandId = demand,
+            ResourceId = h.ResourceId,
+            Percent = 60m
+        });
+
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
+        var change = result.Value.Changes.Single();
+        change.ProjectNodeId.Should().Be(phase);
+        change.PeriodStart.Should().Be(new DateOnly(2026, 7, 1));
+        change.PeriodEnd.Should().Be(new DateOnly(2026, 8, 30));
+    }
+
+    [Fact]
+    public async Task CreateByHours_SpreadsTheHoursOverTheNodeWindow()
+    {
+        // 8h/day fixed capacity; the node window is 1..30 Jun = 30 days = 240h.
+        var h = Planned();
 
         var result = await h.Service.ExecuteAsync(new CreateByHoursCommand
         {
             DemandId = h.DemandId,
             ResourceId = h.ResourceId,
-            PeriodStart = D1,
-            PeriodEnd = D14,
-            TargetHours = TimeSpan.FromHours(120),
-            EndAnchor = NodeEnd(phase)
+            TargetHours = TimeSpan.FromHours(120)
         });
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
         var change = result.Value.Changes.Single();
-        change.PeriodEnd.Should().Be(PhaseEnd);
-        change.AllocationPercent.Should().Be(50m); // 120h over 240h, not over the submitted 14 days
+        change.PeriodEnd.Should().Be(NodeEnd);
+        change.AllocationPercent.Should().Be(50m);
     }
 
     [Fact]
-    public async Task CoverInferred_CarriesTheAnchorOntoTheMaterializedCoverage()
+    public async Task CoverInferred_CarriesTheFollowOntoTheMaterializedCoverage()
     {
-        var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var otherRole = h.SeedRole("Frontend"); // no demand on (node, otherRole) ⇒ materialize
+        var h = Planned();
+        var otherRole = h.SeedRole("Frontend"); // no demand on (node, otherRole)
 
         var result = await h.Service.ExecuteAsync(new CoverInferredCommand
         {
             ProjectNodeId = h.ProjectNodeId,
             RoleId = otherRole,
             ResourceId = h.ResourceId,
-            PeriodStart = D1,
-            PeriodEnd = D14,
-            Percent = 30m,
-            EndAnchor = NodeEnd(phase)
+            Percent = 30m
         });
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
         result.Value.DemandChanges.Should().ContainSingle(d => d.Kind == PlanChangeKind.Created);
         var block = result.Value.Changes.Single();
-        block.PeriodEnd.Should().Be(PhaseEnd);
-        h.Reload(block.Id).EndAnchor.Kind.Should().Be(AnchorKind.NodeEnd);
+        block.PeriodStart.Should().Be(NodeStart);
+        block.PeriodEnd.Should().Be(NodeEnd);
+        h.Reload(block.Id).EndAnchor.Should().Be(AnchorKind.FollowsNode);
+    }
+
+    // ── followNode / pin: the switch ─────────────────────────────────────────
+
+    [Fact]
+    public async Task FollowNode_ReAttachesTheEdge_AndSnapsItToTheNode()
+    {
+        var h = Planned();
+        var id = h.SeedAllocation(NodeStart, Mid); // pinned on both edges
+
+        var result = await h.Service.ExecuteAsync(new FollowNodeCommand
+        {
+            Id = id,
+            Edge = BoundaryEdge.End
+        });
+
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
+        result.Value.CommandKind.Should().Be("followNode");
+        var stored = h.Reload(id);
+        stored.PeriodEnd.Should().Be(NodeEnd);
+        stored.EndAnchor.Should().Be(AnchorKind.FollowsNode);
+        stored.StartAnchor.Should().Be(AnchorKind.Pinned);
     }
 
     [Fact]
-    public async Task Create_AnchoredToAPhaseWithoutAPlannedEnd_IsAConflict()
+    public async Task FollowNode_OnANodeWithoutThatDate_IsRefused()
     {
         var h = PlanCommandHarness.Create();
-        var undated = h.SeedPhase(h.ProjectNodeId, plannedStart: null, plannedEnd: null);
+        h.PlanNode(h.ProjectNodeId, NodeStart, null); // no planned end
+        var id = h.SeedAllocation(NodeStart, Mid);
 
-        var result = await h.Service.ExecuteAsync(new CreateCommand
+        var result = await h.Service.ExecuteAsync(new FollowNodeCommand
         {
-            DemandId = h.DemandId, ResourceId = h.ResourceId,
-            PeriodStart = D1, PeriodEnd = D14, Percent = 50m,
-            EndAnchor = NodeEnd(undated)
+            Id = id,
+            Edge = BoundaryEdge.End
         });
 
-        result.IsFailure.Should().BeTrue();
+        result.IsSuccess.Should().BeFalse();
         result.Error!.Kind.Should().Be(ServiceErrorKind.Conflict);
-        result.Error.Message.Should().Contain("no planned end");
-        h.AllocationCount().Should().Be(0);
+        h.Reload(id).EndAnchor.Should().Be(AnchorKind.Pinned);
     }
 
     [Fact]
-    public async Task Create_AnchoredToANodeOfAnotherRoot_IsAValidationError_I10()
+    public async Task FollowNode_ThatWouldInvertTheSpan_IsRefused_NotSilentlyResized()
     {
         var h = PlanCommandHarness.Create();
-        var otherRoot = h.SeedRoot();
-        var foreignPhase = h.SeedPhase(otherRoot, PhaseStart, PhaseEnd);
+        h.PlanNode(h.ProjectNodeId, NodeStart, NodeEnd);
+        var id = h.SeedAllocation(new DateOnly(2026, 7, 5), new DateOnly(2026, 7, 20));
 
-        var result = await h.Service.ExecuteAsync(new CreateCommand
+        var result = await h.Service.ExecuteAsync(new FollowNodeCommand
         {
-            DemandId = h.DemandId, ResourceId = h.ResourceId,
-            PeriodStart = D1, PeriodEnd = D14, Percent = 50m,
-            EndAnchor = NodeEnd(foreignPhase)
+            Id = id,
+            Edge = BoundaryEdge.End // would pull the end back to 30 Jun, before the start
         });
 
-        result.IsFailure.Should().BeTrue();
-        result.Error!.Kind.Should().Be(ServiceErrorKind.Validation);
-        result.Error.Details!.Should().ContainKey("EndAnchor");
-    }
-
-    [Fact]
-    public async Task Create_AnchorsThatInvertTheSpan_IsAConflict_NothingPersisted()
-    {
-        var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-
-        // Start anchored to the phase END (Jun 30), end anchored to the phase START (Jun 8).
-        var result = await h.Service.ExecuteAsync(new CreateCommand
-        {
-            DemandId = h.DemandId, ResourceId = h.ResourceId,
-            PeriodStart = D1, PeriodEnd = D14, Percent = 50m,
-            StartAnchor = NodeEnd(phase),
-            EndAnchor = NodeStart(phase)
-        });
-
-        result.IsFailure.Should().BeTrue();
+        result.IsSuccess.Should().BeFalse();
         result.Error!.Kind.Should().Be(ServiceErrorKind.Conflict);
-        result.Error.Message.Should().Contain("invert");
-        h.AllocationCount().Should().Be(0);
+        h.Reload(id).PeriodEnd.Should().Be(new DateOnly(2026, 7, 20));
     }
 
     [Fact]
-    public async Task Create_DryRun_ShowsTheSnappedWindow_AndPersistsNothing()
+    public async Task Pin_ReleasesTheEdgeWithoutMovingIt()
     {
-        var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
+        var h = Planned();
+        var id = h.SeedFollowingCoverage(h.DemandId);
 
-        var result = await h.Service.ExecuteAsync(new CreateCommand
+        var result = await h.Service.ExecuteAsync(new PinCommand { Id = id, Edge = BoundaryEdge.End });
+
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
+        var stored = h.Reload(id);
+        stored.PeriodEnd.Should().Be(NodeEnd);
+        stored.EndAnchor.Should().Be(AnchorKind.Pinned);
+        stored.StartAnchor.Should().Be(AnchorKind.FollowsNode);
+    }
+
+    [Fact]
+    public async Task FollowNode_DryRun_ShowsTheSnapAndPersistsNothing()
+    {
+        var h = Planned();
+        var id = h.SeedAllocation(NodeStart, Mid);
+
+        var result = await h.Service.ExecuteAsync(new FollowNodeCommand
         {
-            DryRun = true,
-            DemandId = h.DemandId, ResourceId = h.ResourceId,
-            PeriodStart = D1, PeriodEnd = D14, Percent = 50m,
-            EndAnchor = NodeEnd(phase)
+            Id = id,
+            Edge = BoundaryEdge.End,
+            DryRun = true
         });
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
         result.Value.Committed.Should().BeFalse();
-        result.Value.Changes.Single().PeriodEnd.Should().Be(PhaseEnd);
-        h.AllocationCount().Should().Be(0);
+        result.Value.Changes.Single().PeriodEnd.Should().Be(NodeEnd);
+        h.Reload(id).PeriodEnd.Should().Be(Mid);
+        h.Reload(id).EndAnchor.Should().Be(AnchorKind.Pinned);
     }
 
-    // ── setAnchor / pin ──────────────────────────────────────────────────────
+    // ── Pin-on-move through the envelope ─────────────────────────────────────
 
     [Fact]
-    public async Task SetAnchor_SnapsAnExistingBlock_AndPin_ReleasesItWithoutMoving()
+    public async Task Edit_PinsOnlyTheEdgeItMoved()
     {
-        var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var id = h.SeedAllocation(D1, D14, 50m);
+        var h = Planned();
+        var id = h.SeedFollowingCoverage(h.DemandId);
 
-        var set = await h.Service.ExecuteAsync(new SetAnchorCommand
+        var result = await h.Service.ExecuteAsync(new EditCommand
         {
-            Id = id, Edge = BoundaryEdge.End, Anchor = NodeEnd(phase)
-        });
-
-        set.IsSuccess.Should().BeTrue(set.Error?.Message);
-        set.Value.CommandKind.Should().Be("setAnchor");
-        var afterSet = h.Reload(id);
-        afterSet.PeriodEnd.Should().Be(PhaseEnd);
-        afterSet.EndAnchor.Kind.Should().Be(AnchorKind.NodeEnd);
-
-        var pin = await h.Service.ExecuteAsync(new PinCommand { Id = id, Edge = BoundaryEdge.End });
-
-        pin.IsSuccess.Should().BeTrue(pin.Error?.Message);
-        pin.Value.CommandKind.Should().Be("pin");
-        var afterPin = h.Reload(id);
-        afterPin.PeriodEnd.Should().Be(PhaseEnd);           // date untouched
-        afterPin.EndAnchor.Kind.Should().Be(AnchorKind.Pinned);
-    }
-
-    [Fact]
-    public async Task SetAnchor_ThatWouldInvertTheSpan_IsAConflict_BlockUnchanged()
-    {
-        var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var id = h.SeedAllocation(D1, new DateOnly(2026, 6, 5), 50m); // ends before the phase starts
-
-        // Anchor the START to the phase start (Jun 8) — past the block's end (Jun 5).
-        var result = await h.Service.ExecuteAsync(new SetAnchorCommand
-        {
-            Id = id, Edge = BoundaryEdge.Start, Anchor = NodeStart(phase)
-        });
-
-        result.IsFailure.Should().BeTrue();
-        result.Error!.Kind.Should().Be(ServiceErrorKind.Conflict);
-        var stored = h.Reload(id);
-        stored.PeriodStart.Should().Be(D1);
-        stored.StartAnchor.Kind.Should().Be(AnchorKind.Pinned);
-    }
-
-    [Fact]
-    public async Task SetAnchor_DryRun_DoesNotPersist()
-    {
-        var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var id = h.SeedAllocation(D1, D14, 50m);
-
-        var result = await h.Service.ExecuteAsync(new SetAnchorCommand
-        {
-            DryRun = true, Id = id, Edge = BoundaryEdge.End, Anchor = NodeEnd(phase)
+            Id = id,
+            PeriodStart = NodeStart,
+            PeriodEnd = Mid,
+            AllocationPercent = 50m
         });
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
-        result.Value.Changes.Single().PeriodEnd.Should().Be(PhaseEnd);
         var stored = h.Reload(id);
-        stored.PeriodEnd.Should().Be(D14);
-        stored.EndAnchor.Kind.Should().Be(AnchorKind.Pinned);
+        stored.EndAnchor.Should().Be(AnchorKind.Pinned);
+        stored.StartAnchor.Should().Be(AnchorKind.FollowsNode);
     }
 
     [Fact]
-    public async Task SetAnchor_OnUnknownBlock_IsNotFound()
+    public async Task Reassign_MovesNoBoundary()
     {
-        var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
+        // ADR-0035 §3: the referent is the node, not the person. This is the
+        // gesture that used to break a ResourceAvailability anchor.
+        var h = Planned();
+        var id = h.SeedFollowingCoverage(h.DemandId);
 
-        var result = await h.Service.ExecuteAsync(new SetAnchorCommand
+        var result = await h.Service.ExecuteAsync(new ReassignCommand
         {
-            Id = Guid.NewGuid(), Edge = BoundaryEdge.End, Anchor = NodeEnd(phase)
+            Id = id,
+            ResourceId = h.OtherResourceId
         });
 
-        result.Error!.Kind.Should().Be(ServiceErrorKind.NotFound);
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
+        var stored = h.Reload(id);
+        stored.ResourceId.Should().Be(h.OtherResourceId);
+        stored.PeriodStart.Should().Be(NodeStart);
+        stored.PeriodEnd.Should().Be(NodeEnd);
+        stored.StartAnchor.Should().Be(AnchorKind.FollowsNode);
+        stored.EndAnchor.Should().Be(AnchorKind.FollowsNode);
     }
 
-    // ── Gestures that break the tie, end to end ──────────────────────────────
+    // ── Retarget: the referent travels with the demand ───────────────────────
 
     [Fact]
-    public async Task Move_OnAnAnchoredBlock_PinsBothEdges()
+    public async Task Retarget_ReSnapsTheFollowingEdgesToTheNewNode()
     {
-        var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var id = h.SeedAllocation(D1, D14, 50m);
-        await h.Service.ExecuteAsync(new SetAnchorCommand { Id = id, Edge = BoundaryEdge.End, Anchor = NodeEnd(phase) });
+        var h = Planned();
+        var id = h.SeedFollowingCoverage(h.DemandId);
 
-        var result = await h.Service.ExecuteAsync(new MoveCommand { Id = id, DeltaDays = 3 });
+        var other = h.SeedRoot();
+        h.PlanNode(other, new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30));
+        var target = h.SeedDemandOn(other);
+
+        var result = await h.Service.ExecuteAsync(new RetargetCommand { Id = id, DemandId = target });
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
         var stored = h.Reload(id);
-        stored.PeriodEnd.Should().Be(PhaseEnd.AddDays(3));
-        stored.EndAnchor.Kind.Should().Be(AnchorKind.Pinned);
+        stored.ProjectNodeId.Should().Be(other);
+        stored.PeriodStart.Should().Be(new DateOnly(2026, 9, 1));
+        stored.PeriodEnd.Should().Be(new DateOnly(2026, 9, 30));
+        stored.StartAnchor.Should().Be(AnchorKind.FollowsNode);
+        stored.EndAnchor.Should().Be(AnchorKind.FollowsNode);
     }
 
     [Fact]
-    public async Task SplitAt_TheSecondBlockInheritsTheEndAnchor_TheFirstIsPinnedAtTheCut()
+    public async Task Retarget_ToAnUnplannedNode_PinsTheEdges_KeepingTheirDates()
     {
-        var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var id = h.SeedAllocation(D1, D14, 50m);
-        await h.Service.ExecuteAsync(new SetAnchorCommand { Id = id, Edge = BoundaryEdge.End, Anchor = NodeEnd(phase) });
+        var h = Planned();
+        var id = h.SeedFollowingCoverage(h.DemandId);
 
-        var result = await h.Service.ExecuteAsync(new SplitAtCommand { Id = id, Date = D14 });
+        var other = h.SeedRoot(); // deliberately unplanned
+        var target = h.SeedDemandOn(other);
 
-        result.IsSuccess.Should().BeTrue(result.Error?.Message);
-        var first = result.Value.Changes.Single(c => c.Kind == PlanChangeKind.Modified);
-        var second = result.Value.Changes.Single(c => c.Kind == PlanChangeKind.Created);
-        first.EndAnchor.Kind.Should().Be(AnchorKind.Pinned);
-        second.StartAnchor.Kind.Should().Be(AnchorKind.Pinned);
-        second.EndAnchor.Kind.Should().Be(AnchorKind.NodeEnd);
-        h.Reload(second.Id).EndAnchor.NodeId.Should().Be(phase);
-        h.AllocationCount().Should().Be(2);
-    }
-
-    [Fact]
-    public async Task Retarget_ToADemandOnAnotherRoot_PinsTheNodeAnchor()
-    {
-        var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var id = h.SeedAllocation(D1, D14, 50m);
-        await h.Service.ExecuteAsync(new SetAnchorCommand { Id = id, Edge = BoundaryEdge.End, Anchor = NodeEnd(phase) });
-        var otherRoot = h.SeedRoot();
-        var foreignDemand = h.SeedDemandOn(otherRoot);
-
-        var result = await h.Service.ExecuteAsync(new RetargetCommand { Id = id, DemandId = foreignDemand });
+        var result = await h.Service.ExecuteAsync(new RetargetCommand { Id = id, DemandId = target });
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
         var stored = h.Reload(id);
-        stored.DemandId.Should().Be(foreignDemand);
-        stored.PeriodEnd.Should().Be(PhaseEnd);                 // date kept
-        stored.EndAnchor.Kind.Should().Be(AnchorKind.Pinned);   // tie broken (I10)
+        stored.PeriodStart.Should().Be(NodeStart);
+        stored.PeriodEnd.Should().Be(NodeEnd);
+        stored.StartAnchor.Should().Be(AnchorKind.Pinned);
+        stored.EndAnchor.Should().Be(AnchorKind.Pinned);
     }
 
     [Fact]
-    public async Task Retarget_WithinTheSameRoot_KeepsTheNodeAnchor()
+    public async Task Retarget_LeavesAPinnedBlockExactlyWhereItWas()
     {
-        var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var id = h.SeedAllocation(D1, D14, 50m);
-        await h.Service.ExecuteAsync(new SetAnchorCommand { Id = id, Edge = BoundaryEdge.End, Anchor = NodeEnd(phase) });
-        var siblingDemand = h.SeedDemandOn(phase); // same root, on the phase itself
+        var h = Planned();
+        var id = h.SeedAllocation(NodeStart, Mid); // pinned on both edges
 
-        var result = await h.Service.ExecuteAsync(new RetargetCommand { Id = id, DemandId = siblingDemand });
+        var other = h.SeedRoot();
+        h.PlanNode(other, new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30));
+        var target = h.SeedDemandOn(other);
+
+        var result = await h.Service.ExecuteAsync(new RetargetCommand { Id = id, DemandId = target });
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
-        h.Reload(id).EndAnchor.Kind.Should().Be(AnchorKind.NodeEnd);
+        var stored = h.Reload(id);
+        stored.PeriodStart.Should().Be(NodeStart);
+        stored.PeriodEnd.Should().Be(Mid);
     }
 }

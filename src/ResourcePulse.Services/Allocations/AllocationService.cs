@@ -146,12 +146,6 @@ public sealed class AllocationService(
             .Where(r => r.Id == a.ResourceId).DefaultIfEmpty()
         from prole in db.Roles.AsNoTracking()
             .Where(prole => r != null && prole.Id == r.RoleId).DefaultIfEmpty()
-        // Anchor referents (ADR-0034 §8): the node an edge is tied to, for its
-        // name. Left joins — Pinned edges have none.
-        from sref in db.ProjectNodes.AsNoTracking()
-            .Where(sref => sref.Id == a.StartAnchor.NodeId).DefaultIfEmpty()
-        from eref in db.ProjectNodes.AsNoTracking()
-            .Where(eref => eref.Id == a.EndAnchor.NodeId).DefaultIfEmpty()
         select new AllocationReadDto
         {
             Id = a.Id,
@@ -164,6 +158,9 @@ public sealed class AllocationService(
             DemandRoleName = drole.Name,
             ProjectNodeId = a.ProjectNodeId,
             ProjectNodePath = p.Path,
+            ProjectNodeName = p.Name,
+            NodePlannedStart = p.PlannedStart,
+            NodePlannedEnd = p.PlannedEnd,
             RootProjectId = root.Id,
             RootProjectName = root.Name,
             PeriodStart = a.PeriodStart,
@@ -172,20 +169,8 @@ public sealed class AllocationService(
             Status = a.Status,
             ResolvedHours = null,
             Notes = a.Notes,
-            StartAnchor = new BoundaryAnchorDto
-            {
-                Kind = a.StartAnchor.Kind,
-                NodeId = a.StartAnchor.NodeId,
-                ConstraintId = a.StartAnchor.ConstraintId,
-                ReferentName = sref != null ? sref.Name : null
-            },
-            EndAnchor = new BoundaryAnchorDto
-            {
-                Kind = a.EndAnchor.Kind,
-                NodeId = a.EndAnchor.NodeId,
-                ConstraintId = a.EndAnchor.ConstraintId,
-                ReferentName = eref != null ? eref.Name : null
-            },
+            StartAnchor = a.StartAnchor,
+            EndAnchor = a.EndAnchor,
             CreatedAt = a.CreatedAt,
             CreatedBy = a.CreatedBy,
             UpdatedAt = a.UpdatedAt,
@@ -213,6 +198,9 @@ public sealed class AllocationService(
             DemandRoleName = dto.DemandRoleName,
             ProjectNodeId = dto.ProjectNodeId,
             ProjectNodePath = dto.ProjectNodePath,
+            ProjectNodeName = dto.ProjectNodeName,
+            NodePlannedStart = dto.NodePlannedStart,
+            NodePlannedEnd = dto.NodePlannedEnd,
             RootProjectId = dto.RootProjectId,
             RootProjectName = dto.RootProjectName,
             PeriodStart = dto.PeriodStart,

@@ -1,25 +1,25 @@
 namespace ResourcePulse.Domain.Allocations;
 
-// What a block boundary is tied to (ADR-0034 §1). Pinned is the absence of a
-// tie — an absolute date that moves only when someone edits it. Every other
-// value names a REFERENT whose date the boundary carries (I9): the boundary
-// moves when the referent moves, and only then.
+// What ONE boundary of a coverage block is (ADR-0035, superseding ADR-0034 §1).
 //
-// NodeStart / NodeEnd are two kinds, not one kind plus an edge selector, and
-// they are independent of which edge of the block they sit on: "start when
-// phase 1 ends" is a START boundary anchored to NodeEnd.
+// The referent is not chosen: it is already there. A coverage is born on a
+// demand, the demand lives on a Project/Phase node, and THAT node is the only
+// referent a boundary can have. So a boundary has two states, not five, and
+// there is nothing to point at:
+//
+//   FollowsNode — the edge coincides with the corresponding boundary of its own
+//                 node (start edge -> PlannedStart, end edge -> PlannedEnd) and
+//                 moves when the node moves. The default, and silent: a board
+//                 at rest is a board of blocks.
+//   Pinned      — someone decided a date and that date stays. The exception,
+//                 and the only thing marked on the board.
+//
+// Which node boundary an edge follows is a function of WHICH EDGE it is, so the
+// old NodeStart/NodeEnd pair collapses into one value. "Start when phase 1
+// ends" is no longer expressible — deliberately: see ADR-0035 §4 for the three
+// capabilities traded away and what is done instead.
 public enum AnchorKind
 {
     Pinned = 0,
-
-    // Referent: a ProjectNode (Project|Phase) — its PlannedStart / PlannedEnd.
-    NodeStart = 1,
-    NodeEnd = 2,
-
-    // Referent: the block's own resource — AvailableFrom on a start edge,
-    // AvailableUntil on an end edge. Implicit; no referent column.
-    ResourceAvailability = 3,
-
-    // Referent: an ExternalConstraint (an imposed date on the root project).
-    External = 4
+    FollowsNode = 1
 }

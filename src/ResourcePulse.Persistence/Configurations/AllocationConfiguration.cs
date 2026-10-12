@@ -11,15 +11,11 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
 {
     public void Configure(EntityTypeBuilder<Allocation> builder)
     {
-        builder.ToTable("allocations", t =>
-        {
-            // Anchor shape (ADR-0034 §1): the referent columns are typed by kind.
-            // NodeStart/NodeEnd carry a node, External carries a constraint,
-            // Pinned and ResourceAvailability carry nothing — so a dangling or
-            // mis-typed referent cannot be stored, whatever the service does.
-            t.HasCheckConstraint("ck_allocations_start_anchor_shape", AnchorShapeSql("start"));
-            t.HasCheckConstraint("ck_allocations_end_anchor_shape", AnchorShapeSql("end"));
-        });
+        // No anchor-shape CHECK anymore (ADR-0035): with the referent implicit
+        // there is no referent column to keep in step with the kind. The two
+        // boundary columns are plain enums, and the 20-char string conversion is
+        // the only thing that constrains them.
+        builder.ToTable("allocations");
         builder.HasKey(a => a.Id);
 
         // Coverage model (Phase 5.1, ADR-0025): every allocation covers a demand
@@ -45,9 +41,11 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
         builder.Property(a => a.CreatedBy).HasMaxLength(256).IsRequired();
         builder.Property(a => a.UpdatedBy).HasMaxLength(256);
 
-        // Boundary anchors (ADR-0034): two owned value objects stored inline as
-        // flat columns. The dates they govern stay on period_start/period_end
-        // (denormalized, I9) so nothing downstream reads the anchor.
+        // Boundary state (ADR-0035): one enum per edge, nothing else. The
+        // referent is the coverage's own project_node_id, already on the row, so
+        // there is no referent column, no FK and no shape constraint. The dates
+        // the boundaries govern stay on period_start/period_end (denormalized,
+        // I9) so nothing downstream reads the boundary state.
         ConfigureAnchor(builder, a => a.StartAnchor, "start");
         ConfigureAnchor(builder, a => a.EndAnchor, "end");
 
@@ -84,43 +82,14 @@ public sealed class AllocationConfiguration : IEntityTypeConfiguration<Allocatio
 
     private static void ConfigureAnchor(
         EntityTypeBuilder<Allocation> builder,
-        System.Linq.Expressions.Expression<Func<Allocation, BoundaryAnchor?>> navigation,
-        string edge)
-    {
-        builder.OwnsOne(navigation, o =>
-        {
-            // DB default 'Pinned' is what every pre-existing row gets at migration
-            // time: an absolute date that moves only when edited — exactly what
-            // those rows were before anchoring existed.
-            o.Property(x => x.Kind)
-                .HasColumnName($"{edge}_anchor_kind")
-                .HasConversion<string>()
-                .HasMaxLength(20)
-                .HasDefaultValue(AnchorKind.Pinned)
-                .IsRequired();
-            o.Property(x => x.NodeId).HasColumnName($"{edge}_anchor_node_id");
-            o.Property(x => x.ConstraintId).HasColumnName($"{edge}_anchor_constraint_id");
-
-            // Restrict: a referent with anchored edges hanging off it is not
-            // deleted by accident — pin them first.
-            o.HasOne<ProjectNode>()
-                .WithMany()
-                .HasForeignKey(x => x.NodeId)
-                .OnDelete(DeleteBehavior.Restrict);
-            o.HasOne<ExternalConstraint>()
-                .WithMany()
-                .HasForeignKey(x => x.ConstraintId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            // Propagation and the "N anchored edges" counts filter here.
-            o.HasIndex(x => x.NodeId).HasDatabaseName($"ix_allocations_{edge}_anchor_node_id");
-            o.HasIndex(x => x.ConstraintId).HasDatabaseName($"ix_allocations_{edge}_anchor_constraint_id");
-        });
-        builder.Navigation(navigation).IsRequired();
-    }
-
-    private static string AnchorShapeSql(string edge) =>
-        $"({edge}_anchor_kind IN ('NodeStart', 'NodeEnd') AND {edge}_anchor_node_id IS NOT NULL AND {edge}_anchor_constraint_id IS NULL) " +
-        $"OR ({edge}_anchor_kind = 'External' AND {edge}_anchor_constraint_id IS NOT NULL AND {edge}_anchor_node_id IS NULL) " +
-        $"OR ({edge}_anchor_kind IN ('Pinned', 'ResourceAvailability') AND {edge}_anchor_node_id IS NULL AND {edge}_anchor_constraint_id IS NULL)";
+        System.Linq.Expressions.Expression<Func<Allocation, AnchorKind>> property,
+        string edge) =>
+        // DB default 'Pinned': a row inserted outside the service keeps an
+        // absolute date rather than silently acquiring a tie to its node.
+        builder.Property(property)
+            .HasColumnName($"{edge}_anchor_kind")
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(AnchorKind.Pinned)
+            .IsRequired();
 }

@@ -7,11 +7,9 @@
  */
 import type { PlanChangeKind } from './planChangeKind';
 import type { ProjectNodeType } from './projectNodeType';
-import type { ReferentKind } from './referentKind';
 
 export interface PlanReferentChange {
   kind?: PlanChangeKind;
-  referent?: ReferentKind;
   id?: string;
   /** @nullable */
   name?: string | null;

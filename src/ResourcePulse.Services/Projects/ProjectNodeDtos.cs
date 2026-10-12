@@ -67,11 +67,13 @@ public sealed class ProjectNodeReadDto
     // endpoints that skip the derived enrichment.
     public bool? IsProposed { get; set; }
 
-    // Boundaries of coverage blocks anchored to this node's planned dates
-    // (ADR-0034 §8). Non-zero means a date change on this node is a plan
-    // mutation: it goes through replanNode / moveSubtree, and the project
-    // endpoints refuse it. Null on the DevExtreme list projection, like the
-    // derived metrics.
+    // Coverage boundaries that FOLLOW this node's planned dates (ADR-0035 §8).
+    // Non-zero means a date change on this node is a plan mutation: it goes
+    // through replanNode / moveSubtree, and the project endpoints refuse it.
+    // This is now the ONLY entity that carries such a count — availability and
+    // external constraints stopped being referents — and the board shows it on
+    // the node ribbon so the cost of the gesture is visible before it starts.
+    // Null on the DevExtreme list projection, like the derived metrics.
     public int? AnchoredEdgeCount { get; set; }
 
     public IReadOnlyList<ProjectSkillRequirementDto> SkillRequirements { get; init; } = Array.Empty<ProjectSkillRequirementDto>();

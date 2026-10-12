@@ -31,21 +31,23 @@ namespace ResourcePulse.Domain.Allocations;
 // Unit (ADR-0026): stored in percent; hours are the reconciliation truth
 // (% × capacity), derived, not stored.
 //
-// Boundaries (ADR-0034): each edge carries a BoundaryAnchor — Pinned (absolute
-// date) or tied to a referent whose date it EQUALS (I9). PeriodStart/PeriodEnd
-// stay the stored, denormalized dates (calculators and read-models never look
-// at the anchor); the anchor is what keeps them in step with the referent. The
-// one rule: an edge moved by anything but its referent's propagation becomes
-// Pinned (ChangePeriod applies it; FollowReferent is the propagation path that
-// keeps the tie).
+// Boundaries (ADR-0035): each edge is either FollowsNode — it coincides with
+// the corresponding boundary of THIS coverage's own node (start -> PlannedStart,
+// end -> PlannedEnd) and moves with it — or Pinned, an absolute date. There is
+// no referent to choose: the node is the one the demand lives on (I8), so the
+// tie is a boolean, not a reference. PeriodStart/PeriodEnd stay the stored,
+// denormalized dates (calculators and read-models never look at the anchor).
+// The one rule: an edge moved by anything but its node's propagation becomes
+// Pinned (ChangePeriod applies it; FollowNode/FollowNodes keep the tie).
 //
 // Local invariants only:
 //   - period start <= period end
 //   - rate% in (0, 1000] — typo safeguard, not a cap (ADR-0013)
 //   - demand, node and resource ids non-empty
 //
-// Cross-aggregate (I3, I4, I6, I8, I9-snap, I10) live in the service layer
-// (PlanCommandService). Overlap on the same (resource, project_node) sums
+// Cross-aggregate (I3, I4, I6, I8, I9-snap) live in the service layer
+// (PlanCommandService). I10 is retired with ADR-0035: there is no referent to
+// scope. Overlap on the same (resource, project_node) sums
 // (ADR-0014) — never re-checked.
 public sealed class Allocation : Entity<Guid>, IAuditable
 {
@@ -58,8 +60,8 @@ public sealed class Allocation : Entity<Guid>, IAuditable
     public AllocationStatus Status { get; private set; }
     public string? Notes { get; private set; }
 
-    public BoundaryAnchor StartAnchor { get; private set; } = BoundaryAnchor.Pinned();
-    public BoundaryAnchor EndAnchor { get; private set; } = BoundaryAnchor.Pinned();
+    public AnchorKind StartAnchor { get; private set; } = AnchorKind.Pinned;
+    public AnchorKind EndAnchor { get; private set; } = AnchorKind.Pinned;
 
     public DateTime CreatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
@@ -70,8 +72,9 @@ public sealed class Allocation : Entity<Guid>, IAuditable
 
     // Creates a coverage. Default Status = Tentative (ADR-0015 §1). projectNodeId
     // is passed by the service from the target demand (denormalization, I8).
-    // Both edges are born Pinned; the service anchors them afterwards (Anchor)
-    // once it has resolved and snapped to the referent dates.
+    // Both edges are born Pinned; the service attaches them afterwards
+    // (FollowNode) once it has read the node's planned dates. A creation whose
+    // window is left open is the normal case and ends up FollowsNode on both.
     public static Allocation CreateCoverage(
         Guid demandId,
         Guid projectNodeId,
@@ -112,9 +115,9 @@ public sealed class Allocation : Entity<Guid>, IAuditable
     // AllocationPeriodChanged. The span operations (Shift, Resize, cascade) pass
     // it; Edit leaves it null.
     //
-    // Pin-on-move (ADR-0034 §6): an edge whose date changes here is being moved
-    // by a gesture, not by its referent — its anchor breaks. The edge that did
-    // not move keeps its anchor.
+    // Pin-on-move (ADR-0035 §6): an edge whose date changes here is being moved
+    // by a gesture, not by its node — it stops following. The edge that did not
+    // move keeps its state.
     public void ChangePeriod(DateOnly newStart, DateOnly newEnd, string? reason = null)
     {
         var startMoves = PeriodStart != newStart;
@@ -124,63 +127,54 @@ public sealed class Allocation : Entity<Guid>, IAuditable
         if (endMoves) Pin(BoundaryEdge.End, reason);
     }
 
-    // ── Boundaries (ADR-0034) ────────────────────────────────────────────────
+    // ── Boundaries (ADR-0035) ───────────────────────────────────────────────
 
-    // Ties an edge to a referent and SNAPS the edge to the referent's date (I9).
-    // The service resolves the date (and checks I10) before calling. The other
-    // edge is untouched; if the snap would invert the span the span rule throws
-    // and nothing changes.
-    public void Anchor(BoundaryEdge edge, BoundaryAnchor anchor, DateOnly referentDate, string? reason = null)
+    // Attaches an edge to its own node and SNAPS it to the node's date (I9).
+    // The service reads the date; there is nothing to resolve or scope, because
+    // the node is the one this coverage already sits on. The other edge is
+    // untouched; if the snap would invert the span the span rule throws and
+    // nothing changes.
+    public void FollowNode(BoundaryEdge edge, DateOnly nodeDate, string? reason = null)
     {
-        ArgumentNullException.ThrowIfNull(anchor);
         AssertEdgeKnown(edge);
-        if (!anchor.IsAnchored)
-            throw new DomainException("Anchor requires an anchored kind; use Pin to release a boundary.");
 
         var (newStart, newEnd) = edge == BoundaryEdge.Start
-            ? (referentDate, PeriodEnd)
-            : (PeriodStart, referentDate);
+            ? (nodeDate, PeriodEnd)
+            : (PeriodStart, nodeDate);
         SetPeriod(newStart, newEnd, reason);
-        SetAnchor(edge, anchor, reason);
+        SetAnchor(edge, AnchorKind.FollowsNode, reason);
     }
 
-    // Releases an edge: the tie breaks, the date stays where it is. No-op on a
-    // Pinned edge.
+    // Releases an edge: it stops following, the date stays where it is. No-op on
+    // an already Pinned edge. Explicit on purpose — "fix this date even though it
+    // sits exactly on the node's boundary" is a decision with a name, and the one
+    // thing a drag on the board cannot express.
     public void Pin(BoundaryEdge edge, string? reason = null)
     {
         AssertEdgeKnown(edge);
-        SetAnchor(edge, BoundaryAnchor.Pinned(), reason);
+        SetAnchor(edge, AnchorKind.Pinned, reason);
     }
 
-    // Propagation (ADR-0034 §5): the referent moved, the anchored edge follows
-    // and KEEPS its anchor. Re-snap, never a delta: the edge takes the referent's
-    // new date, whatever that does to the block's length. Only valid on an
-    // anchored edge — a Pinned edge does not follow anything.
-    public void FollowReferent(BoundaryEdge edge, DateOnly newReferentDate, string? reason = null)
-    {
-        AssertEdgeKnown(edge);
-        if (edge == BoundaryEdge.Start) FollowReferents(newReferentDate, null, reason);
-        else FollowReferents(null, newReferentDate, reason);
-    }
-
-    // Both edges at once, as ONE span change. A block anchored on both sides to
-    // the same phase must be able to follow a shift larger than its own length:
-    // edge by edge, the first move would invert the span and throw. Null = that
-    // edge is not following (stays where it is). Each edge that follows must be
-    // anchored.
-    public void FollowReferents(DateOnly? newStart, DateOnly? newEnd, string? reason = null)
+    // Propagation (ADR-0035 §5): the node moved, the following edges take its new
+    // dates and KEEP following. Re-snap, never a delta: a longer phase makes the
+    // block longer. Null = that edge is not following (stays where it is). Both
+    // edges move as ONE span change, so a shift larger than the block's own
+    // length does not invert it half-way.
+    public void FollowNodes(DateOnly? newStart, DateOnly? newEnd, string? reason = null)
     {
         if (newStart is null && newEnd is null) return;
-        if (newStart is not null && !StartAnchor.IsAnchored)
-            throw new DomainException("The Start boundary is Pinned and cannot follow a referent.");
-        if (newEnd is not null && !EndAnchor.IsAnchored)
-            throw new DomainException("The End boundary is Pinned and cannot follow a referent.");
+        if (newStart is not null && StartAnchor != AnchorKind.FollowsNode)
+            throw new DomainException("The Start boundary is Pinned and does not follow the node.");
+        if (newEnd is not null && EndAnchor != AnchorKind.FollowsNode)
+            throw new DomainException("The End boundary is Pinned and does not follow the node.");
 
         SetPeriod(newStart ?? PeriodStart, newEnd ?? PeriodEnd, reason);
     }
 
-    public BoundaryAnchor AnchorOf(BoundaryEdge edge) =>
+    public AnchorKind AnchorOf(BoundaryEdge edge) =>
         edge == BoundaryEdge.Start ? StartAnchor : EndAnchor;
+
+    public bool Follows(BoundaryEdge edge) => AnchorOf(edge) == AnchorKind.FollowsNode;
 
     // ── Span operations (ADR-0017) ───────────────────────────────────────────
 
@@ -189,9 +183,10 @@ public sealed class Allocation : Entity<Guid>, IAuditable
     // returned sibling covers [date, PeriodEnd]. Both carry the same rate%, status,
     // demand, node and resource. `date` must be strictly interior.
     //
-    // Anchors (ADR-0034 §6): the two edges CREATED by the cut are born Pinned;
-    // the outer edges keep theirs — this block keeps its StartAnchor, the new
-    // block inherits the EndAnchor. Sum invariant, anchors invariant.
+    // Boundaries (ADR-0035 §6): the two edges CREATED by the cut are born Pinned
+    // — they are dates a person chose — while the outer edges keep what they had:
+    // this block keeps its StartAnchor, the new block inherits the EndAnchor.
+    // Sum invariant, boundary states invariant.
     public Allocation SplitAt(DateOnly date, string? reason = null)
     {
         if (date <= PeriodStart || date > PeriodEnd)
@@ -200,7 +195,7 @@ public sealed class Allocation : Entity<Guid>, IAuditable
 
         var second = CloneForSplit(date, PeriodEnd, EndAnchor);
         PeriodEnd = date.AddDays(-1);
-        SetAnchor(BoundaryEdge.End, BoundaryAnchor.Pinned(), reason ?? "Split");
+        SetAnchor(BoundaryEdge.End, AnchorKind.Pinned, reason ?? "Split");
 
         RaiseEvent(new AllocationSplit(Id, date, second.Id, NormalizeReason(reason), DateTimeOffset.UtcNow));
         return second;
@@ -230,10 +225,8 @@ public sealed class Allocation : Entity<Guid>, IAuditable
     // Copies the current coverage into a new aggregate over [start, end],
     // preserving demand, node, resource, rate, status and notes. New Id; no
     // creation event (provenance lives on the AllocationSplit raised by SplitAt).
-    // The start edge is the cut and is Pinned; the end edge inherits `endAnchor`
-    // as a COPY — an owned value object belongs to one owner (its key is the
-    // owner's id), so the same instance must never sit on two blocks.
-    private Allocation CloneForSplit(DateOnly start, DateOnly end, BoundaryAnchor endAnchor) =>
+    // The start edge is the cut and is Pinned; the end edge inherits `endAnchor`.
+    private Allocation CloneForSplit(DateOnly start, DateOnly end, AnchorKind endAnchor) =>
         new()
         {
             Id = Guid.NewGuid(),
@@ -245,8 +238,8 @@ public sealed class Allocation : Entity<Guid>, IAuditable
             AllocationPercent = AllocationPercent,
             Status = Status,
             Notes = Notes,
-            StartAnchor = BoundaryAnchor.Pinned(),
-            EndAnchor = endAnchor.Copy()
+            StartAnchor = AnchorKind.Pinned,
+            EndAnchor = endAnchor
         };
 
     public void ChangePercent(decimal newPercent)
@@ -272,9 +265,12 @@ public sealed class Allocation : Entity<Guid>, IAuditable
     }
 
     // Reassign — swap the covering resource on the SAME demand (amendment C1).
-    // Preserves Id, span, rate%, status, demand. (Was placeholder→assigned.)
-    // A ResourceAvailability anchor refers to the OLD person's boundary: it
-    // breaks (ADR-0034 §6). Node/external anchors are unaffected.
+    // Preserves Id, span, rate%, status, demand.
+    //
+    // Boundaries are untouched, and that is the point of the implicit referent
+    // (ADR-0035 §3): they follow the NODE, not the person. Swapping who covers
+    // the work never moves a date. The new person's declared availability is a
+    // constraint that is DISPLAYED against the block, never one that moves it.
     public void Reassign(Guid resourceId)
     {
         if (resourceId == Guid.Empty)
@@ -284,16 +280,14 @@ public sealed class Allocation : Entity<Guid>, IAuditable
         var old = ResourceId;
         ResourceId = resourceId;
         RaiseEvent(new AllocationResourceChanged(Id, old, resourceId, DateTimeOffset.UtcNow));
-
-        if (StartAnchor.Kind == AnchorKind.ResourceAvailability) Pin(BoundaryEdge.Start, "Reassign");
-        if (EndAnchor.Kind == AnchorKind.ResourceAvailability) Pin(BoundaryEdge.End, "Reassign");
     }
 
     // Retarget — re-point the coverage to ANOTHER demand (amendment C1). The
     // service passes the new demand's node so the denormalized ProjectNodeId stays
-    // consistent (I8). Preserves span, rate%, status and resource. Anchors whose
-    // referent falls outside the new root (I10) are pinned by the service, which
-    // is where the root is known.
+    // consistent (I8). Preserves rate%, status and resource. The boundaries keep
+    // their state, but a FollowsNode edge now follows a DIFFERENT node: the
+    // service re-snaps it to the new node's dates (and pins it when that node
+    // has no such date), because it is the layer that can read them.
     public void RetargetToDemand(Guid newDemandId, Guid newProjectNodeId)
     {
         if (newDemandId == Guid.Empty)
@@ -320,7 +314,7 @@ public sealed class Allocation : Entity<Guid>, IAuditable
 
     // The one place the span changes. Validates ordering, suppresses the no-op,
     // raises AllocationPeriodChanged. Anchor handling is the caller's business:
-    // ChangePeriod pins what moved, Anchor/FollowReferent keep the tie.
+    // ChangePeriod pins what moved, FollowNode/FollowNodes keep the tie.
     private void SetPeriod(DateOnly newStart, DateOnly newEnd, string? reason)
     {
         if (newStart > newEnd)
@@ -335,10 +329,10 @@ public sealed class Allocation : Entity<Guid>, IAuditable
             Id, oldStart, oldEnd, newStart, newEnd, NormalizeReason(reason), DateTimeOffset.UtcNow));
     }
 
-    private void SetAnchor(BoundaryEdge edge, BoundaryAnchor anchor, string? reason)
+    private void SetAnchor(BoundaryEdge edge, AnchorKind anchor, string? reason)
     {
         var old = AnchorOf(edge);
-        if (old.Equals(anchor)) return; // no-op suppresses event
+        if (old == anchor) return; // no-op suppresses event
 
         if (edge == BoundaryEdge.Start) StartAnchor = anchor; else EndAnchor = anchor;
         RaiseEvent(new AllocationAnchorChanged(Id, edge, old, anchor, NormalizeReason(reason), DateTimeOffset.UtcNow));

@@ -5,10 +5,11 @@ using ResourcePulse.Services.Plan;
 
 namespace ResourcePulse.Application.Tests;
 
-// Referent movement through the envelope (ADR-0034 §5, plan step B):
-// replanNode / moveSubtree drag the anchored boundaries — by re-snap, never by
-// delta — and dryRun returns the countable consequence without persisting.
-// Pinned blocks on the same node do not move; a re-snap that would invert a
+// Moving the node through the envelope (ADR-0035 §5). The node is now the ONLY
+// referent, so it is the only thing that can drag a boundary, and the
+// dependants are simply the coverages sitting on it. Propagation is a re-snap,
+// never a delta; dryRun returns the countable consequence without persisting;
+// pinned edges on the same node do not move; a re-snap that would invert a
 // block is a Conflict, and so is clearing a date boundaries follow.
 public class PlanCommandPropagationTests
 {
@@ -17,17 +18,22 @@ public class PlanCommandPropagationTests
     private static readonly DateOnly PhaseStart = new(2026, 6, 8);
     private static readonly DateOnly PhaseEnd = new(2026, 6, 30);
 
-    private static AnchorSpec NodeEnd(Guid id) => new() { Kind = AnchorKind.NodeEnd, NodeId = id };
-    private static AnchorSpec NodeStart(Guid id) => new() { Kind = AnchorKind.NodeStart, NodeId = id };
-
-    // A block on the default demand, end-anchored to `phase`.
-    private static async Task<Guid> EndAnchoredBlockAsync(PlanCommandHarness h, Guid phase, DateOnly start = default)
+    // A coverage ON `node`, its end FOLLOWING the node, its start pinned at
+    // `start`. The demand is seeded on the node because that is what makes the
+    // node this block's referent — there is no other way to point at it.
+    private static async Task<Guid> EndFollowingBlockAsync(
+        PlanCommandHarness h, Guid node, DateOnly start, DateOnly end, decimal percent = 50m)
     {
-        var id = h.SeedAllocation(start == default ? D1 : start, start == default ? D14 : PhaseEnd, 50m);
-        var r = await h.Service.ExecuteAsync(new SetAnchorCommand { Id = id, Edge = BoundaryEdge.End, Anchor = NodeEnd(phase) });
+        var demand = h.SeedDemandOn(node);
+        var id = h.SeedCoverage(demand, start, end, percent);
+        var r = await h.Service.ExecuteAsync(new FollowNodeCommand { Id = id, Edge = BoundaryEdge.End });
         r.IsSuccess.Should().BeTrue(r.Error?.Message);
         return id;
     }
+
+    // A coverage ON `node` with both edges pinned — same node, no tie.
+    private static Guid PinnedBlockOn(PlanCommandHarness h, Guid node, DateOnly start, DateOnly end, decimal percent = 20m) =>
+        h.SeedCoverage(h.SeedDemandOn(node), start, end, percent);
 
     // ── replanNode ───────────────────────────────────────────────────────────
 
@@ -36,8 +42,8 @@ public class PlanCommandPropagationTests
     {
         var h = PlanCommandHarness.Create();
         var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var anchored = await EndAnchoredBlockAsync(h, phase);
-        var pinned = h.SeedAllocation(D1, D14, 20m); // same node, no tie
+        var following = await EndFollowingBlockAsync(h, phase, D1, PhaseEnd);
+        var pinned = PinnedBlockOn(h, phase, D1, D14);
         var newEnd = new DateOnly(2026, 7, 15);
 
         var result = await h.Service.ExecuteAsync(new ReplanNodeCommand
@@ -48,24 +54,24 @@ public class PlanCommandPropagationTests
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
         result.Value.CommandKind.Should().Be("replanNode");
         result.Value.Committed.Should().BeFalse();
-        result.Value.Changes.Should().ContainSingle().Which.Id.Should().Be(anchored);
+        result.Value.Changes.Should().ContainSingle().Which.Id.Should().Be(following);
         result.Value.Changes.Single().PeriodEnd.Should().Be(newEnd);
         result.Value.ReferentChanges.Should().ContainSingle().Which.Should().Match<PlanReferentChange>(n =>
-            n.Referent == ReferentKind.Node && n.Id == phase && n.OldEnd == PhaseEnd && n.NewEnd == newEnd);
+            n.Id == phase && n.OldEnd == PhaseEnd && n.NewEnd == newEnd);
 
         // Nothing moved.
-        h.Reload(anchored).PeriodEnd.Should().Be(PhaseEnd);
+        h.Reload(following).PeriodEnd.Should().Be(PhaseEnd);
         h.Reload(pinned).PeriodEnd.Should().Be(D14);
         h.Db.ProjectNodes.AsNoTracking().Single(p => p.Id == phase).PlannedEnd.Should().Be(PhaseEnd);
     }
 
     [Fact]
-    public async Task ReplanNode_Commit_ReSnapsTheAnchoredBlock_KeepsTheTie_LeavesPinnedBlocksAlone()
+    public async Task ReplanNode_Commit_ReSnaps_KeepsTheTie_LeavesPinnedBlocksOnTheSameNodeAlone()
     {
         var h = PlanCommandHarness.Create();
         var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var anchored = await EndAnchoredBlockAsync(h, phase);
-        var pinned = h.SeedAllocation(D1, D14, 20m);
+        var following = await EndFollowingBlockAsync(h, phase, D1, PhaseEnd);
+        var pinned = PinnedBlockOn(h, phase, D1, D14);
         var newEnd = new DateOnly(2026, 7, 15);
 
         var result = await h.Service.ExecuteAsync(new ReplanNodeCommand
@@ -75,31 +81,52 @@ public class PlanCommandPropagationTests
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
         result.Value.Committed.Should().BeTrue();
-        var moved = h.Reload(anchored);
-        moved.PeriodStart.Should().Be(D1);                       // the other edge stayed
-        moved.PeriodEnd.Should().Be(newEnd);                     // re-snap: the block got longer
-        moved.EndAnchor.Kind.Should().Be(AnchorKind.NodeEnd);    // tie kept
+        var moved = h.Reload(following);
+        moved.PeriodStart.Should().Be(D1);                        // the other edge stayed
+        moved.PeriodEnd.Should().Be(newEnd);                      // re-snap: the block got longer
+        moved.EndAnchor.Should().Be(AnchorKind.FollowsNode);      // tie kept
         h.Reload(pinned).PeriodEnd.Should().Be(D14);
         h.Db.ProjectNodes.AsNoTracking().Single(p => p.Id == phase).PlannedEnd.Should().Be(newEnd);
     }
 
     [Fact]
-    public async Task ReplanNode_ShrinkingThePhasePastTheBlockStart_IsAConflict_NothingApplied()
+    public async Task ReplanNode_DoesNotTouchBlocksOnOtherNodes()
     {
+        // No propagation between sibling phases: moving Fase 2 does not move
+        // Fase 3, and the overlap that results is legal and sums (ADR-0014).
         var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var anchored = await EndAnchoredBlockAsync(h, phase, start: new DateOnly(2026, 6, 20));
+        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd, "Fase 2");
+        var sibling = h.SeedPhase(h.ProjectNodeId, new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 31), "Fase 3");
+        await EndFollowingBlockAsync(h, phase, D1, PhaseEnd);
+        var onSibling = await EndFollowingBlockAsync(h, sibling, new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 31));
 
-        // Phase end moves to Jun 10 — before the block's start (Jun 20).
         var result = await h.Service.ExecuteAsync(new ReplanNodeCommand
         {
-            NodeId = phase, PlannedStart = PhaseStart, PlannedEnd = new DateOnly(2026, 6, 10)
+            NodeId = phase, PlannedStart = PhaseStart, PlannedEnd = new DateOnly(2026, 7, 15)
         });
 
-        result.IsFailure.Should().BeTrue();
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
+        result.Value.Changes.Should().ContainSingle();
+        h.Reload(onSibling).PeriodEnd.Should().Be(new DateOnly(2026, 7, 31));
+    }
+
+    [Fact]
+    public async Task ReplanNode_ShrinkingThePhasePastAPinnedStart_IsAConflict_NothingApplied()
+    {
+        // The single refusal shape left in the model, and it names the block.
+        var h = PlanCommandHarness.Create();
+        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
+        var following = await EndFollowingBlockAsync(h, phase, D14, PhaseEnd);
+
+        var result = await h.Service.ExecuteAsync(new ReplanNodeCommand
+        {
+            NodeId = phase, PlannedStart = PhaseStart, PlannedEnd = new DateOnly(2026, 6, 9)
+        });
+
+        result.IsSuccess.Should().BeFalse();
         result.Error!.Kind.Should().Be(ServiceErrorKind.Conflict);
-        result.Error.Message.Should().Contain(anchored.ToString());
-        h.Reload(anchored).PeriodEnd.Should().Be(PhaseEnd);
+        result.Error.Message.Should().Contain(following.ToString());
+        h.Reload(following).PeriodEnd.Should().Be(PhaseEnd);
         h.Db.ProjectNodes.AsNoTracking().Single(p => p.Id == phase).PlannedEnd.Should().Be(PhaseEnd);
     }
 
@@ -108,17 +135,16 @@ public class PlanCommandPropagationTests
     {
         var h = PlanCommandHarness.Create();
         var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        await EndAnchoredBlockAsync(h, phase);
-        await EndAnchoredBlockAsync(h, phase);
+        await EndFollowingBlockAsync(h, phase, D1, PhaseEnd);
 
         var result = await h.Service.ExecuteAsync(new ReplanNodeCommand
         {
             NodeId = phase, PlannedStart = PhaseStart, PlannedEnd = null
         });
 
-        result.IsFailure.Should().BeTrue();
+        result.IsSuccess.Should().BeFalse();
         result.Error!.Kind.Should().Be(ServiceErrorKind.Conflict);
-        result.Error.Message.Should().Contain("2 anchored boundary(ies)");
+        result.Error.Message.Should().Contain("1 coverage boundary(ies) follow");
         h.Db.ProjectNodes.AsNoTracking().Single(p => p.Id == phase).PlannedEnd.Should().Be(PhaseEnd);
     }
 
@@ -127,15 +153,17 @@ public class PlanCommandPropagationTests
     {
         var h = PlanCommandHarness.Create();
         var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
+        var newEnd = new DateOnly(2026, 7, 15);
 
         var result = await h.Service.ExecuteAsync(new ReplanNodeCommand
         {
-            NodeId = phase, PlannedStart = PhaseStart, PlannedEnd = PhaseEnd.AddDays(5)
+            NodeId = phase, PlannedStart = PhaseStart, PlannedEnd = newEnd
         });
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
         result.Value.Changes.Should().BeEmpty();
         result.Value.ReferentChanges.Should().ContainSingle();
+        h.Db.ProjectNodes.AsNoTracking().Single(p => p.Id == phase).PlannedEnd.Should().Be(newEnd);
     }
 
     [Fact]
@@ -143,26 +171,27 @@ public class PlanCommandPropagationTests
     {
         var h = PlanCommandHarness.Create();
 
-        var result = await h.Service.ExecuteAsync(new ReplanNodeCommand { NodeId = Guid.NewGuid(), PlannedEnd = PhaseEnd });
+        var result = await h.Service.ExecuteAsync(new ReplanNodeCommand
+        {
+            NodeId = Guid.NewGuid(), PlannedStart = PhaseStart, PlannedEnd = PhaseEnd
+        });
 
+        result.IsSuccess.Should().BeFalse();
         result.Error!.Kind.Should().Be(ServiceErrorKind.NotFound);
     }
 
     [Fact]
-    public async Task ReplanNode_BlockAnchoredOnBothEdges_FollowsAShiftLongerThanItself()
+    public async Task ReplanNode_BlockFollowingOnBothEdges_FollowsAShiftLongerThanItself()
     {
+        // Edge by edge this would invert half-way. One span change is why it
+        // does not — and why FollowNodes takes both edges at once.
         var h = PlanCommandHarness.Create();
         var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var id = h.SeedAllocation(D1, D14, 50m);
-        (await h.Service.ExecuteAsync(new SetAnchorCommand { Id = id, Edge = BoundaryEdge.Start, Anchor = NodeStart(phase) }))
-            .IsSuccess.Should().BeTrue();
-        (await h.Service.ExecuteAsync(new SetAnchorCommand { Id = id, Edge = BoundaryEdge.End, Anchor = NodeEnd(phase) }))
-            .IsSuccess.Should().BeTrue();
-        // Block is now [Jun 8, Jun 30]. Shift the phase by 60 days: edge by edge
-        // the new start (Aug 7) would be past the old end (Jun 30).
-        var newStart = PhaseStart.AddDays(60);
-        var newEnd = PhaseEnd.AddDays(60);
+        var demand = h.SeedDemandOn(phase);
+        var id = h.SeedFollowingCoverage(demand);
 
+        var newStart = new DateOnly(2026, 9, 1);
+        var newEnd = new DateOnly(2026, 9, 24);
         var result = await h.Service.ExecuteAsync(new ReplanNodeCommand
         {
             NodeId = phase, PlannedStart = newStart, PlannedEnd = newEnd
@@ -172,64 +201,51 @@ public class PlanCommandPropagationTests
         var moved = h.Reload(id);
         moved.PeriodStart.Should().Be(newStart);
         moved.PeriodEnd.Should().Be(newEnd);
-        moved.StartAnchor.IsAnchored.Should().BeTrue();
-        moved.EndAnchor.IsAnchored.Should().BeTrue();
     }
 
     // ── moveSubtree ──────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task MoveSubtree_TranslatesRootAndPhases_AndDragsBlocksAnchoredToAnyOfThem()
+    public async Task MoveSubtree_TranslatesRootAndPhases_AndDragsWhatFollowsAnyOfThem()
     {
         var h = PlanCommandHarness.Create();
-        var rootStart = new DateOnly(2026, 5, 1);
-        var rootEnd = new DateOnly(2026, 8, 31);
-        h.Db.ProjectNodes.Single(p => p.Id == h.ProjectNodeId).Replan(rootStart, rootEnd);
-        h.Db.SaveChanges();
-        h.Db.ChangeTracker.Clear();
+        h.PlanNode(h.ProjectNodeId, D1, new DateOnly(2026, 8, 31));
         var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var undatedPhase = h.SeedPhase(h.ProjectNodeId, null, null, "Senza date");
+        var onRoot = h.SeedFollowingCoverage(h.DemandId);
+        var onPhase = await EndFollowingBlockAsync(h, phase, D1, PhaseEnd);
 
-        var onPhase = await EndAnchoredBlockAsync(h, phase);
-        var onRoot = h.SeedAllocation(D1, D14, 30m);
-        (await h.Service.ExecuteAsync(new SetAnchorCommand { Id = onRoot, Edge = BoundaryEdge.End, Anchor = NodeEnd(h.ProjectNodeId) }))
-            .IsSuccess.Should().BeTrue();
-        var pinned = h.SeedAllocation(D1, D14, 10m);
-
-        var result = await h.Service.ExecuteAsync(new MoveSubtreeCommand { NodeId = h.ProjectNodeId, DeltaDays = 7 });
+        var result = await h.Service.ExecuteAsync(new MoveSubtreeCommand
+        {
+            NodeId = h.ProjectNodeId, DeltaDays = 10
+        });
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
-        result.Value.CommandKind.Should().Be("moveSubtree");
-        // Two dated nodes moved; the undated phase has nothing to translate.
         result.Value.ReferentChanges.Should().HaveCount(2);
-        result.Value.ReferentChanges.Should().NotContain(n => n.Id == undatedPhase);
-        result.Value.Changes.Select(c => c.Id).Should().BeEquivalentTo([onPhase, onRoot]);
-
-        h.Reload(onPhase).PeriodEnd.Should().Be(PhaseEnd.AddDays(7));
-        h.Reload(onRoot).PeriodEnd.Should().Be(rootEnd.AddDays(7));
-        h.Reload(pinned).PeriodEnd.Should().Be(D14);
-        var nodes = h.Db.ProjectNodes.AsNoTracking().ToDictionary(p => p.Id);
-        nodes[h.ProjectNodeId].PlannedStart.Should().Be(rootStart.AddDays(7));
-        nodes[phase].PlannedEnd.Should().Be(PhaseEnd.AddDays(7));
-        nodes[undatedPhase].PlannedEnd.Should().BeNull();
+        result.Value.Changes.Select(c => c.Id).Should().BeEquivalentTo([onRoot, onPhase]);
+        h.Reload(onRoot).PeriodEnd.Should().Be(new DateOnly(2026, 9, 10));
+        h.Reload(onPhase).PeriodEnd.Should().Be(PhaseEnd.AddDays(10));
+        h.Reload(onPhase).PeriodStart.Should().Be(D1); // pinned edge stays
     }
 
     [Fact]
     public async Task MoveSubtree_OnAPhase_DoesNotTouchTheRootOrSiblings()
     {
         var h = PlanCommandHarness.Create();
-        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var sibling = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd, "Fase 2");
-        await EndAnchoredBlockAsync(h, phase);
-        var onSibling = await EndAnchoredBlockAsync(h, sibling);
+        h.PlanNode(h.ProjectNodeId, D1, new DateOnly(2026, 8, 31));
+        var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd, "Fase 2");
+        var sibling = h.SeedPhase(h.ProjectNodeId, new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 31), "Fase 3");
+        var onRoot = h.SeedFollowingCoverage(h.DemandId);
+        var onSibling = await EndFollowingBlockAsync(h, sibling, new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 31));
+        var onPhase = await EndFollowingBlockAsync(h, phase, D1, PhaseEnd);
 
-        var result = await h.Service.ExecuteAsync(new MoveSubtreeCommand { NodeId = phase, DeltaDays = -3 });
+        var result = await h.Service.ExecuteAsync(new MoveSubtreeCommand { NodeId = phase, DeltaDays = 10 });
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
-        result.Value.ReferentChanges.Should().ContainSingle().Which.Id.Should().Be(phase);
-        result.Value.Changes.Should().ContainSingle();
-        h.Reload(onSibling).PeriodEnd.Should().Be(PhaseEnd);
-        h.Db.ProjectNodes.AsNoTracking().Single(p => p.Id == sibling).PlannedEnd.Should().Be(PhaseEnd);
+        result.Value.Changes.Should().ContainSingle().Which.Id.Should().Be(onPhase);
+        h.Reload(onRoot).PeriodEnd.Should().Be(new DateOnly(2026, 8, 31));
+        h.Reload(onSibling).PeriodEnd.Should().Be(new DateOnly(2026, 7, 31));
+        h.Db.ProjectNodes.AsNoTracking().Single(p => p.Id == h.ProjectNodeId).PlannedEnd
+            .Should().Be(new DateOnly(2026, 8, 31));
     }
 
     [Fact]
@@ -237,13 +253,17 @@ public class PlanCommandPropagationTests
     {
         var h = PlanCommandHarness.Create();
         var phase = h.SeedPhase(h.ProjectNodeId, PhaseStart, PhaseEnd);
-        var anchored = await EndAnchoredBlockAsync(h, phase);
+        var onPhase = await EndFollowingBlockAsync(h, phase, D1, PhaseEnd);
 
-        var result = await h.Service.ExecuteAsync(new MoveSubtreeCommand { DryRun = true, NodeId = phase, DeltaDays = 10 });
+        var result = await h.Service.ExecuteAsync(new MoveSubtreeCommand
+        {
+            DryRun = true, NodeId = phase, DeltaDays = 10
+        });
 
         result.IsSuccess.Should().BeTrue(result.Error?.Message);
-        result.Value.Changes.Should().ContainSingle().Which.PeriodEnd.Should().Be(PhaseEnd.AddDays(10));
-        h.Reload(anchored).PeriodEnd.Should().Be(PhaseEnd);
+        result.Value.Committed.Should().BeFalse();
+        result.Value.Changes.Should().ContainSingle();
+        h.Reload(onPhase).PeriodEnd.Should().Be(PhaseEnd);
         h.Db.ProjectNodes.AsNoTracking().Single(p => p.Id == phase).PlannedEnd.Should().Be(PhaseEnd);
     }
 
@@ -258,9 +278,9 @@ public class PlanCommandPropagationTests
         h.Db.SaveChanges();
         h.Db.ChangeTracker.Clear();
 
-        var result = await h.Service.ExecuteAsync(new MoveSubtreeCommand { NodeId = phase, DeltaDays = 1 });
+        var result = await h.Service.ExecuteAsync(new MoveSubtreeCommand { NodeId = phase, DeltaDays = 10 });
 
-        result.IsFailure.Should().BeTrue();
+        result.IsSuccess.Should().BeFalse();
         result.Error!.Kind.Should().Be(ServiceErrorKind.Conflict);
     }
 }

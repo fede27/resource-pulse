@@ -6,18 +6,17 @@
  * OpenAPI spec version: 1.0
  */
 import type { AllocationStatus } from './allocationStatus';
-import type { AnchorSpec } from './anchorSpec';
 import type { PlanCommand } from './planCommand';
 
 export type CreateByHoursCommand = PlanCommand & ({
   demandId?: string;
   resourceId?: string;
-  periodStart?: string;
-  periodEnd?: string;
+  /** @nullable */
+  periodStart?: string | null;
+  /** @nullable */
+  periodEnd?: string | null;
   targetHours?: string;
   status?: AllocationStatus;
   /** @nullable */
   notes?: string | null;
-  startAnchor?: AnchorSpec;
-  endAnchor?: AnchorSpec;
 });

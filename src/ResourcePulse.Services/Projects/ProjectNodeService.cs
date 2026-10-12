@@ -178,14 +178,13 @@ public sealed class ProjectNodeService(
                 $"Cannot delete a node that still carries {demandCount} demand(s) and " +
                 $"{coverageCount} coverage block(s). Delete them through the plan commands first.");
 
-        // The fourth Restrict FK into project_nodes (ADR-0034): boundaries of
-        // blocks elsewhere, anchored to this node's dates. Pin them first.
-        var anchored = await AnchoredEdgeCountAsync(id, ct);
-        if (anchored > 0)
-            return ServiceResult.Conflict(
-                $"Cannot delete a node that {anchored} coverage boundary(ies) are anchored to. Pin them first.");
+        // No separate "boundaries follow this node" check here since ADR-0035:
+        // a boundary can only follow the node its own coverage sits on, so a
+        // follower implies a coverage on this node and the count above has
+        // already refused. The check was real under ADR-0034, where a block on
+        // one node could be anchored to another.
 
-        // And the fifth: imposed dates on a root (ADR-0034 §4).
+        // Imposed dates on a root (ADR-0035 §4) — still a Restrict FK.
         var constraints = await db.ExternalConstraints.CountAsync(x => x.RootProjectId == id, ct);
         if (constraints > 0)
             return ServiceResult.Conflict(
@@ -637,23 +636,32 @@ public sealed class ProjectNodeService(
         return dto;
     }
 
-    // Boundaries anchored to this node (start or end), across all coverage.
-    private Task<int> AnchoredEdgeCountAsync(Guid nodeId, CancellationToken ct) =>
-        db.Allocations.AsNoTracking()
-            .CountAsync(a => a.StartAnchor.NodeId == nodeId || a.EndAnchor.NodeId == nodeId, ct);
+    // Boundaries that FOLLOW this node (ADR-0035): the coverages sitting on it
+    // whose start or end still takes the node's planned date. The referent is
+    // implicit, so this is a plain ProjectNodeId filter — no referent column to
+    // join, and the count is a property of the node rather than of three
+    // different entities.
+    private async Task<int> AnchoredEdgeCountAsync(Guid nodeId, CancellationToken ct)
+    {
+        var starts = await db.Allocations.AsNoTracking()
+            .CountAsync(a => a.ProjectNodeId == nodeId && a.StartAnchor == AnchorKind.FollowsNode, ct);
+        var ends = await db.Allocations.AsNoTracking()
+            .CountAsync(a => a.ProjectNodeId == nodeId && a.EndAnchor == AnchorKind.FollowsNode, ct);
+        return starts + ends;
+    }
 
     private async Task<ServiceResult<Unit>?> AnchoredDependantsGuardAsync(Guid nodeId, string verb, CancellationToken ct)
     {
         var count = await AnchoredEdgeCountAsync(nodeId, ct);
         if (count == 0) return null;
         return ServiceResult.Conflict(
-            $"{count} coverage boundary(ies) are anchored to this node's planned dates; cannot {verb} it from here. " +
+            $"{count} coverage boundary(ies) follow this node's planned dates; cannot {verb} it from here. " +
             "Use the plan command 'replanNode' (or 'moveSubtree') to move them with it, or pin them first.");
     }
 
-    // Batch-resolve anchored-boundary counts for a set of nodes (ADR-0034 §8).
-    // A block anchored on both edges to the same node counts twice: the count is
-    // of BOUNDARIES that would move, which is what the confirmation shows.
+    // Batch-resolve following-boundary counts for a set of nodes (ADR-0035 §8).
+    // A block that follows on both edges counts twice: the count is of
+    // BOUNDARIES that would move, which is what the confirmation shows.
     private async Task<IReadOnlyDictionary<Guid, int>> ResolveAnchoredEdgeCountsAsync(
         IEnumerable<ProjectNode> nodes, CancellationToken ct)
     {
@@ -662,13 +670,13 @@ public sealed class ProjectNodeService(
         if (ids.Count == 0) return counts;
 
         var starts = await db.Allocations.AsNoTracking()
-            .Where(a => a.StartAnchor.NodeId != null && ids.Contains(a.StartAnchor.NodeId.Value))
-            .GroupBy(a => a.StartAnchor.NodeId!.Value)
+            .Where(a => ids.Contains(a.ProjectNodeId) && a.StartAnchor == AnchorKind.FollowsNode)
+            .GroupBy(a => a.ProjectNodeId)
             .Select(g => new { g.Key, Count = g.Count() })
             .ToListAsync(ct);
         var ends = await db.Allocations.AsNoTracking()
-            .Where(a => a.EndAnchor.NodeId != null && ids.Contains(a.EndAnchor.NodeId.Value))
-            .GroupBy(a => a.EndAnchor.NodeId!.Value)
+            .Where(a => ids.Contains(a.ProjectNodeId) && a.EndAnchor == AnchorKind.FollowsNode)
+            .GroupBy(a => a.ProjectNodeId)
             .Select(g => new { g.Key, Count = g.Count() })
             .ToListAsync(ct);
 

@@ -14,11 +14,12 @@ using ResourcePulse.Services.Projects;
 
 namespace ResourcePulse.Application.Tests;
 
-// The project endpoints are the anagrafica side of ADR-0034 §5: a node whose
-// dates have anchored dependants is NOT replanned, rolled up or deleted from
-// here — they refuse with the count and point at the envelope. A node with no
-// dependants behaves exactly as before. The read DTO carries the count so the
-// client knows which case it is in before the gesture.
+// The project endpoints are the anagrafica side of ADR-0035 §5 — and, since
+// that ADR, the ONLY anagrafica surface that still refuses anything. A node
+// whose dates are followed is not replanned, rolled up or deleted from here: it
+// refuses with the count and points at the envelope. A node nothing follows
+// behaves exactly as before. The read DTO carries the count — on the node, and
+// now only on the node — so the client knows which case it is in beforehand.
 public class ProjectNodeAnchorGuardTests
 {
     private static readonly DateOnly PhaseStart = new(2026, 6, 8);
@@ -41,18 +42,20 @@ public class ProjectNodeAnchorGuardTests
         return (new ProjectNodeService(new Repository<ProjectNode, Guid>(db), db, mapper, policy), db);
     }
 
-    // A root with a dated phase, and a coverage on the ROOT whose end is anchored
-    // to the PHASE's end. Returns (rootId, phaseId).
-    private static (Guid root, Guid phase) SeedAnchoredPlan(ResourcePulseDbContext db)
+    // A root with a dated phase and a coverage ON THAT PHASE whose end follows
+    // it. Under ADR-0035 a block can only follow the node it sits on, so "the
+    // coverage is on the phase" and "the phase is its referent" are one fact.
+    // `following` false leaves both edges pinned instead.
+    private static (Guid root, Guid phase) SeedPlan(ResourcePulseDbContext db, bool following = true)
     {
         var root = ProjectNode.CreateRoot("Apollo", "AP", ProjectType.Customer, CommitmentLevel.Committed, null);
         var phase = ProjectNode.CreateChild(root, ProjectNodeType.Phase, "Fase 1", null);
         phase.Replan(PhaseStart, PhaseEnd);
         var role = Role.Create("Dev");
         var resource = Resource.Create("Tizio", Guid.NewGuid());
-        var demand = Demand.Create(root.Id, role.Id, null, DemandProvenance.Declared);
-        var coverage = Allocation.CreateCoverage(demand.Id, root.Id, resource.Id, new DateOnly(2026, 6, 1), PhaseEnd, 50m);
-        coverage.Anchor(BoundaryEdge.End, BoundaryAnchor.ToNodeEnd(phase.Id), PhaseEnd);
+        var demand = Demand.Create(phase.Id, role.Id, null, DemandProvenance.Declared);
+        var coverage = Allocation.CreateCoverage(demand.Id, phase.Id, resource.Id, new DateOnly(2026, 6, 1), PhaseEnd, 50m);
+        if (following) coverage.FollowNode(BoundaryEdge.End, PhaseEnd);
 
         db.ProjectNodes.AddRange(root, phase);
         db.Roles.Add(role);
@@ -65,10 +68,10 @@ public class ProjectNodeAnchorGuardTests
     }
 
     [Fact]
-    public async Task Replan_OnANodeWithAnchoredDependants_IsAConflict_ThatNamesTheEnvelope()
+    public async Task Replan_OnANodeWithFollowingBoundaries_IsAConflict_ThatNamesTheEnvelope()
     {
         var (svc, db) = Build();
-        var (_, phase) = SeedAnchoredPlan(db);
+        var (_, phase) = SeedPlan(db);
 
         var result = await svc.ReplanAsync(phase, new ReplanDto { Start = PhaseStart, End = PhaseEnd.AddDays(5) });
 
@@ -79,10 +82,24 @@ public class ProjectNodeAnchorGuardTests
     }
 
     [Fact]
-    public async Task Replan_OnANodeWithoutDependants_WorksAsBefore()
+    public async Task Replan_WhenEveryBoundaryOnTheNodeIsPinned_WorksAsBefore()
+    {
+        // Nothing follows the node, so moving it moves nothing: no reason to
+        // route the planner through the envelope.
+        var (svc, db) = Build();
+        var (_, phase) = SeedPlan(db, following: false);
+
+        var result = await svc.ReplanAsync(phase, new ReplanDto { Start = PhaseStart, End = PhaseEnd.AddDays(5) });
+
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
+        db.ProjectNodes.AsNoTracking().Single(p => p.Id == phase).PlannedEnd.Should().Be(PhaseEnd.AddDays(5));
+    }
+
+    [Fact]
+    public async Task Replan_OnANodeWithoutCoverage_WorksAsBefore()
     {
         var (svc, db) = Build();
-        var (root, _) = SeedAnchoredPlan(db); // the ROOT has no anchored dependants (the anchor targets the phase)
+        var (root, _) = SeedPlan(db); // the coverage sits on the phase, not the root
 
         var result = await svc.ReplanAsync(root, new ReplanDto { Start = PhaseStart, End = PhaseEnd });
 
@@ -91,10 +108,10 @@ public class ProjectNodeAnchorGuardTests
     }
 
     [Fact]
-    public async Task RecalculatePlannedFromChildren_OnANodeWithAnchoredDependants_IsAConflict()
+    public async Task RecalculatePlannedFromChildren_OnANodeWithFollowingBoundaries_IsAConflict()
     {
         var (svc, db) = Build();
-        var (_, phase) = SeedAnchoredPlan(db);
+        var (_, phase) = SeedPlan(db);
 
         var result = await svc.RecalculatePlannedFromChildrenAsync(phase);
 
@@ -103,24 +120,27 @@ public class ProjectNodeAnchorGuardTests
     }
 
     [Fact]
-    public async Task Delete_OnANodeOtherBlocksAreAnchoredTo_IsAConflict_NotAFault()
+    public async Task Delete_OnANodeThatCarriesCoverage_IsAConflict_NotAFault()
     {
+        // Under ADR-0035 there is no separate "something follows this node"
+        // refusal on delete: a follower is a coverage ON the node, so the
+        // coverage count refuses first and says something more useful.
         var (svc, db) = Build();
-        var (_, phase) = SeedAnchoredPlan(db); // the phase carries nothing itself; the block on the root points at it
+        var (_, phase) = SeedPlan(db);
 
         var result = await svc.DeleteAsync(phase);
 
         result.IsFailure.Should().BeTrue();
         result.Error!.Kind.Should().Be(ServiceErrorKind.Conflict);
-        result.Error.Message.Should().Contain("anchored");
+        result.Error.Message.Should().Contain("1 coverage block(s)");
         db.ProjectNodes.AsNoTracking().Any(p => p.Id == phase).Should().BeTrue();
     }
 
     [Fact]
-    public async Task ReadDto_CarriesTheAnchoredEdgeCount()
+    public async Task ReadDto_CarriesTheFollowingEdgeCount()
     {
         var (svc, db) = Build();
-        var (root, phase) = SeedAnchoredPlan(db);
+        var (root, phase) = SeedPlan(db);
 
         var phaseDto = await svc.GetByIdAsync(phase);
         var rootDto = await svc.GetByIdAsync(root);
@@ -129,5 +149,22 @@ public class ProjectNodeAnchorGuardTests
         phaseDto.Value.AnchoredEdgeCount.Should().Be(1);
         rootDto.Value.AnchoredEdgeCount.Should().Be(0);
         subtree.Value.Single(n => n.Id == phase).AnchoredEdgeCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ReadDto_CountsBothEdgesOfABlockThatFollowsOnBothSides()
+    {
+        // The count is of BOUNDARIES that would move, not of blocks — that is
+        // what the preview shows and what the ribbon badge means.
+        var (svc, db) = Build();
+        var (_, phase) = SeedPlan(db);
+        var block = db.Allocations.Single();
+        block.FollowNode(BoundaryEdge.Start, PhaseStart);
+        db.SaveChanges();
+        db.ChangeTracker.Clear();
+
+        var dto = await svc.GetByIdAsync(phase);
+
+        dto.Value.AnchoredEdgeCount.Should().Be(2);
     }
 }

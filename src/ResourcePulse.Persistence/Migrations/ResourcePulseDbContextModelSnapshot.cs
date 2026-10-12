@@ -112,6 +112,14 @@ namespace ResourcePulse.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("demand_id");
 
+                    b.Property<string>("EndAnchor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Pinned")
+                        .HasColumnName("end_anchor_kind");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
@@ -132,6 +140,14 @@ namespace ResourcePulse.Persistence.Migrations
                     b.Property<Guid>("ResourceId")
                         .HasColumnType("uuid")
                         .HasColumnName("resource_id");
+
+                    b.Property<string>("StartAnchor")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Pinned")
+                        .HasColumnName("start_anchor_kind");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -167,12 +183,7 @@ namespace ResourcePulse.Persistence.Migrations
                     b.HasIndex("ResourceId", "PeriodStart", "PeriodEnd")
                         .HasDatabaseName("ix_allocations_resource_id_period");
 
-                    b.ToTable("allocations", null, t =>
-                        {
-                            t.HasCheckConstraint("ck_allocations_end_anchor_shape", "(end_anchor_kind IN ('NodeStart', 'NodeEnd') AND end_anchor_node_id IS NOT NULL AND end_anchor_constraint_id IS NULL) OR (end_anchor_kind = 'External' AND end_anchor_constraint_id IS NOT NULL AND end_anchor_node_id IS NULL) OR (end_anchor_kind IN ('Pinned', 'ResourceAvailability') AND end_anchor_node_id IS NULL AND end_anchor_constraint_id IS NULL)");
-
-                            t.HasCheckConstraint("ck_allocations_start_anchor_shape", "(start_anchor_kind IN ('NodeStart', 'NodeEnd') AND start_anchor_node_id IS NOT NULL AND start_anchor_constraint_id IS NULL) OR (start_anchor_kind = 'External' AND start_anchor_constraint_id IS NOT NULL AND start_anchor_node_id IS NULL) OR (start_anchor_kind IN ('Pinned', 'ResourceAvailability') AND start_anchor_node_id IS NULL AND start_anchor_constraint_id IS NULL)");
-                        });
+                    b.ToTable("allocations", (string)null);
                 });
 
             modelBuilder.Entity("ResourcePulse.Domain.Calendars.BusinessCalendar", b =>
@@ -1361,110 +1372,6 @@ namespace ResourcePulse.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_allocations_resources_resource_id");
-
-                    b.OwnsOne("ResourcePulse.Domain.Allocations.BoundaryAnchor", "EndAnchor", b1 =>
-                        {
-                            b1.Property<Guid>("AllocationId")
-                                .HasColumnType("uuid")
-                                .HasColumnName("id");
-
-                            b1.Property<Guid?>("ConstraintId")
-                                .HasColumnType("uuid")
-                                .HasColumnName("end_anchor_constraint_id");
-
-                            b1.Property<string>("Kind")
-                                .IsRequired()
-                                .ValueGeneratedOnAdd()
-                                .HasMaxLength(20)
-                                .HasColumnType("character varying(20)")
-                                .HasDefaultValue("Pinned")
-                                .HasColumnName("end_anchor_kind");
-
-                            b1.Property<Guid?>("NodeId")
-                                .HasColumnType("uuid")
-                                .HasColumnName("end_anchor_node_id");
-
-                            b1.HasKey("AllocationId");
-
-                            b1.HasIndex("ConstraintId")
-                                .HasDatabaseName("ix_allocations_end_anchor_constraint_id");
-
-                            b1.HasIndex("NodeId")
-                                .HasDatabaseName("ix_allocations_end_anchor_node_id");
-
-                            b1.ToTable("allocations");
-
-                            b1.WithOwner()
-                                .HasForeignKey("AllocationId")
-                                .HasConstraintName("fk_allocations_allocations_id");
-
-                            b1.HasOne("ResourcePulse.Domain.Projects.ExternalConstraint", null)
-                                .WithMany()
-                                .HasForeignKey("ConstraintId")
-                                .OnDelete(DeleteBehavior.Restrict)
-                                .HasConstraintName("fk_allocations_external_constraints_end_anchor_constraint_id");
-
-                            b1.HasOne("ResourcePulse.Domain.Projects.ProjectNode", null)
-                                .WithMany()
-                                .HasForeignKey("NodeId")
-                                .OnDelete(DeleteBehavior.Restrict)
-                                .HasConstraintName("fk_allocations_project_nodes_end_anchor_node_id");
-                        });
-
-                    b.OwnsOne("ResourcePulse.Domain.Allocations.BoundaryAnchor", "StartAnchor", b1 =>
-                        {
-                            b1.Property<Guid>("AllocationId")
-                                .HasColumnType("uuid")
-                                .HasColumnName("id");
-
-                            b1.Property<Guid?>("ConstraintId")
-                                .HasColumnType("uuid")
-                                .HasColumnName("start_anchor_constraint_id");
-
-                            b1.Property<string>("Kind")
-                                .IsRequired()
-                                .ValueGeneratedOnAdd()
-                                .HasMaxLength(20)
-                                .HasColumnType("character varying(20)")
-                                .HasDefaultValue("Pinned")
-                                .HasColumnName("start_anchor_kind");
-
-                            b1.Property<Guid?>("NodeId")
-                                .HasColumnType("uuid")
-                                .HasColumnName("start_anchor_node_id");
-
-                            b1.HasKey("AllocationId");
-
-                            b1.HasIndex("ConstraintId")
-                                .HasDatabaseName("ix_allocations_start_anchor_constraint_id");
-
-                            b1.HasIndex("NodeId")
-                                .HasDatabaseName("ix_allocations_start_anchor_node_id");
-
-                            b1.ToTable("allocations");
-
-                            b1.WithOwner()
-                                .HasForeignKey("AllocationId")
-                                .HasConstraintName("fk_allocations_allocations_id");
-
-                            b1.HasOne("ResourcePulse.Domain.Projects.ExternalConstraint", null)
-                                .WithMany()
-                                .HasForeignKey("ConstraintId")
-                                .OnDelete(DeleteBehavior.Restrict)
-                                .HasConstraintName("fk_allocations_external_constraints_start_anchor_constraint_id");
-
-                            b1.HasOne("ResourcePulse.Domain.Projects.ProjectNode", null)
-                                .WithMany()
-                                .HasForeignKey("NodeId")
-                                .OnDelete(DeleteBehavior.Restrict)
-                                .HasConstraintName("fk_allocations_project_nodes_start_anchor_node_id");
-                        });
-
-                    b.Navigation("EndAnchor")
-                        .IsRequired();
-
-                    b.Navigation("StartAnchor")
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("ResourcePulse.Domain.Calendars.BusinessCalendar", b =>
