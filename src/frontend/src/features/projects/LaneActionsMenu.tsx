@@ -3,7 +3,7 @@ import { Button, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { MoreOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import type { BoardProject, CoverageBlock, DemandRow, LaneAction } from './boardModel';
+import { nodeWindowOf, type BoardProject, type CoverageBlock, type DemandRow, type LaneAction } from './boardModel';
 
 export type LaneActionsTarget =
   | { kind: 'person'; block: CoverageBlock; project: BoardProject }
@@ -33,10 +33,20 @@ export const LaneActionsMenu = memo(function LaneActionsMenu({ target, onAction 
       { key: 'reassign', label: t('projects.lane.actions.reassign') },
       { key: 'retarget', label: t('projects.lane.actions.retarget') },
       { type: 'divider' },
+      // One switch per edge (ADR-0035): the entry names the state it leads to.
+      target.block.startFollows
+        ? { key: 'pin:start', label: t('projects.lane.actions.pinStart') }
+        : { key: 'follow:start', label: t('projects.lane.actions.followStart') },
+      target.block.endFollows
+        ? { key: 'pin:end', label: t('projects.lane.actions.pinEnd') }
+        : { key: 'follow:end', label: t('projects.lane.actions.followEnd') },
+      { type: 'divider' },
       { key: 'remove', danger: true, label: t('projects.lane.actions.remove') },
     ];
   } else {
-    const noDates = !target.project.from || !target.project.to;
+    // A coverage is born as wide as the demand's node and follows it, so it is
+    // that node — not the project — that needs its planned dates.
+    const noDates = nodeWindowOf(target.project, target.demand.nodeId) === null;
     items = [
       {
         key: 'cover',
@@ -53,6 +63,11 @@ export const LaneActionsMenu = memo(function LaneActionsMenu({ target, onAction 
   const onClick: NonNullable<MenuProps['onClick']> = ({ key, domEvent }) => {
     domEvent.stopPropagation();
     if (target.kind === 'person') {
+      const [verb, edge] = key.split(':');
+      if (edge === 'start' || edge === 'end') {
+        onAction({ kind: verb === 'pin' ? 'pin' : 'follow', edge, block: target.block, project: target.project });
+        return;
+      }
       const k = key as 'promote' | 'demote' | 'remove' | 'reassign' | 'retarget';
       onAction({ kind: k, block: target.block, project: target.project });
     } else {

@@ -4,16 +4,19 @@ import { useTranslation } from 'react-i18next';
 import { useRolesGetAll } from '@/api/generated/roles/roles';
 import type { LoadResult, RoleReadDto } from '@/api/generated/schemas';
 import type { PersonPoolEntry } from './useProjectsBoard';
-import type { EditDemandPatch, LaneModalState } from './useLaneActions';
+import type { EditDemandPatch, LaneModalState, NewDemand } from './useLaneActions';
+import { peopleByRole } from './boardModel';
 import { useStyles } from './LaneActionModal.styles';
 
 export type LaneActionModalProps = {
-  state: LaneModalState;
+  // Covering has its own dialog (CoverDemandModal): it prices the coverage
+  // before creating it, which a one-field form cannot do.
+  state: Exclude<LaneModalState, { kind: 'cover' }>;
   submitting: boolean;
   personPool: PersonPoolEntry[];
   onReassign: (resourceId: string) => void;
   onRetarget: (demandId: string) => void;
-  onCover: (resourceId: string, percent: number) => void;
+  onAddDemand: (demand: NewDemand) => void;
   onEditDemand: (patch: EditDemandPatch) => void;
   onCancel: () => void;
 };
@@ -21,7 +24,7 @@ export type LaneActionModalProps = {
 type FormValues = {
   resourceId?: string;
   demandId?: string;
-  percent?: number;
+  projectNodeId?: string;
   roleId?: string;
   requiredHours?: number | null;
   ownerResourceId?: string | null;
@@ -36,7 +39,7 @@ export function LaneActionModal({
   personPool,
   onReassign,
   onRetarget,
-  onCover,
+  onAddDemand,
   onEditDemand,
   onCancel,
 }: LaneActionModalProps) {
@@ -44,7 +47,9 @@ export function LaneActionModal({
   const { styles } = useStyles();
   const [form] = Form.useForm<FormValues>();
 
-  const rolesQ = useRolesGetAll({ query: { enabled: state?.kind === 'editDemand' } });
+  const rolesQ = useRolesGetAll({
+    query: { enabled: state?.kind === 'editDemand' || state?.kind === 'addDemand' },
+  });
   const roleOptions = useMemo(
     () =>
       (((rolesQ.data as LoadResult | undefined)?.data ?? []) as RoleReadDto[])
@@ -53,9 +58,18 @@ export function LaneActionModal({
     [rolesQ.data],
   );
 
+  // The role the person is being picked for: the demand's own on the lane
+  // gestures, the one chosen in the form while a demand is being written.
+  const pickedRoleId = Form.useWatch('roleId', form);
+  const preferredRole =
+    state?.kind === 'reassign'
+        ? state.block.demandRoleName
+        : (roleOptions.find((r) => r.value === pickedRoleId)?.label ?? null);
+
+  const noRoleLabel = t('projects.lane.actions.noRoleGroup');
   const personOptions = useMemo(
-    () => personPool.map((p) => ({ value: p.id, label: p.roleName ? `${p.name} · ${p.roleName}` : p.name })),
-    [personPool],
+    () => peopleByRole(personPool, preferredRole, noRoleLabel),
+    [personPool, preferredRole, noRoleLabel],
   );
 
   const handleFinish = (values: FormValues) => {
@@ -66,8 +80,14 @@ export function LaneActionModal({
       case 'retarget':
         if (values.demandId) onRetarget(values.demandId);
         break;
-      case 'cover':
-        if (values.resourceId && values.percent) onCover(values.resourceId, values.percent);
+      case 'addDemand':
+        if (values.roleId && values.projectNodeId)
+          onAddDemand({
+            projectNodeId: values.projectNodeId,
+            roleId: values.roleId,
+            requiredHours: values.requiredHours ?? null,
+            ownerResourceId: values.ownerResourceId ?? null,
+          });
         break;
       case 'editDemand':
         if (values.roleId)
@@ -101,7 +121,9 @@ export function LaneActionModal({
                 showSearch
                 optionFilterProp="label"
                 placeholder={t('projects.lane.actions.reassignPersonPlaceholder')}
-                options={personOptions.filter((o) => o.value !== state.block.resourceId)}
+                options={personOptions
+                  .map((g) => ({ ...g, options: g.options.filter((o) => o.value !== state.block.resourceId) }))
+                  .filter((g) => g.options.length > 0)}
               />
             </Form.Item>
           ),
@@ -133,34 +155,56 @@ export function LaneActionModal({
             ),
         };
       }
-      case 'cover': {
+      case 'addDemand': {
+        // The node is where the demand LIVES, and therefore what its coverage
+        // can follow (ADR-0035): the project itself, or one of its phases.
+        const nodeOptions = [
+          { value: state.project.id, label: t('projects.lane.actions.demandNodeProject', { name: state.project.name }) },
+          ...state.project.phases.map((ph) => ({ value: ph.id, label: ph.label })),
+        ];
         return {
-          title: t('projects.lane.actions.coverTitle', { role: state.demand.roleName }),
-          okText: t('projects.lane.actions.coverCta'),
-          initialValues: { percent: 50 } as FormValues,
+          title: t('projects.lane.actions.addDemandTitle', { project: state.project.name }),
+          okText: t('projects.lane.actions.addDemandCta'),
+          initialValues: { projectNodeId: state.project.id } as FormValues,
           okDisabled: false,
           body: (
             <>
               <Form.Item
-                name="resourceId"
-                label={t('projects.lane.actions.coverPersonLabel')}
+                name="projectNodeId"
+                label={t('projects.lane.actions.demandNodeLabel')}
+                rules={[{ required: true }]}
+              >
+                <Select options={nodeOptions} />
+              </Form.Item>
+              <Form.Item
+                name="roleId"
+                label={t('projects.lane.actions.demandRoleLabel')}
                 rules={[{ required: true }]}
               >
                 <Select
                   showSearch
                   optionFilterProp="label"
-                  placeholder={t('projects.lane.actions.coverPersonPlaceholder')}
-                  options={personOptions}
+                  placeholder={t('projects.lane.actions.demandRolePlaceholder')}
+                  options={roleOptions}
+                  loading={rolesQ.isPending}
                 />
               </Form.Item>
               <Form.Item
-                name="percent"
-                label={t('projects.lane.actions.coverPercentLabel')}
-                rules={[{ required: true }]}
+                name="requiredHours"
+                label={t('projects.lane.actions.demandHoursLabel')}
+                extra={t('projects.lane.actions.demandHoursHintNew')}
               >
-                <InputNumber min={1} max={1000} step={5} className={styles.fullWidth} />
+                <InputNumber min={1} step={10} className={styles.fullWidth} />
               </Form.Item>
-              <Alert type="info" showIcon message={t('projects.lane.actions.coverPeriodNote')} />
+              <Form.Item name="ownerResourceId" label={t('projects.lane.actions.demandOwnerLabel')}>
+                <Select
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder={t('projects.lane.actions.demandOwnerPlaceholder')}
+                  options={personOptions}
+                />
+              </Form.Item>
             </>
           ),
         };

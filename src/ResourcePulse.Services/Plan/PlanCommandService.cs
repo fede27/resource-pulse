@@ -34,7 +34,8 @@ namespace ResourcePulse.Services.Plan;
 public sealed class PlanCommandService(
     ResourcePulseDbContext db,
     ICapacityQueryService capacity,
-    ICommitmentPolicyService commitmentPolicy) : IPlanCommandService
+    ICommitmentPolicyService commitmentPolicy,
+    IPlanConsequenceService consequences) : IPlanCommandService
 {
     public Task<ServiceResult<PlanCommandResult>> ExecuteAsync(
         PlanCommand command, CancellationToken ct = default) =>
@@ -412,15 +413,17 @@ public sealed class PlanCommandService(
         if (node is null) return NodeNotFound(c.NodeId);
         if (await CheckProjectStatusByNodeAsync(node.Id, ct) is { } e) return Fail(e);
 
+        // Before the first mutation: see IPlanConsequenceService.BeginAsync.
+        var pricing = await consequences.BeginAsync(ct);
+
         var before = NodeWindow.Of(node);
         try { node.Replan(c.PlannedStart, c.PlannedEnd); }
         catch (DomainException ex) { db.ChangeTracker.Clear(); return Fail(ServiceError.Conflict(ex.Message)); }
 
-        var (propErr, dragged) = await PropagateAsync(new Dictionary<Guid, ProjectNode> { [node.Id] = node }, "ReplanNode", ct);
+        var (propErr, dragged, moved) = await PropagateAsync(new Dictionary<Guid, ProjectNode> { [node.Id] = node }, "ReplanNode", ct);
         if (propErr is { } e2) { db.ChangeTracker.Clear(); return Fail(e2); }
 
-        return await FinalizeAsync(c, "replanNode", dragged, null, null, ct,
-            referentChanges: [ToNodeChange(node, before)]);
+        return await FinalizeMoveAsync(c, "replanNode", dragged, moved, [ToNodeChange(node, before)], pricing, ct);
     }
 
     private async Task<ServiceResult<PlanCommandResult>> MoveSubtreeAsync(MoveSubtreeCommand c, CancellationToken ct)
@@ -431,6 +434,9 @@ public sealed class PlanCommandService(
 
         // The node and every descendant (Path prefix), tracked. Only nodes that
         // carry a planned date move; the others have nothing to translate.
+        // Before the first mutation: see IPlanConsequenceService.BeginAsync.
+        var pricing = await consequences.BeginAsync(ct);
+
         var prefix = node.Path + "/";
         var subtree = await db.ProjectNodes
             .Where(p => p.Id == node.Id || p.Path.StartsWith(prefix))
@@ -446,11 +452,25 @@ public sealed class PlanCommandService(
         }
         catch (DomainException ex) { db.ChangeTracker.Clear(); return Fail(ServiceError.Conflict(ex.Message)); }
 
-        var (propErr, dragged) = await PropagateAsync(dated.ToDictionary(p => p.Id), "MoveSubtree", ct);
+        var (propErr, dragged, moved) = await PropagateAsync(dated.ToDictionary(p => p.Id), "MoveSubtree", ct);
         if (propErr is { } e2) { db.ChangeTracker.Clear(); return Fail(e2); }
 
-        return await FinalizeAsync(c, "moveSubtree", dragged, null, null, ct,
-            referentChanges: dated.Select(p => ToNodeChange(p, befores[p.Id])).ToList());
+        return await FinalizeMoveAsync(c, "moveSubtree", dragged, moved,
+            dated.Select(p => ToNodeChange(p, befores[p.Id])).ToList(), pricing, ct);
+    }
+
+    // The tail shared by the two node moves: price the consequence while the
+    // database still holds the "before" (ADR-0036), then commit or discard. One
+    // path for dryRun and execution, so the estimate IS the receipt.
+    private async Task<ServiceResult<PlanCommandResult>> FinalizeMoveAsync(
+        PlanCommand cmd, string kind, IReadOnlyList<PlanBlockChange> dragged, IReadOnlyList<Allocation> moved,
+        IReadOnlyList<PlanReferentChange> referentChanges, PlanPricing pricing, CancellationToken ct)
+    {
+        var priced = await consequences.PriceAsync(pricing, moved, referentChanges, ct);
+        if (priced.IsFailure) { db.ChangeTracker.Clear(); return Fail(priced.Error!); }
+
+        return await FinalizeAsync(cmd, kind, dragged, null, null, ct,
+            referentChanges: referentChanges, consequence: priced.Value);
     }
 
     // Re-snaps every boundary that still FOLLOWS one of `movedNodes` (I9).
@@ -458,13 +478,15 @@ public sealed class PlanCommandService(
     // implicit, so this is a plain ProjectNodeId filter, no anchor referent to
     // join. A block following on both edges follows both at once (FollowNodes),
     // so a shift longer than the block does not invert it half-way. Returns the
-    // blocks whose window actually changed: that count IS the confirmation.
+    // blocks whose window actually changed: that count IS the confirmation —
+    // as projections (`dragged`) and as the tracked aggregates (`moved`), which
+    // is what the consequence is priced from.
     //
     // Two refusals, both Conflict with nothing applied: a moved node lost a
     // planned date that some boundary follows (pin them first), and a re-snap
     // that would invert a block (the phase shrank past a pinned edge — no silent
     // shortening).
-    private async Task<(ServiceError? err, IReadOnlyList<PlanBlockChange> dragged)> PropagateAsync(
+    private async Task<(ServiceError? err, IReadOnlyList<PlanBlockChange> dragged, IReadOnlyList<Allocation> moved)> PropagateAsync(
         IReadOnlyDictionary<Guid, ProjectNode> movedNodes, string reason, CancellationToken ct)
     {
         var ids = movedNodes.Keys.ToList();
@@ -476,11 +498,12 @@ public sealed class PlanCommandService(
 
         foreach (var node in movedNodes.Values)
         {
-            if (ClearedDateError(node, BoundaryEdge.Start, dependants) is { } se) return (se, []);
-            if (ClearedDateError(node, BoundaryEdge.End, dependants) is { } ee) return (ee, []);
+            if (ClearedDateError(node, BoundaryEdge.Start, dependants) is { } se) return (se, [], []);
+            if (ClearedDateError(node, BoundaryEdge.End, dependants) is { } ee) return (ee, [], []);
         }
 
         var dragged = new List<PlanBlockChange>();
+        var moved = new List<Allocation>();
         foreach (var a in dependants)
         {
             var node = movedNodes[a.ProjectNodeId];
@@ -494,13 +517,16 @@ public sealed class PlanCommandService(
             {
                 return (ServiceError.Conflict(
                     $"Coverage {a.Id} ({oldStart:yyyy-MM-dd} to {oldEnd:yyyy-MM-dd}) cannot follow " +
-                    $"'{node.Name}': {ex.Message} Pin or shorten the block first."), []);
+                    $"'{node.Name}': {ex.Message} Pin or shorten the block first."), [], []);
             }
 
             if (a.PeriodStart != oldStart || a.PeriodEnd != oldEnd)
+            {
                 dragged.Add(ToChange(a, PlanChangeKind.Modified));
+                moved.Add(a);
+            }
         }
-        return (null, dragged);
+        return (null, dragged, moved);
     }
 
     // A planned date cannot be cleared while boundaries take it: that would leave
@@ -715,7 +741,8 @@ public sealed class PlanCommandService(
         IReadOnlyList<PlanDemandChange>? demandChanges = null,
         IReadOnlyList<Demand>? demandsToAdd = null,
         IReadOnlyList<Demand>? demandsToRemove = null,
-        IReadOnlyList<PlanReferentChange>? referentChanges = null)
+        IReadOnlyList<PlanReferentChange>? referentChanges = null,
+        PlanConsequence? consequence = null)
     {
         if (!cmd.DryRun)
         {
@@ -741,7 +768,8 @@ public sealed class PlanCommandService(
             Committed = !cmd.DryRun,
             Changes = changes,
             DemandChanges = demandChanges ?? [],
-            ReferentChanges = referentChanges ?? []
+            ReferentChanges = referentChanges ?? [],
+            Consequence = consequence
         });
     }
 

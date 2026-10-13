@@ -9,18 +9,28 @@ import {
   getLoadGetResourceLoadProfilesQueryKey,
 } from '@/api/generated/load/load';
 import { usePlanCommandsExecute } from '@/api/generated/plan-commands/plan-commands';
+import { getProjectNodesGetAllQueryKey } from '@/api/generated/project-nodes/project-nodes';
+import { getProjectsGetActiveInRangeQueryKey } from '@/api/generated/projects/projects';
 import {
   AllocationStatus,
+  BoundaryEdge,
+  CommitmentLevel,
   type ChangeStatusCommand,
+  type CreateByHoursCommand,
   type CreateCommand,
+  type CreateDemandCommand,
   type DeleteCommand,
   type DeleteDemandCommand,
   type EditDemandCommand,
+  type FollowNodeCommand,
+  type PinCommand,
   type ReassignCommand,
   type RetargetCommand,
 } from '@/api/generated/schemas';
 import { useApiError } from '@/lib/errors';
 import type { BoardProject, CoverageBlock, DemandRow, LaneAction } from './boardModel';
+import type { CoverSubmitRow } from './CoverDemandModal';
+import { hoursToTimeSpan as hoursToWire } from './coverModel';
 
 // The wire format of POST /api/plan/commands needs the System.Text.Json
 // discriminator `kind`, which Swashbuckle omits from the schema (so orval's
@@ -32,8 +42,12 @@ type LaneKind =
   | 'reassign'
   | 'retarget'
   | 'create'
+  | 'createByHours'
+  | 'createDemand'
   | 'editDemand'
-  | 'deleteDemand';
+  | 'deleteDemand'
+  | 'followNode'
+  | 'pin';
 function kinded<T extends object>(kind: LaneKind, body: T): T {
   return { kind, ...body } as T;
 }
@@ -55,6 +69,7 @@ export type LaneModalState =
   | { kind: 'retarget'; block: CoverageBlock; project: BoardProject }
   | { kind: 'cover'; demand: DemandRow; project: BoardProject }
   | { kind: 'editDemand'; demand: DemandRow; project: BoardProject }
+  | { kind: 'addDemand'; project: BoardProject }
   | null;
 
 export type EditDemandPatch = {
@@ -62,6 +77,9 @@ export type EditDemandPatch = {
   requiredHours: number | null;
   ownerResourceId: string | null;
 };
+
+// The node is chosen once, at creation: a demand never changes node.
+export type NewDemand = EditDemandPatch & { projectNodeId: string };
 
 // Orchestrates the contextual actions on the expanded coverage / open-role
 // lanes. In-place reversible gestures (promote/demote) commit directly; the
@@ -87,6 +105,10 @@ export function useLaneActions() {
     void queryClient.invalidateQueries({ queryKey: getLoadGetDemandCoverageInRangeQueryKey() });
     void queryClient.invalidateQueries({ queryKey: getLoadGetResourceLoadProfilesQueryKey() });
     void queryClient.invalidateQueries({ queryKey: getLoadGetOpenDemandsQueryKey() });
+    // followNode / pin change how many boundaries follow a node, which the
+    // node reads carry (anchoredEdgeCount) for the phases and for the root.
+    void queryClient.invalidateQueries({ queryKey: getProjectNodesGetAllQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getProjectsGetActiveInRangeQueryKey() });
   };
 
   // `success` is a pre-resolved message (call sites pass t('literal') so the
@@ -101,9 +123,37 @@ export function useLaneActions() {
     }
   };
 
+  const commitmentLabel = (level: CommitmentLevel): string => {
+    switch (level) {
+      case CommitmentLevel.Exploratory:
+        return t('projects.newProject.commitmentExploratory');
+      case CommitmentLevel.Planned:
+        return t('projects.newProject.commitmentPlanned');
+      case CommitmentLevel.Committed:
+        return t('projects.newProject.commitmentCommitted');
+      default:
+        return t('projects.newProject.commitmentCritical');
+    }
+  };
+
   const impl = (action: LaneAction) => {
     switch (action.kind) {
       case 'promote':
+        // I6: a coverage can be Hard only on a project whose commitment level
+        // admits it. The board already knows (`proposed` is the server's own
+        // derivation from the commitment policy), so say WHY here, in the
+        // user's words, instead of sending a command that can only be refused.
+        // The server still refuses on its own — this is the explanation, not
+        // the rule.
+        if (action.project.proposed) {
+          modal.warning({
+            title: t('projects.lane.actions.promoteBlockedTitle', { project: action.project.name }),
+            content: t('projects.lane.actions.promoteBlockedBody', {
+              level: commitmentLabel(action.project.commitmentLevel),
+            }),
+          });
+          break;
+        }
         void commit<ChangeStatusCommand>(
           'changeStatus',
           { id: action.block.id, status: AllocationStatus.Hard },
@@ -150,6 +200,27 @@ export function useLaneActions() {
             ),
         });
         break;
+      // Reversible and exact, so both commit directly. followNode SNAPS the
+      // edge to the node's planned date; pin releases it where it is. A node
+      // without that planned date refuses with a Conflict that names it.
+      case 'follow':
+        void commit<FollowNodeCommand>(
+          'followNode',
+          { id: action.block.id, edge: action.edge === 'start' ? BoundaryEdge.Start : BoundaryEdge.End },
+          action.edge === 'start'
+            ? t('projects.lane.actions.followStartSuccess')
+            : t('projects.lane.actions.followEndSuccess'),
+        );
+        break;
+      case 'pin':
+        void commit<PinCommand>(
+          'pin',
+          { id: action.block.id, edge: action.edge === 'start' ? BoundaryEdge.Start : BoundaryEdge.End },
+          action.edge === 'start'
+            ? t('projects.lane.actions.pinStartSuccess')
+            : t('projects.lane.actions.pinEndSuccess'),
+        );
+        break;
       case 'reassign':
       case 'retarget':
         setLaneModal({ kind: action.kind, block: action.block, project: action.project });
@@ -157,6 +228,9 @@ export function useLaneActions() {
       case 'cover':
       case 'editDemand':
         setLaneModal({ kind: action.kind, demand: action.demand, project: action.project });
+        break;
+      case 'addDemand':
+        setLaneModal({ kind: 'addDemand', project: action.project });
         break;
     }
   };
@@ -205,22 +279,55 @@ export function useLaneActions() {
     );
   };
 
-  const onCoverSubmit = (resourceId: string, percent: number) => {
+  // One plan command per row, in order. No dates on any of them (ADR-0035 §2):
+  // the absence is the instruction, and each block is born as wide as the
+  // demand's node and follows it. Hours go as `createByHours`, so the quota
+  // that is stored is the one the SERVER derives, not the one shown here.
+  //
+  // The rows are separate commands, not one transaction: if a later one is
+  // refused, the earlier coverages exist. The board is refreshed either way and
+  // the message says how far it got.
+  const onCoverSubmit = (rows: CoverSubmitRow[]) => {
     if (laneModal?.kind !== 'cover') return;
-    const { demand, project } = laneModal;
-    if (!project.from || !project.to) return;
+    const { demand } = laneModal;
+    void withSubmitting(async () => {
+      let created = 0;
+      try {
+        for (const row of rows) {
+          const base = { demandId: demand.demandId, resourceId: row.resourceId, status: AllocationStatus.Tentative };
+          await execute.mutateAsync({
+            data:
+              row.hours !== null
+                ? kinded<CreateByHoursCommand>('createByHours', { ...base, targetHours: hoursToWire(row.hours) })
+                : kinded<CreateCommand>('create', { ...base, percent: row.percent ?? 0 }),
+          });
+          created += 1;
+        }
+        message.success(
+          created === 1
+            ? t('projects.lane.actions.coverSuccess')
+            : t('projects.cover.successMany', { count: created }),
+        );
+      } catch (e) {
+        showApiError(e);
+        if (created > 0) message.warning(t('projects.cover.partial', { created, total: rows.length }));
+      }
+      if (created > 0) invalidateBoard();
+    });
+  };
+
+  const onAddDemandSubmit = (demand: NewDemand) => {
+    if (laneModal?.kind !== 'addDemand') return;
     void withSubmitting(() =>
-      commit<CreateCommand>(
-        'create',
+      commit<CreateDemandCommand>(
+        'createDemand',
         {
-          demandId: demand.demandId,
-          resourceId,
-          periodStart: project.from!,
-          periodEnd: project.to!,
-          percent,
-          status: AllocationStatus.Tentative,
+          projectNodeId: demand.projectNodeId,
+          roleId: demand.roleId,
+          requiredHours: hoursToTimeSpan(demand.requiredHours),
+          ownerResourceId: demand.ownerResourceId,
         },
-        t('projects.lane.actions.coverSuccess'),
+        t('projects.lane.actions.addDemandSuccess'),
       ),
     );
   };
@@ -255,6 +362,7 @@ export function useLaneActions() {
     onReassignSubmit,
     onRetargetSubmit,
     onCoverSubmit,
+    onAddDemandSubmit,
     onEditDemandSubmit,
   };
 }

@@ -13180,6 +13180,28 @@
           }
         ]
       },
+      "PlanBeyondAvailability": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "days": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hours": {
+            "type": "string",
+            "format": "date-span"
+          }
+        },
+        "additionalProperties": false
+      },
       "PlanBlockChange": {
         "type": "object",
         "properties": {
@@ -13226,6 +13248,51 @@
           },
           "endAnchor": {
             "$ref": "#/components/schemas/AnchorKind"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlanBlockShift": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "demandId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "allocationPercent": {
+            "type": "number",
+            "format": "double"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AllocationStatus"
+          },
+          "oldStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "oldEnd": {
+            "type": "string",
+            "format": "date"
+          },
+          "newStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "newEnd": {
+            "type": "string",
+            "format": "date"
+          },
+          "hoursDelta": {
+            "type": "string",
+            "format": "date-span"
           }
         },
         "additionalProperties": false
@@ -13288,6 +13355,47 @@
               "$ref": "#/components/schemas/PlanReferentChange"
             },
             "nullable": true
+          },
+          "consequence": {
+            "$ref": "#/components/schemas/PlanConsequence"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlanConsequence": {
+        "type": "object",
+        "properties": {
+          "today": {
+            "type": "string",
+            "format": "date"
+          },
+          "frozenUntil": {
+            "type": "string",
+            "format": "date"
+          },
+          "touchesFrozen": {
+            "type": "boolean"
+          },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanBlockShift"
+            },
+            "nullable": true
+          },
+          "people": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanPersonConsequence"
+            },
+            "nullable": true
+          },
+          "demands": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanDemandConsequence"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -13335,6 +13443,152 @@
         },
         "additionalProperties": false
       },
+      "PlanDemandConsequence": {
+        "type": "object",
+        "properties": {
+          "demandId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nodeName": {
+            "type": "string",
+            "nullable": true
+          },
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "roleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "requiredHours": {
+            "type": "string",
+            "format": "date-span",
+            "nullable": true
+          },
+          "coveredBefore": {
+            "type": "string",
+            "format": "date-span"
+          },
+          "coveredAfter": {
+            "type": "string",
+            "format": "date-span"
+          },
+          "gapBefore": {
+            "type": "string",
+            "format": "date-span",
+            "nullable": true
+          },
+          "gapAfter": {
+            "type": "string",
+            "format": "date-span",
+            "nullable": true
+          },
+          "stateChanged": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlanLoadInterval": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "percentBefore": {
+            "type": "number",
+            "format": "double"
+          },
+          "percentAfter": {
+            "type": "number",
+            "format": "double"
+          },
+          "bandChanged": {
+            "type": "boolean"
+          },
+          "overloadedAfter": {
+            "type": "boolean"
+          },
+          "otherProjects": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanProjectRef"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlanPersonConsequence": {
+        "type": "object",
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resourceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "hoursDelta": {
+            "type": "string",
+            "format": "date-span"
+          },
+          "availableFrom": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "availableUntil": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "intervals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanLoadInterval"
+            },
+            "nullable": true
+          },
+          "zeroCapacity": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanZeroCapacityRun"
+            },
+            "nullable": true
+          },
+          "beyondAvailability": {
+            "$ref": "#/components/schemas/PlanBeyondAvailability"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlanProjectRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "PlanReferentChange": {
         "type": "object",
         "properties": {
@@ -13370,6 +13624,24 @@
           "newEnd": {
             "type": "string",
             "format": "date",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlanZeroCapacityRun": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "reason": {
+            "type": "string",
             "nullable": true
           }
         },

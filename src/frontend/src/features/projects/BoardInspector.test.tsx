@@ -66,6 +66,8 @@ function renderInspector(target: InspectTarget) {
     target,
     onClose: vi.fn(),
     onAction: vi.fn(),
+    onLaneAction: vi.fn(),
+    onInspect: vi.fn(),
     projects: [project],
     bands,
     overloadThreshold: 100,
@@ -115,6 +117,32 @@ describe('<BoardInspector>', () => {
     expect(screen.getByText('Sovraccarico al picco')).toBeInTheDocument();
     // Giulia's tentative block is NOT Luca's — no tentative note for Luca.
     expect(screen.queryByText(/non conteggiato/)).not.toBeInTheDocument();
+  });
+
+  it('hole target: the coverage face is that one role, not the whole project', async () => {
+    const hole = project.holes[0]!;
+    renderInspector({ kind: 'hole', project, demand: hole });
+
+    expect(await screen.findByRole('heading', { name: hole.roleName })).toBeInTheDocument();
+    // What is asked and what is missing, for this demand alone.
+    // Nothing covers it: required and uncovered read the same figure.
+    expect(screen.getAllByText(`${Math.round(hole.requiredH!)}h`)).toHaveLength(2);
+    expect(screen.getByText('Cosa fare')).toBeInTheDocument();
+    // The project's reconciliation is not on this face.
+    expect(screen.queryByText(/Righe di domanda/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/consumate · nessun target/)).not.toBeInTheDocument();
+  });
+
+  it('hole target: covering starts from here, and the project is one link away', async () => {
+    const hole = project.holes[0]!;
+    const props = renderInspector({ kind: 'hole', project, demand: hole });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Copri…' }));
+    expect(props.onLaneAction).toHaveBeenCalledWith({ kind: 'cover', demand: hole, project });
+
+    await user.click(screen.getByText(`Tutte le domande di ${project.name}`));
+    expect(props.onInspect).toHaveBeenCalledWith({ kind: 'project', project });
   });
 
   it('hole target: utilization face explains there is no profile', async () => {

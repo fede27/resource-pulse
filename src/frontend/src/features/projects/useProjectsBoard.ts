@@ -80,6 +80,10 @@ export type ProjectsBoard = {
   // derived from the batch capacity read (consolidation P1/P3 — replaces the
   // per-block resolved-hours sidecar). Null while capacity is still loading.
   blockHoursOf: (block: CoverageBlock) => number | null;
+  // A person's DECLARED availability, when they have one. Displayed against
+  // the plan, never propagated into it (ADR-0035 §3): the board hatches the
+  // part of a block that crosses it and nothing else reads it.
+  availabilityOf: (resourceId: string) => { from: string | null; until: string | null } | null;
   fetchRange: { from: string; to: string };
 };
 
@@ -238,6 +242,16 @@ export function useProjectsBoard(domain: BoardDomain): ProjectsBoard {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [resourcesQ.data, rolesQ.data]);
 
+  const availabilityOf = useMemo(() => {
+    const map = new Map<string, { from: string | null; until: string | null }>();
+    for (const r of (resourcesQ.data?.data ?? []) as ResourceReadDto[]) {
+      if (r.id && (r.availableFrom || r.availableUntil)) {
+        map.set(r.id, { from: r.availableFrom ?? null, until: r.availableUntil ?? null });
+      }
+    }
+    return (resourceId: string) => map.get(resourceId) ?? null;
+  }, [resourcesQ.data]);
+
   const personNames = useMemo(() => {
     const map = new Map<string, string>();
     for (const p of personPool) map.set(p.id, p.name);
@@ -275,6 +289,7 @@ export function useProjectsBoard(domain: BoardDomain): ProjectsBoard {
     peakByPerson: (id) => peaks.get(id) ?? 0,
     profileByPerson: (id) => profiles.get(id) ?? [],
     blockHoursOf,
+    availabilityOf,
     fetchRange: range,
   };
 }

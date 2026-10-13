@@ -21,15 +21,22 @@ public abstract class ControllerFoundation : ControllerBase
             ? Created($"{Request.Path}/{idSelector(result.Value)}", result.Value)
             : ErrorResponse(result.Error!);
 
+    // `Problem(...)` already IS the response: an ObjectResult carrying the
+    // ProblemDetails and its status code. It must be returned as it is. Wrapping
+    // it in NotFound(...) / Conflict(...) serializes the ObjectResult ITSELF as
+    // the body — {"value":{...},"formatters":[],...} — which keeps the status
+    // code and buries `detail` one level down, where no client looks: every
+    // refusal then reads "an error occurred" and the reason is lost. That is
+    // what this method did from the first controller until 2026-10-13.
     private IActionResult ErrorResponse(ServiceError error) =>
         error.Kind switch
         {
-            ServiceErrorKind.NotFound   => NotFound(Problem(error.Message, statusCode: 404, title: "Not Found")),
+            ServiceErrorKind.NotFound   => Problem(error.Message, statusCode: 404, title: "Not Found"),
             ServiceErrorKind.Validation => BadRequest(CreateValidationProblem(error)),
-            ServiceErrorKind.Conflict   => Conflict(Problem(error.Message, statusCode: 409, title: "Conflict")),
-            ServiceErrorKind.Forbidden  => StatusCode(403, Problem(error.Message, statusCode: 403, title: "Forbidden")),
-            ServiceErrorKind.Failure    => StatusCode(500, Problem(error.Message, statusCode: 500, title: "Internal Server Error")),
-            _                           => StatusCode(500, Problem(error.Message, statusCode: 500, title: "Internal Server Error"))
+            ServiceErrorKind.Conflict   => Problem(error.Message, statusCode: 409, title: "Conflict"),
+            ServiceErrorKind.Forbidden  => Problem(error.Message, statusCode: 403, title: "Forbidden"),
+            ServiceErrorKind.Failure    => Problem(error.Message, statusCode: 500, title: "Internal Server Error"),
+            _                           => Problem(error.Message, statusCode: 500, title: "Internal Server Error")
         };
 
     private static ValidationProblemDetails CreateValidationProblem(ServiceError error)

@@ -298,7 +298,7 @@ public static class LoadCalculator
     }
 
     // capacity * (percent / 100), carried in decimal ticks to avoid double drift.
-    private static TimeSpan HoursFor(TimeSpan capacity, decimal percent)
+    internal static TimeSpan HoursFor(TimeSpan capacity, decimal percent)
     {
         if (capacity == TimeSpan.Zero) return TimeSpan.Zero;
         var ticks = (long)(capacity.Ticks * percent / 100m);

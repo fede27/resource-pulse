@@ -1,9 +1,11 @@
-import { memo } from 'react';
+import { memo, useRef, useState } from 'react';
+import dayjs from 'dayjs';
 import { CheckOutlined, RightOutlined, SwapOutlined, UserOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { alpha, blue, neutral, red, text } from '@/app/palette';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
 import {
+  nodeWindowOf,
   statusChipKey,
   type AtRiskReason,
   type BoardProject,
@@ -14,6 +16,16 @@ import {
   type ProjectAction,
   type Verdict,
 } from './boardModel';
+import { ProjectStatus } from '@/api/generated/schemas';
+import {
+  dragDate,
+  edgeBounds,
+  withEdgeAt,
+  type EdgeBounds,
+  type ReplanEdge,
+  type ReplanGesture,
+  type ReplanPreview,
+} from './replanModel';
 import { ProjectActionsMenu } from './ProjectActionsMenu';
 import { LaneActionsMenu } from './LaneActionsMenu';
 import {
@@ -35,7 +47,15 @@ import {
 } from './boardColors';
 import type { BoardGeo } from '@/components/board';
 import type { Metric } from './ProjectsBoardToolbar';
-import { PROPOSED_HATCH, TENTATIVE_HATCH, useStyles } from './ProjectRow.styles';
+import {
+  BEYOND_AVAILABILITY_HATCH,
+  EDGE_HANDLE_W,
+  PROPOSED_HATCH,
+  TENTATIVE_HATCH,
+  useStyles,
+} from './ProjectRow.styles';
+
+export type Availability = { from: string | null; until: string | null };
 
 export type ProjectRowProps = {
   project: BoardProject;
@@ -58,9 +78,28 @@ export type ProjectRowProps = {
   // Range-scoped hours of a block (% × capacity, consolidation P3); null while
   // the batch capacity read is still streaming in.
   blockHoursOf: (block: CoverageBlock) => number | null;
+  // The edge of one of THIS project's nodes that was released and is being
+  // priced or awaits confirmation; null for every other row, so the memo holds.
+  preview: ReplanPreview | null;
+  // Null when the viewer cannot plan: no grips, as with the kebabs.
+  onReplan: ((gesture: ReplanGesture) => void) | null;
+  availabilityOf: (resourceId: string) => Availability | null;
 };
 
+// What the lanes and the envelope need to draw a move in flight.
+type MoveProps = { pv: ReplanPreview | null; onDrag: (preview: ReplanPreview | null) => void };
+
 const round = (n: number) => Math.round(n);
+const ISO = 'YYYY-MM-DD';
+const dayAfter = (iso: string) => dayjs(iso).add(1, 'day').format(ISO);
+const dayBefore = (iso: string) => dayjs(iso).subtract(1, 'day').format(ISO);
+
+const follows = (b: CoverageBlock, edge: ReplanEdge) => (edge === 'start' ? b.startFollows : b.endFollows);
+
+// The blocks a move of `nodeId`'s edge would drag: the ones sitting on that
+// node whose same edge follows it. Computable from what the board already holds.
+const followersOf = (project: BoardProject, nodeId: string, edge: ReplanEdge) =>
+  project.demands.flatMap((d) => d.coverage).filter((b) => b.nodeId === nodeId && follows(b, edge));
 
 // One project on the board: the envelope row (aggregated) plus, when expanded,
 // one lane per coverage block and one lane per uncovered demand. Memoized:
@@ -71,6 +110,10 @@ export const ProjectRow = memo(function ProjectRow(props: ProjectRowProps) {
   const { t } = useTranslation();
   const { styles, cx } = useStyles();
   const vc = VERDICT_COLORS[props.verdict.verdict];
+  // The edge while it is being dragged lives here; once released it comes back
+  // from the page as `preview`, so the ghost survives until commit or cancel.
+  const [drag, setDrag] = useState<ReplanPreview | null>(null);
+  const pv = drag ?? props.preview;
 
   const lanes: Array<{ type: 'block'; block: CoverageBlock } | { type: 'hole'; demand: DemandRow }> = [
     ...project.demands.flatMap((d) => d.coverage.map((block) => ({ type: 'block' as const, block }))),
@@ -152,12 +195,14 @@ export const ProjectRow = memo(function ProjectRow(props: ProjectRowProps) {
                 <span className={styles.verdictNote}>{verdictNote}</span>
               </div>
             </div>
-            {props.onAction && <ProjectActionsMenu project={project} onAction={props.onAction} />}
+            {props.onAction && (
+              <ProjectActionsMenu project={project} onAction={props.onAction} onLaneAction={props.onLaneAction} />
+            )}
           </div>
         </div>
         {/* dynamic: axis width computed from the domain. */}
         <div className={styles.axisCell} style={{ width: geo.contentW }}>
-          <Envelope {...props} />
+          <Envelope {...props} pv={pv} onDrag={setDrag} />
         </div>
       </div>
 
@@ -165,7 +210,7 @@ export const ProjectRow = memo(function ProjectRow(props: ProjectRowProps) {
         <div className={styles.lanes}>
           {lanes.map((lane, i) =>
             lane.type === 'block' ? (
-              <BlockLane key={`b-${lane.block.id}-${i}`} {...props} block={lane.block} />
+              <BlockLane key={`b-${lane.block.id}-${i}`} {...props} block={lane.block} pv={pv} />
             ) : (
               <HoleLane key={`h-${lane.demand.demandId}-${i}`} {...props} demand={lane.demand} />
             ),
@@ -178,9 +223,11 @@ export const ProjectRow = memo(function ProjectRow(props: ProjectRowProps) {
 
 // ── Envelope (aggregated bar with phases / totals) ────────────────────────
 
-function Envelope({ project, geo, metric, onInspect }: ProjectRowProps) {
+type MovableNode = { id: string; name: string; from: string; to: string; root: boolean };
+
+function Envelope({ project, geo, metric, onInspect, onReplan, pv, onDrag }: ProjectRowProps & MoveProps) {
   const { t } = useTranslation();
-  const { styles } = useStyles();
+  const { styles, cx } = useStyles();
   if (!project.from || !project.to) return null;
 
   const left = geo.xPx(project.from);
@@ -188,8 +235,20 @@ function Envelope({ project, geo, metric, onInspect }: ProjectRowProps) {
   const proposed = project.proposed;
   const { requiredH, usefulH, gapH } = project.totals;
 
+  // The root and its phases are the only things on this board that can be
+  // dragged, and the only referents a block can have (ADR-0035).
+  const nodes: MovableNode[] = [
+    { id: project.id, name: project.name, from: project.from, to: project.to, root: true },
+    ...project.phases.map((ph) => ({ id: ph.id, name: ph.label, from: ph.from, to: ph.to, root: false })),
+  ];
+  const moving = pv ? nodes.find((n) => n.id === pv.nodeId) : undefined;
+  // A closed or cancelled root refuses every plan mutation (I4): no grips.
+  const movable =
+    project.status !== ProjectStatus.Closed && project.status !== ProjectStatus.Cancelled ? onReplan : null;
+
   return (
-    // dynamic: bar geometry + status-driven colours.
+    <>
+    {/* dynamic: bar geometry + status-driven colours. */}
     <div
       className={styles.envelope}
       style={{
@@ -220,6 +279,15 @@ function Envelope({ project, geo, metric, onInspect }: ProjectRowProps) {
           >
             {/* dynamic: phase label colour follows the block axis. */}
             <span style={{ color: BLOCK_TEXT }}>{ph.label}</span>
+            {ph.followCount > 0 && (
+              <span
+                className={styles.followBadge}
+                style={{ color: BLOCK_TEXT }}
+                title={t('projects.replan.followBadge', { count: ph.followCount })}
+              >
+                {ph.followCount}
+              </span>
+            )}
           </div>
         );
       })}
@@ -254,19 +322,180 @@ function Envelope({ project, geo, metric, onInspect }: ProjectRowProps) {
         </div>
       )}
     </div>
+    {moving && pv && <NodeGhost node={moving} pv={pv} geo={geo} />}
+    {moving && pv && (
+      // dynamic: the counter rides the edge in flight.
+      <span
+        className={styles.dragCounter}
+        style={{ left: geo.xPx(pv.edge === 'start' ? pv.newFrom : dayAfter(pv.newTo)) }}
+      >
+        {t('projects.replan.counter', {
+          date: dayjs(pv.edge === 'start' ? pv.newFrom : pv.newTo).format('D MMM'),
+          delta: signedDays(
+            pv.edge === 'start'
+              ? dayjs(pv.newFrom).diff(dayjs(moving.from), 'day')
+              : dayjs(pv.newTo).diff(dayjs(moving.to), 'day'),
+          ),
+          count: followersOf(project, moving.id, pv.edge).length,
+        })}
+      </span>
+    )}
+    {movable &&
+      nodes.flatMap((n) =>
+        (['start', 'end'] as const).map((edge) => (
+          <EdgeHandle
+            key={`${n.id}-${edge}`}
+            projectId={project.id}
+            node={n}
+            edge={edge}
+            bounds={edgeBounds(n, edge, n.root ? null : nodes[0]!, n.root ? project.phases : [])}
+            geo={geo}
+            label={
+              edge === 'start'
+                ? t('projects.replan.handleStart', { node: n.name })
+                : t('projects.replan.handleEnd', { node: n.name })
+            }
+            className={cx(styles.edgeHandle, n.root && styles.edgeHandleRoot)}
+            onDrag={onDrag}
+            onReplan={movable}
+          />
+        )),
+      )}
+    </>
+  );
+}
+
+const signedDays = (n: number) => (n > 0 ? `+${n}` : `${n}`);
+
+// The dashed outline of what the node gains (primary) or gives up (neutral).
+function NodeGhost({ node, pv, geo }: { node: MovableNode; pv: ReplanPreview; geo: BoardGeo }) {
+  const { styles, cx } = useStyles();
+  const spans: Array<{ from: string; to: string; cut: boolean }> = [];
+  if (pv.newTo > node.to) spans.push({ from: dayAfter(node.to), to: pv.newTo, cut: false });
+  if (pv.newTo < node.to) spans.push({ from: dayAfter(pv.newTo), to: node.to, cut: true });
+  if (pv.newFrom < node.from) spans.push({ from: pv.newFrom, to: dayBefore(node.from), cut: false });
+  if (pv.newFrom > node.from) spans.push({ from: node.from, to: dayBefore(pv.newFrom), cut: true });
+  return (
+    <>
+      {spans.map((sp) => (
+        // dynamic: ghost geometry from the edge in flight.
+        <div
+          key={sp.from}
+          className={cx(styles.ghostNode, sp.cut && styles.ghostNodeCut)}
+          style={{ left: geo.xPx(sp.from), width: geo.wPxInclusive(sp.from, sp.to) }}
+        />
+      ))}
+    </>
+  );
+}
+
+// The grip on one edge of a node. Dragging moves the edge by whole days and,
+// on release, hands the gesture to the page — which prices it with ONE dryRun
+// (ADR-0036). Nothing is read while the pointer is down: during the drag the
+// board shows only the container. Arrow keys nudge by a day (a week with
+// Shift), so the gesture is not pointer-only.
+function EdgeHandle({
+  projectId,
+  node,
+  edge,
+  bounds,
+  geo,
+  label,
+  className,
+  onDrag,
+  onReplan,
+}: {
+  projectId: string;
+  node: MovableNode;
+  edge: ReplanEdge;
+  bounds: EdgeBounds;
+  geo: BoardGeo;
+  label: string;
+  className: string;
+  onDrag: (preview: ReplanPreview | null) => void;
+  onReplan: (gesture: ReplanGesture) => void;
+}) {
+  const originX = useRef<number | null>(null);
+  const edgeISO = edge === 'start' ? node.from : dayAfter(node.to);
+  if (!geo.inDomain(edge === 'start' ? node.from : node.to)) return null;
+
+  const base = { edge, oldFrom: node.from, oldTo: node.to };
+  const gestureAt = (date: string): ReplanGesture => ({
+    projectId,
+    nodeId: node.id,
+    nodeName: node.name,
+    ...base,
+    ...withEdgeAt(base, date),
+  });
+  // The root's grips sit just OUTSIDE the envelope and a phase's just inside,
+  // so a phase that ends where its project ends still has two distinct grips.
+  const offset = edge === 'start' ? (node.root ? -EDGE_HANDLE_W : -2) : node.root ? 0 : 2 - EDGE_HANDLE_W;
+  // Kept inside the timeline: a project that starts or ends on the domain's
+  // first or last day would otherwise have its grip clipped by the scroller.
+  const left = Math.max(0, Math.min(geo.contentW - EDGE_HANDLE_W, geo.xPx(edgeISO) + offset));
+
+  return (
+    // dynamic: grip position from the node's planned date.
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label}
+      title={label}
+      tabIndex={0}
+      className={className}
+      style={{ left }}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+        originX.current = e.clientX;
+      }}
+      onPointerMove={(e) => {
+        if (originX.current === null) return;
+        const g = gestureAt(dragDate(base, e.clientX - originX.current, geo.dayPx, bounds));
+        onDrag({ projectId, nodeId: node.id, edge, newFrom: g.newFrom, newTo: g.newTo });
+      }}
+      onPointerUp={(e) => {
+        if (originX.current === null) return;
+        const g = gestureAt(dragDate(base, e.clientX - originX.current, geo.dayPx, bounds));
+        originX.current = null;
+        onDrag(null);
+        onReplan(g);
+      }}
+      onPointerCancel={() => {
+        originX.current = null;
+        onDrag(null);
+      }}
+      onKeyDown={(e) => {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        e.preventDefault();
+        const days = (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 7 : 1);
+        onReplan(gestureAt(dragDate(base, days * geo.dayPx, geo.dayPx, bounds)));
+      }}
+    />
   );
 }
 
 // ── Person lane (label + coverage bar) ────────────────────────────────────
 
-function BlockLane(props: ProjectRowProps & { block: CoverageBlock }) {
-  const { block, geo, project } = props;
+function BlockLane(props: ProjectRowProps & { block: CoverageBlock; pv: ReplanPreview | null }) {
+  const { block, geo, project, pv } = props;
   const { t } = useTranslation();
   const { styles, cx } = useStyles();
   const vc = VERDICT_COLORS[props.verdict.verdict];
   const peak = props.peakByPerson(block.resourceId);
   const conflict = peak >= props.overloadThreshold;
   const inspect = () => props.onInspect({ kind: 'person', project, resourceId: block.resourceId, block });
+
+  // Where this block lands if the edge in flight is the one it follows.
+  const dragged = pv !== null && block.nodeId === pv.nodeId && follows(block, pv.edge);
+  const ghost = dragged
+    ? { from: pv.edge === 'start' ? pv.newFrom : block.from, to: pv.edge === 'end' ? pv.newTo : block.to }
+    : null;
+  const availability = props.availabilityOf(block.resourceId);
+  const barLeft = geo.xPx(block.from);
+  const barRight = barLeft + geo.wPxInclusive(block.from, block.to);
 
   return (
     <div className={styles.lane}>
@@ -312,7 +541,38 @@ function BlockLane(props: ProjectRowProps & { block: CoverageBlock }) {
       </div>
       {/* dynamic: axis width computed from the domain. */}
       <div className={styles.axisCell} style={{ width: geo.contentW }}>
-        <CoverageBar {...props} onClick={inspect} />
+        <CoverageBar {...props} onClick={inspect} dim={dragged} availability={availability} />
+        {ghost && ghost.from <= ghost.to && (
+          // dynamic: ghost geometry from the edge in flight.
+          <div
+            className={styles.ghostBar}
+            style={{ left: geo.xPx(ghost.from), width: geo.wPxInclusive(ghost.from, ghost.to) }}
+          />
+        )}
+        {!block.startFollows && (
+          // dynamic: ink mark on the pinned start edge.
+          <span
+            className={cx(styles.pinMark, styles.pinMarkStart)}
+            style={{ left: barLeft - 1 }}
+            title={t('projects.replan.pinnedStart')}
+          />
+        )}
+        {!block.endFollows && (
+          // dynamic: ink mark on the pinned end edge.
+          <span
+            className={cx(styles.pinMark, styles.pinMarkEnd)}
+            style={{ left: barRight - 1 }}
+            title={t('projects.replan.pinnedEnd')}
+          />
+        )}
+        {availability?.until && availability.until < block.to && geo.inDomain(availability.until) && (
+          // dynamic: the person's declared boundary, where this block crosses it.
+          <span className={styles.availabilityLine} style={{ left: geo.xPx(dayAfter(availability.until)) }} />
+        )}
+        {availability?.from && availability.from > block.from && geo.inDomain(availability.from) && (
+          // dynamic: the person's declared boundary, where this block crosses it.
+          <span className={styles.availabilityLine} style={{ left: geo.xPx(availability.from) }} />
+        )}
       </div>
     </div>
   );
@@ -324,7 +584,14 @@ function CoverageBar({
   metric,
   blockHoursOf,
   onClick,
-}: ProjectRowProps & { block: CoverageBlock; onClick: () => void }) {
+  dim,
+  availability,
+}: ProjectRowProps & {
+  block: CoverageBlock;
+  onClick: () => void;
+  dim: boolean;
+  availability: Availability | null;
+}) {
   const { t } = useTranslation();
   const { styles } = useStyles();
   const left = geo.xPx(block.from);
@@ -347,7 +614,7 @@ function CoverageBar({
         background: tentative ? TENTATIVE_HATCH : BLOCK_HARD_BG,
         border: tentative ? `1px dashed ${BLOCK_BORDER}` : `1px solid ${BLOCK_BORDER}`,
         borderLeft: `3px solid ${tentative ? BLOCK_ACCENT_SOFT : BLOCK_ACCENT}`,
-        opacity: tentative ? 0.92 : 1,
+        opacity: dim ? 0.4 : tentative ? 0.92 : 1,
       }}
       onClick={onClick}
       title={`${block.resourceName} · ${block.percent}% · ${t(
@@ -362,6 +629,30 @@ function CoverageBar({
         <span className={styles.barNote} style={{ color: BLOCK_TEXT }}>
           {t('projects.bar.tentative')}
         </span>
+      )}
+      {availability?.until && availability.until < block.to && (
+        // dynamic: the stretch of this block past the declared availability.
+        <span
+          className={styles.beyondAvailability}
+          title={t('projects.replan.beyondAvailability')}
+          style={{
+            left: Math.max(0, geo.xPx(dayAfter(availability.until)) - left),
+            right: 0,
+            backgroundImage: BEYOND_AVAILABILITY_HATCH,
+          }}
+        />
+      )}
+      {availability?.from && availability.from > block.from && (
+        // dynamic: the stretch of this block before the declared availability.
+        <span
+          className={styles.beyondAvailability}
+          title={t('projects.replan.beyondAvailability')}
+          style={{
+            left: 0,
+            width: Math.max(0, Math.min(width, geo.xPx(availability.from) - left)),
+            backgroundImage: BEYOND_AVAILABILITY_HATCH,
+          }}
+        />
       )}
     </div>
   );
@@ -379,6 +670,10 @@ function HoleLane(props: ProjectRowProps & { demand: DemandRow }) {
   const { styles, cx } = useStyles();
   const vc = VERDICT_COLORS[props.verdict.verdict];
   const inspect = () => props.onInspect({ kind: 'hole', project, demand });
+  // The hole has no span of its own (it is a scalar), so it is drawn over the
+  // window of the NODE the demand lives on: a role asked for on one phase is
+  // not spread over the whole project.
+  const home = nodeWindowOf(project, demand.nodeId) ?? nodeWindowOf(project, project.id);
 
   return (
     <div className={styles.lane}>
@@ -397,6 +692,7 @@ function HoleLane(props: ProjectRowProps & { demand: DemandRow }) {
             </div>
             <div className={styles.laneSub} style={{ color: HOLE_ACCENT }}>
               <span>
+                {home && !home.root ? `${home.name} · ` : ''}
                 {t('projects.lane.holeOwner', { owner: demand.ownerName ?? t('projects.lane.ownerFallback') })}
               </span>
             </div>
@@ -410,13 +706,13 @@ function HoleLane(props: ProjectRowProps & { demand: DemandRow }) {
       </div>
       {/* dynamic: axis width computed from the domain. */}
       <div className={styles.axisCell} style={{ width: geo.contentW }}>
-        {project.from && project.to && (
-          // dynamic: indicator spans the project window (scalar hole, no own span).
+        {home && (
+          // dynamic: indicator spans the demand's node window (scalar hole, no own span).
           <div
             className={styles.bar}
             style={{
-              left: geo.xPx(project.from),
-              width: geo.wPxInclusive(project.from, project.to),
+              left: geo.xPx(home.from),
+              width: geo.wPxInclusive(home.from, home.to),
               background: `repeating-linear-gradient(135deg, ${HOLE_BG} 0 6px, ${neutral.white} 6px 12px)`,
               border: `1.5px dashed ${HOLE_ACCENT}`,
             }}

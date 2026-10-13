@@ -346,6 +346,11 @@ export const useStyles = createStyles(({ token, css }) => ({
       text-align: right;
     }
   `,
+  holeActions: css`
+    display: flex;
+    flex-wrap: wrap;
+    gap: ${token.marginXS}px;
+  `,
   factMono: css`
     font-variant-numeric: tabular-nums;
     font-weight: 600;

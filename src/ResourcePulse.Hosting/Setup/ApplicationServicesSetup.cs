@@ -59,6 +59,7 @@ public static class ApplicationServicesSetup
         builder.Services.AddScoped<IAllocationService, AllocationService>();
         builder.Services.AddScoped<IDemandService, DemandService>();
         builder.Services.AddScoped<IPlanCommandService, PlanCommandService>();
+        builder.Services.AddScoped<IPlanConsequenceService, PlanConsequenceService>();
         builder.Services.AddScoped<ILoadQueryService, LiveLoadQueryService>();
         builder.Services.AddScoped<IMeService, MeService>();
         builder.Services.AddScoped<ITenantResolver, TenantResolver>();

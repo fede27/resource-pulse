@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Tabs } from 'antd';
+import { Button, Tabs } from 'antd';
 import { SwapOutlined, UserOutlined, WarningOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -8,8 +8,15 @@ import { gold, neutral, orange, text } from '@/app/palette';
 import { InitialsAvatar } from '@/components/domain/InitialsAvatar';
 import { InspectorDrawer } from '@/components/domain/InspectorDrawer';
 import { bandLabelFor, loadColor, type LoadBand } from '@/lib/loadBands';
-import type { BoardProject, CoverageBlock, DemandRow, InspectTarget, ProjectAction } from './boardModel';
-import { tentativeNotesOf } from './boardModel';
+import type {
+  BoardProject,
+  CoverageBlock,
+  DemandRow,
+  InspectTarget,
+  LaneAction,
+  ProjectAction,
+} from './boardModel';
+import { nodeWindowOf, tentativeNotesOf } from './boardModel';
 import { ProjectActionsMenu } from './ProjectActionsMenu';
 import {
   BLOCK_BORDER,
@@ -33,6 +40,11 @@ export type BoardInspectorProps = {
   onClose: () => void;
   // Null when the viewer cannot plan — same rule as the row kebab (ADR-0030).
   onAction: ((project: BoardProject, action: ProjectAction) => void) | null;
+  // The plan-command channel, for the gestures the open-role face offers. Null
+  // for a viewer, as on the rows.
+  onLaneAction: ((action: LaneAction) => void) | null;
+  // Lets a focused face step back out to its project.
+  onInspect: (target: InspectTarget) => void;
   projects: BoardProject[];
   bands: LoadBand[];
   overloadThreshold: number;
@@ -54,7 +66,13 @@ export function BoardInspector(props: BoardInspectorProps) {
 
   // Derived selection (repo convention): a new target resets the face — person
   // opens on utilization, else coverage — without a setState-in-effect.
-  const targetKey = target ? `${target.kind}:${target.kind === 'person' ? target.resourceId : target.project.id}` : '';
+  const targetKey = !target
+    ? ''
+    : target.kind === 'person'
+      ? `person:${target.resourceId}`
+      : target.kind === 'hole'
+        ? `hole:${target.demand.demandId}`
+        : `project:${target.project.id}`;
   const [picked, setPicked] = useState<{ key: string; face: Face } | null>(null);
   const face: Face =
     picked && picked.key === targetKey
@@ -101,10 +119,17 @@ function CoverageFace({
   target,
   onSwitchFace,
   blockHoursOf,
+  onLaneAction,
+  onInspect,
+  projects,
 }: BoardInspectorProps & { target: InspectTarget; onSwitchFace: () => void }) {
   const { t } = useTranslation();
   const { styles } = useStyles();
   const { project } = target;
+
+  if (target.kind === 'hole') {
+    return <HoleCoverage target={target} projects={projects} onLaneAction={onLaneAction} onInspect={onInspect} />;
+  }
 
   if (target.kind === 'person') {
     const rows = project.demands.filter((d) => d.coverage.some((c) => c.resourceId === target.resourceId));
@@ -173,6 +198,122 @@ function CoverageFace({
       ))}
 
       <div className={styles.ruleBox}>{t('projects.inspector.coverageRule')}</div>
+    </div>
+  );
+}
+
+// An open role, on its own: what is asked, where, what is missing and what to
+// do about it. The other roles of the project are one link away and nowhere
+// else — next to this one they are noise.
+function HoleCoverage({
+  target,
+  projects,
+  onLaneAction,
+  onInspect,
+}: {
+  target: Extract<InspectTarget, { kind: 'hole' }>;
+  projects: BoardProject[];
+  onLaneAction: ((action: LaneAction) => void) | null;
+  onInspect: (target: InspectTarget) => void;
+}) {
+  const { t } = useTranslation();
+  const { styles } = useStyles();
+  // The target is a snapshot taken at click time; the board has since moved on
+  // (an edit, a cover). Read the live rows, fall back to the snapshot.
+  const project = projects.find((p) => p.id === target.project.id) ?? target.project;
+  const demand = project.demands.find((d) => d.demandId === target.demand.demandId) ?? target.demand;
+  const home = nodeWindowOf(project, demand.nodeId);
+  const day = (iso: string) => dayjs(iso).format('D MMM YYYY');
+
+  return (
+    <div>
+      <div className={styles.personHeader}>
+        {/* dynamic: ghost avatar carries the hole accent. */}
+        <span
+          className={styles.ghostDot}
+          style={{ width: 40, height: 40, border: `1.5px dashed ${HOLE_ACCENT}`, color: HOLE_ACCENT, background: HOLE_BG }}
+        >
+          <UserOutlined style={{ fontSize: 18 }} />
+        </span>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: HOLE_TEXT }}>{demand.roleName}</h3>
+          <div style={{ fontSize: 13, color: text.tertiary }}>
+            {home && !home.root ? `${project.name} · ${home.name}` : project.name}
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.miniRow}>
+        <MiniHours
+          label={t('projects.inspector.required')}
+          value={demand.requiredH !== null ? `${round(demand.requiredH)}h` : '—'}
+        />
+        <MiniHours
+          label={t('projects.inspector.covered')}
+          value={`${round(demand.coveredH)}h`}
+          color={DEMAND_STATUS_COLORS.covered.color}
+        />
+        <MiniHours
+          label={t('projects.inspector.uncoveredLabel')}
+          value={demand.gapH !== null ? `${round(Math.max(0, demand.gapH))}h` : '—'}
+          color={demand.gapH !== null && demand.gapH > 0 ? HOLE_TEXT : text.tertiary}
+        />
+      </div>
+
+      <FactRow
+        label={t('projects.inspector.holeWhere')}
+        value={home && !home.root ? home.name : t('projects.inspector.holeWholeProject')}
+      />
+      <FactRow
+        label={t('projects.inspector.holeWindow')}
+        value={home ? `${day(home.from)} – ${day(home.to)}` : t('projects.inspector.holeNoWindow')}
+        mono
+      />
+      <FactRow
+        label={t('projects.inspector.holeOwnerLabel')}
+        value={demand.ownerName ?? t('projects.lane.ownerFallback')}
+      />
+
+      {demand.coverage.length > 0 && (
+        <>
+          <div className={styles.sectionTitle}>{t('projects.inspector.holeCoveredBy')}</div>
+          <div className={styles.coverageEntries}>
+            {demand.coverage.map((c) => (
+              <div key={c.id} className={styles.coverageEntry}>
+                <InitialsAvatar name={c.resourceName} size={20} />
+                <span>{c.resourceName}</span>
+                <span className={styles.entryNumbers}>{c.percent}%</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {onLaneAction && (
+        <>
+          <div className={styles.sectionTitle}>{t('projects.inspector.holeActions')}</div>
+          <div className={styles.holeActions}>
+            <Button
+              type="primary"
+              disabled={!home}
+              {...(!home ? { title: t('projects.lane.actions.coverNoDates') } : {})}
+              onClick={() => onLaneAction({ kind: 'cover', demand, project })}
+            >
+              {t('projects.lane.actions.cover')}
+            </Button>
+            <Button onClick={() => onLaneAction({ kind: 'editDemand', demand, project })}>
+              {t('projects.lane.actions.editDemand')}
+            </Button>
+          </div>
+        </>
+      )}
+
+      <div className={styles.ruleBox}>
+        {t('projects.inspector.holeRule')}{' '}
+        <a onClick={() => onInspect({ kind: 'project', project })}>
+          {t('projects.inspector.holeAllDemands', { project: project.name })}
+        </a>
+      </div>
     </div>
   );
 }

@@ -25,6 +25,9 @@ internal sealed class PlanCommandHarness
     public PlanCommandService Service { get; }
     public ICommitmentPolicyService CommitmentPolicy { get; }
 
+    // "Today" for everything rolling-from-today (the frozen zone of ADR-0036).
+    public static readonly DateOnly Today = new(2026, 6, 22);
+
     public Guid CalendarId { get; } = Guid.NewGuid();
     public Guid ResourceId { get; private set; }
     public Guid OtherResourceId { get; private set; }
@@ -41,7 +44,17 @@ internal sealed class PlanCommandHarness
         // gate reads the (get-or-seeded) threshold from config (ADR-0020).
         CommitmentPolicy = new CommitmentPolicyService(
             new Repository<CommitmentPolicyConfiguration, Guid>(db), db);
-        Service = new PlanCommandService(db, new FixedCapacity(capacityPerDay), CommitmentPolicy);
+        var capacity = new FixedCapacity(capacityPerDay);
+        // The real consequence service over the same InMemory db, on a pinned
+        // clock: the frozen zone is rolling-from-today, and a test that reads
+        // the wall clock passes until the day it does not.
+        var consequences = new PlanConsequenceService(
+            db,
+            capacity,
+            new LoadBandConfigurationService(new Repository<LoadBandConfiguration, Guid>(db), db),
+            new TimeFenceConfigurationService(new Repository<TimeFenceConfiguration, Guid>(db), db),
+            new FixedClock(Today));
+        Service = new PlanCommandService(db, capacity, CommitmentPolicy, consequences);
     }
 
     // Seeds an active resource, a root Project node (Draft, given commitment),
@@ -303,4 +316,9 @@ internal sealed class FixedCapacity(TimeSpan perDay) : ICapacityQueryService
             list.Add(new DailyCapacityDto { Date = d, Hours = perDay });
         return list;
     }
+}
+
+internal sealed class FixedClock(DateOnly today) : TimeProvider
+{
+    public override DateTimeOffset GetUtcNow() => new(today.ToDateTime(new TimeOnly(12, 0)), TimeSpan.Zero);
 }

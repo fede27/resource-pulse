@@ -4,13 +4,17 @@ import type { MenuProps } from 'antd';
 import { CheckOutlined, MoreOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CommitmentLevel } from '@/api/generated/schemas';
-import { availableActionKinds, type BoardProject, type ProjectAction } from './boardModel';
+import { availableActionKinds, type BoardProject, type LaneAction, type ProjectAction } from './boardModel';
 
 export type ProjectActionsMenuProps = {
   project: BoardProject;
   // Keyed by the project so the page can pass ONE stable callback to every
   // row (ProjectRow is memoized).
   onAction: (project: BoardProject, action: ProjectAction) => void;
+  // The plan-command channel, when the host has one (the board row does, the
+  // inspector header does not): it carries "add demand", which is a plan
+  // mutation and not a step of the project's state machine.
+  onLaneAction?: ((action: LaneAction) => void) | null | undefined;
 };
 
 type CommitmentLabelKey =
@@ -32,12 +36,16 @@ const COMMITMENT_LEVELS: { level: CommitmentLevel; labelKey: CommitmentLabelKey 
 export const ProjectActionsMenu = memo(function ProjectActionsMenu({
   project,
   onAction,
+  onLaneAction,
 }: ProjectActionsMenuProps) {
   const { t } = useTranslation();
   const kinds = availableActionKinds(project.status);
   if (kinds.length === 0) return null;
 
   const items: MenuProps['items'] = [];
+  if (onLaneAction) {
+    items.push({ key: 'addDemand', label: t('projects.lane.actions.addDemand') }, { type: 'divider' });
+  }
   if (kinds.includes('start')) items.push({ key: 'start', label: t('projects.actions.start') });
   if (kinds.includes('resume')) items.push({ key: 'resume', label: t('projects.actions.resume') });
   if (kinds.includes('suspend')) items.push({ key: 'suspend', label: t('projects.actions.suspend') });
@@ -60,6 +68,10 @@ export const ProjectActionsMenu = memo(function ProjectActionsMenu({
 
   const onClick: NonNullable<MenuProps['onClick']> = ({ key, domEvent }) => {
     domEvent.stopPropagation();
+    if (key === 'addDemand') {
+      onLaneAction?.({ kind: 'addDemand', project });
+      return;
+    }
     if (key.startsWith('commitment:')) {
       onAction(project, {
         kind: 'setCommitment',

@@ -20,6 +20,7 @@ import {
   holeIsMine,
   lifecycleOf,
   peakOf,
+  peopleByRole,
   portfolioHealth,
   projectRowHeight,
   projectVerdict,
@@ -353,5 +354,41 @@ describe('portfolio & profile helpers', () => {
       minISO: '2026-02-01',
       maxISO: '2026-08-01',
     });
+  });
+});
+
+describe('peopleByRole', () => {
+  const pool = [
+    { id: '1', name: 'Alessandro Riva', roleName: 'Designer' },
+    { id: '2', name: 'Beatrice Ferrari', roleName: 'Sviluppatore' },
+    { id: '3', name: 'Anna Blu', roleName: 'Project Manager' },
+    { id: '4', name: 'Alice Parisi', roleName: 'Project Manager' },
+    { id: '5', name: 'Zeno Neri', roleName: null },
+    { id: '6', name: 'Alice Costa', roleName: 'Sviluppatore' },
+  ];
+
+  it('puts the role being picked for first, then the other roles alphabetically', () => {
+    const groups = peopleByRole(pool, 'Project Manager', 'Senza ruolo');
+    expect(groups.map((g) => g.label)).toEqual(['Project Manager', 'Designer', 'Sviluppatore', 'Senza ruolo']);
+  });
+
+  it('sorts people alphabetically inside each role', () => {
+    const groups = peopleByRole(pool, 'Project Manager', 'Senza ruolo');
+    expect(groups[0]!.options.map((o) => o.label)).toEqual(['Alice Parisi', 'Anna Blu']);
+    expect(groups[2]!.options.map((o) => o.label)).toEqual(['Alice Costa', 'Beatrice Ferrari']);
+  });
+
+  it('without a role to prefer, the groups are simply alphabetical', () => {
+    expect(peopleByRole(pool, null, 'Senza ruolo').map((g) => g.label)).toEqual([
+      'Designer',
+      'Project Manager',
+      'Sviluppatore',
+      'Senza ruolo',
+    ]);
+  });
+
+  it('adds no empty "no role" group when everyone has one', () => {
+    const groups = peopleByRole(pool.filter((p) => p.roleName), 'Designer', 'Senza ruolo');
+    expect(groups.map((g) => g.label)).toEqual(['Designer', 'Project Manager', 'Sviluppatore']);
   });
 });

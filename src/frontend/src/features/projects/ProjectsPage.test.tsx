@@ -265,6 +265,44 @@ describe('<ProjectsPage>', () => {
     });
   });
 
+  it('promoting to Hard on a project whose commitment does not admit it explains why, and sends nothing', { timeout: 30_000 }, async () => {
+    // Active ("avviato") and Planned are two different axes: only the second
+    // decides whether a coverage may be Hard (I6).
+    seedProjectsBoard({
+      projects: [{ ...acmeRoot, status: ProjectStatus.Active, commitmentLevel: CommitmentLevel.Planned, isProposed: true }],
+    });
+    server.use(
+      http.get('*/api/allocations/in-range', () =>
+        HttpResponse.json([
+          {
+            id: 'a-luca',
+            demandId: 'd-dev',
+            resourceId: 'r-luca',
+            resourceName: 'Luca Ferri',
+            projectNodeId: acmeRoot.id,
+            rootProjectId: acmeRoot.id,
+            periodStart: acmeRoot.plannedStart,
+            periodEnd: acmeRoot.plannedEnd,
+            allocationPercent: 60,
+            status: AllocationStatus.Tentative,
+          },
+        ]),
+      ),
+    );
+    const bodies: CapturedCommand[] = [];
+    capturePlanCommands(bodies);
+    const user = userEvent.setup();
+    renderWithProviders(<ProjectsPage />);
+
+    await expandAcme(user);
+    await user.click(screen.getByLabelText('Azioni copertura'));
+    await user.click(await screen.findByText('Promuovi a Hard'));
+
+    expect((await screen.findAllByText(/una copertura non può diventare Hard/)).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Il commitment del progetto è «Pianificato»/)).toBeInTheDocument();
+    expect(bodies).toHaveLength(0);
+  });
+
   it('demotes a hard coverage from the person-lane kebab (direct commit)', { timeout: 30_000 }, async () => {
     seedProjectsBoard();
     const bodies: CapturedCommand[] = [];
@@ -303,8 +341,22 @@ describe('<ProjectsPage>', () => {
     expect(bodies).toEqual([{ kind: 'delete', id: 'a-luca' }]);
   });
 
-  it('covers an open role from the hole-lane kebab picker (create, tentative)', { timeout: 30_000 }, async () => {
+  it('covers an open role in HOURS from the hole-lane kebab (createByHours, tentative, no dates)', { timeout: 30_000 }, async () => {
     seedProjectsBoard();
+    // The dialog prices every candidate from the two batch reads over the
+    // demand's node window: Anna has 8 h a day and nothing else on.
+    server.use(
+      http.get('*/api/resources/capacity', ({ request }) => {
+        const url = new URL(request.url);
+        return HttpResponse.json([
+          {
+            resourceId: 'r-anna',
+            segments: [{ from: url.searchParams.get('from'), to: url.searchParams.get('to'), hoursPerDay: '08:00:00' }],
+          },
+        ]);
+      }),
+      http.get('*/api/resources/load-profiles', () => HttpResponse.json([{ resourceId: 'r-anna', segments: [] }])),
+    );
     const bodies: CapturedCommand[] = [];
     capturePlanCommands(bodies);
     const user = userEvent.setup();
@@ -313,26 +365,31 @@ describe('<ProjectsPage>', () => {
     await expandAcme(user);
     await user.click(screen.getByLabelText('Azioni domanda'));
     await user.click(await screen.findByText('Copri…'));
-    // Cover modal: pick a person (% defaults 50). Scope the combobox to the
-    // dialog — the toolbar behind it has its own Selects.
-    expect(await screen.findByText('Copri «Grafico» con una persona')).toBeInTheDocument();
+    // The demand is on screen before anything is chosen, with its residual.
+    expect(await screen.findByText('Copri «Grafico»')).toBeInTheDocument();
     const dialog = screen.getByRole('dialog');
-    await user.click(within(dialog).getByRole('combobox'));
+    expect(within(dialog).getByText('60 h richieste', { exact: false })).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('combobox', { name: 'Persona' }));
     const opts = await screen.findAllByText(/Anna Bianchi/);
     await user.click(opts.find((el) => el.closest('.ant-select-item-option'))!);
-    await user.click(screen.getByRole('button', { name: 'Copri' }));
+    // The field was born with the uncovered hours; the button says them.
+    await user.click(await within(dialog).findByRole('button', { name: 'Copri 60 h' }));
 
     expect(
       await screen.findByText('Domanda coperta', undefined, { timeout: 5000 }),
     ).toBeInTheDocument();
     expect(bodies).toHaveLength(1);
     expect(bodies[0]).toMatchObject({
-      kind: 'create',
+      kind: 'createByHours',
       demandId: 'd-grafico',
       resourceId: 'r-anna',
-      percent: 50,
+      targetHours: '2.12:00:00',
       status: AllocationStatus.Tentative,
     });
+    // No dates: the block is born as wide as the demand's node and follows it.
+    expect(bodies[0]).not.toHaveProperty('periodStart');
+    expect(bodies[0]).not.toHaveProperty('periodEnd');
   });
 
   it('edits a demand: required hours go out as a .NET constant TimeSpan, notes untouched', { timeout: 30_000 }, async () => {

@@ -35,9 +35,12 @@ import { BoardInspector } from './BoardInspector';
 import { NewProjectPanel } from './NewProjectPanel';
 import { ProjectReasonModal } from './ProjectReasonModal';
 import { LaneActionModal } from './LaneActionModal';
+import { CoverDemandModal } from './CoverDemandModal';
 import { useCreateProject } from './useCreateProject';
 import { useProjectActions } from './useProjectActions';
 import { useLaneActions } from './useLaneActions';
+import { useNodeReplan } from './useNodeReplan';
+import { ReplanBar } from './ReplanBar';
 import { BoardLegend } from './BoardLegend';
 import { ProjectsBoardToolbar, type Metric } from './ProjectsBoardToolbar';
 import { ProjectRow } from './ProjectRow';
@@ -93,6 +96,7 @@ export function ProjectsPage() {
   );
   const actions = useProjectActions();
   const laneActions = useLaneActions();
+  const replan = useNodeReplan();
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollNonce, setScrollNonce] = useState(0);
@@ -300,6 +304,9 @@ export function ProjectsPage() {
               peakByPerson={board.peakByPerson}
               overloadThreshold={board.overloadThreshold}
               blockHoursOf={board.blockHoursOf}
+              preview={replan.preview?.projectId === s.item.project.id ? replan.preview : null}
+              onReplan={canPlan ? replan.start : null}
+              availabilityOf={board.availabilityOf}
             />
           ),
         )}
@@ -319,6 +326,8 @@ export function ProjectsPage() {
         target={inspect}
         onClose={() => setInspect(null)}
         onAction={canPlan ? actions.run : null}
+        onLaneAction={canPlan ? laneActions.run : null}
+        onInspect={setInspect}
         projects={board.projects}
         bands={board.bands}
         overloadThreshold={board.overloadThreshold}
@@ -326,6 +335,23 @@ export function ProjectsPage() {
         profileByPerson={board.profileByPerson}
         peakByPerson={board.peakByPerson}
         blockHoursOf={board.blockHoursOf}
+      />
+
+      <CoverDemandModal
+        state={laneActions.laneModal?.kind === 'cover' ? laneActions.laneModal : null}
+        submitting={laneActions.laneSubmitting}
+        personPool={board.personPool}
+        bands={board.bands}
+        onSubmit={laneActions.onCoverSubmit}
+        onCancel={laneActions.closeModal}
+      />
+
+      <ReplanBar
+        state={replan.state}
+        bands={board.bands}
+        onAccept={replan.accept}
+        onDismiss={replan.dismiss}
+        onUndo={replan.undo}
       />
 
       <NewProjectPanel
@@ -345,12 +371,12 @@ export function ProjectsPage() {
       />
 
       <LaneActionModal
-        state={laneActions.laneModal}
+        state={laneActions.laneModal?.kind === 'cover' ? null : laneActions.laneModal}
         submitting={laneActions.laneSubmitting}
         personPool={board.personPool}
         onReassign={laneActions.onReassignSubmit}
         onRetarget={laneActions.onRetargetSubmit}
-        onCover={laneActions.onCoverSubmit}
+        onAddDemand={laneActions.onAddDemandSubmit}
         onEditDemand={laneActions.onEditDemandSubmit}
         onCancel={laneActions.closeModal}
       />

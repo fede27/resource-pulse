@@ -23,12 +23,16 @@ function makeBlock(hard: boolean): CoverageBlock {
     hard,
     mismatch: false,
     notes: null,
+    nodeId: 'p1',
+    startFollows: false,
+    endFollows: true,
   };
 }
 
 function makeDemand(): DemandRow {
   return {
     demandId: 'd2',
+    nodeId: 'p1',
     roleId: 'role-grafico',
     roleName: 'Grafico',
     inferred: false,
@@ -60,6 +64,7 @@ function makeProject(over: Partial<BoardProject> = {}): BoardProject {
     commitmentLevel: CommitmentLevel.Committed,
     from: '2026-01-01',
     to: '2026-06-01',
+    followCount: 0,
     phases: [],
     demands: [],
     holes: [],
@@ -103,6 +108,24 @@ describe('<LaneActionsMenu>', () => {
     await user.click(screen.getByLabelText('Azioni copertura'));
     await user.click(await screen.findByText('Riassegna…'));
     expect(onAction).toHaveBeenCalledWith({ kind: 'reassign', block, project });
+  });
+
+  it('person lane: each edge offers the state it is NOT in, and dispatches it', async () => {
+    // The fixture block has a pinned start and a following end.
+    const onAction = vi.fn();
+    const block = makeBlock(true);
+    const project = makeProject();
+    const { user } = renderWithProviders(
+      <LaneActionsMenu target={{ kind: 'person', block, project }} onAction={onAction} />,
+    );
+    await user.click(screen.getByLabelText('Azioni copertura'));
+
+    expect(await screen.findByText('Inizio: segui la fase')).toBeInTheDocument();
+    expect(screen.getByText('Fine: fissa a questa data')).toBeInTheDocument();
+    expect(screen.queryByText('Fine: segui la fase')).not.toBeInTheDocument();
+
+    await user.click(screen.getByText('Inizio: segui la fase'));
+    expect(onAction).toHaveBeenCalledWith({ kind: 'follow', edge: 'start', block, project });
   });
 
   it('hole lane: shows cover/editDemand/deleteDemand and dispatches deleteDemand', async () => {

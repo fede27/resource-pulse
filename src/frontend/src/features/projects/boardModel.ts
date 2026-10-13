@@ -14,6 +14,7 @@
 
 import {
   AllocationStatus,
+  AnchorKind,
   CommitmentLevel,
   DemandProvenance,
   ProjectNodeType,
@@ -53,12 +54,21 @@ export type CoverageBlock = {
   hard: boolean;
   mismatch: boolean;
   notes: string | null;
+  // The node the block's demand lives on — its only possible referent
+  // (ADR-0035) — and, per edge, whether the block follows that node's planned
+  // boundary or is pinned to its own date.
+  nodeId: string;
+  startFollows: boolean;
+  endFollows: boolean;
 };
 
 export type DemandRowStatus = 'covered' | 'partial' | 'uncovered' | 'over' | 'noTarget';
 
 export type DemandRow = {
   demandId: string;
+  // The node the demand lives on: the root, or one of its phases. It is where
+  // the demand is drawn and what its coverage follows (ADR-0035).
+  nodeId: string;
   roleId: string;
   roleName: string;
   inferred: boolean;
@@ -75,7 +85,9 @@ export type DemandRow = {
   status: DemandRowStatus;
 };
 
-export type BoardPhase = { id: string; label: string; from: string; to: string };
+// `followCount` counts BOUNDARIES that follow the node, not blocks (the DTO's
+// anchoredEdgeCount): what a move of this node would drag.
+export type BoardPhase = { id: string; label: string; from: string; to: string; followCount: number };
 
 export type BoardProject = {
   id: string;
@@ -92,6 +104,7 @@ export type BoardProject = {
   commitmentLevel: CommitmentLevel;
   from: string | null; // planned dates
   to: string | null;
+  followCount: number; // boundaries following the ROOT's own planned dates
   phases: BoardPhase[];
   demands: DemandRow[];
   holes: DemandRow[]; // uncovered demands (the "da riassegnare" lanes)
@@ -121,6 +134,9 @@ export function toCoverageBlock(a: AllocationReadDto): CoverageBlock {
     // demand asks. A person without a role is not a mismatch — nothing to compare.
     mismatch: resourceRoleName !== null && demandRoleName !== '' && resourceRoleName !== demandRoleName,
     notes: a.notes ?? null,
+    nodeId: a.projectNodeId ?? '',
+    startFollows: a.startAnchor === AnchorKind.FollowsNode,
+    endFollows: a.endAnchor === AnchorKind.FollowsNode,
   };
 }
 
@@ -142,6 +158,7 @@ export function toDemandRow(d: DemandCoverageDto, blocks: CoverageBlock[]): Dema
   const overH = requiredH === null ? 0 : Math.max(0, coveredH - requiredH);
   return {
     demandId: d.demandId ?? '',
+    nodeId: d.projectNodeId ?? '',
     roleId: d.roleId ?? '',
     roleName: d.roleName ?? '—',
     inferred: d.provenance === DemandProvenance.Inferred,
@@ -157,6 +174,31 @@ export function toDemandRow(d: DemandCoverageDto, blocks: CoverageBlock[]): Dema
     mismatch: blocks.some((b) => b.mismatch),
     status: demandRowStatus(requiredH, coveredH, blocks.length > 0),
   };
+}
+
+// Boundaries (not blocks) that follow `nodeId`, counted from the blocks the
+// board already holds. The node list read does not resolve the server-side
+// count, and the two agree by construction: a follower is a block ON the node.
+const followingEdges = (blocks: CoverageBlock[], nodeId: string): number =>
+  blocks.reduce(
+    (n, b) => (b.nodeId === nodeId ? n + (b.startFollows ? 1 : 0) + (b.endFollows ? 1 : 0) : n),
+    0,
+  );
+
+// The planned window of the node a demand lives on, with its name. Null when
+// the node has no complete planned window (an undated phase is not on the
+// board): the caller falls back to the project, and a coverage cannot follow it.
+export function nodeWindowOf(
+  project: BoardProject,
+  nodeId: string,
+): { name: string; from: string; to: string; root: boolean } | null {
+  if (nodeId === project.id || nodeId === '') {
+    return project.from && project.to
+      ? { name: project.name, from: project.from, to: project.to, root: true }
+      : null;
+  }
+  const phase = project.phases.find((ph) => ph.id === nodeId);
+  return phase ? { name: phase.label, from: phase.from, to: phase.to, root: false } : null;
 }
 
 export function buildBoardProject(
@@ -184,6 +226,7 @@ export function buildBoardProject(
       label: n.name ?? '',
       from: n.plannedStart!,
       to: n.plannedEnd!,
+      followCount: followingEdges(blocks, n.id ?? ''),
     }))
     .sort((a, b) => a.from.localeCompare(b.from));
 
@@ -210,6 +253,7 @@ export function buildBoardProject(
     commitmentLevel: root.commitmentLevel ?? CommitmentLevel.Planned,
     from: root.plannedStart ?? null,
     to: root.plannedEnd ?? null,
+    followCount: followingEdges(blocks, root.id ?? ''),
     phases,
     demands,
     holes: demands.filter((d) => d.uncovered),
@@ -503,11 +547,50 @@ export type LaneAction =
   | { kind: 'remove'; block: CoverageBlock; project: BoardProject }
   | { kind: 'reassign'; block: CoverageBlock; project: BoardProject }
   | { kind: 'retarget'; block: CoverageBlock; project: BoardProject }
+  // The two halves of one switch (ADR-0035): re-attach an edge to its node's
+  // planned date, or release it where it is.
+  | { kind: 'follow'; edge: 'start' | 'end'; block: CoverageBlock; project: BoardProject }
+  | { kind: 'pin'; edge: 'start' | 'end'; block: CoverageBlock; project: BoardProject }
   | { kind: 'cover'; demand: DemandRow; project: BoardProject }
+  // Declares a new demand on the project or on one of its phases. Acts on the
+  // project, not on a lane: a project with no demand has no lane to act from.
+  | { kind: 'addDemand'; project: BoardProject }
   | { kind: 'editDemand'; demand: DemandRow; project: BoardProject }
   | { kind: 'deleteDemand'; demand: DemandRow; project: BoardProject };
 
 export type LaneActionKind = LaneAction['kind'];
+
+// ── Person pickers ───────────────────────────────────────────────────────
+// Whoever is being picked is picked FOR a role, so the list is grouped by role
+// with that role's group first; the other groups follow alphabetically, people
+// alphabetically inside each, and the people without a role close the list.
+// The match is by role NAME because that is what both sides carry here.
+
+export type PersonGroup = { label: string; options: { value: string; label: string }[] };
+
+export function peopleByRole(
+  pool: ReadonlyArray<{ id: string; name: string; roleName: string | null }>,
+  preferredRoleName: string | null | undefined,
+  noRoleLabel: string,
+): PersonGroup[] {
+  const groups = new Map<string, { value: string; label: string }[]>();
+  const unassigned: { value: string; label: string }[] = [];
+  for (const p of pool) {
+    const option = { value: p.id, label: p.name };
+    if (!p.roleName) unassigned.push(option);
+    else groups.set(p.roleName, [...(groups.get(p.roleName) ?? []), option]);
+  }
+
+  const byName = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label);
+  const named = [...groups.entries()]
+    .map(([label, options]) => ({ label, options: [...options].sort(byName) }))
+    .sort((a, b) => {
+      if (a.label === preferredRoleName) return -1;
+      if (b.label === preferredRoleName) return 1;
+      return a.label.localeCompare(b.label);
+    });
+  return unassigned.length ? [...named, { label: noRoleLabel, options: [...unassigned].sort(byName) }] : named;
+}
 
 // ── Timeline domain helpers ──────────────────────────────────────────────
 
