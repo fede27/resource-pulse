@@ -1337,4 +1337,43 @@ export const en: Loose<typeof it> = {
         'Rule I6 does not change: the Hard status requires a “hard-committed” project. Here you only configure which levels fall within the threshold; the threshold is read from a single source both on write and in cascade demotion.',
     },
   },
+  // Refusals the server names (ADR-0037), keyed by ProblemCode.
+  problems: {
+    unspecifiedLevel: 'not set',
+    edgeStart: 'start',
+    edgeEnd: 'end',
+    statusClosed: 'closed',
+    statusCancelled: 'cancelled',
+    operationReplan: 'replan it',
+    operationRollUp: 'recalculate its dates from its children',
+    inUseChildren: 'child nodes: {{n}}',
+    inUseDemands: 'demands: {{n}}',
+    inUseCoverages: 'coverages: {{n}}',
+    inUseConstraints: 'external constraints: {{n}}',
+    codes: {
+      'hard-requires-commitment':
+        'A coverage can become Hard only on a project committed as {{required}}. This project is «{{level}}»: raise the commitment from the project ⋮ menu and try again.',
+      'commitment-downgrade-demotes-hard':
+        'Moving the commitment from «{{from}}» to «{{to}}» would turn {{count}} Hard coverages back to Tentative: it needs an explicit confirmation.',
+      'project-root-closed': 'Project «{{project}}» is {{status}}: its plan no longer changes.',
+      'resource-inactive': '{{resource}} is inactive and cannot be given coverage. Reactivate them from Roles and teams.',
+      'node-has-no-planned-date':
+        '«{{node}}» has no planned {{edge}}, so the coverage has no date to follow. Plan the node, or give an explicit date.',
+      'planned-date-followed':
+        'The planned {{edge}} of «{{node}}» cannot be cleared: {{count}} coverage boundaries follow it. Pin them first, then try again.',
+      'follow-would-invert-coverage':
+        'Following the dates of «{{node}}», the coverage of {{resource}} ({{from}} – {{to}}) would end before it starts. Nothing is shortened on its own: pin the edge you want to keep, or shorten the block, and try again.',
+      'zero-capacity-in-window':
+        '{{resource}} has no capacity between {{from}} and {{to}}: there are no hours to assign. Pick another period or another person.',
+      'hours-above-percent-cap':
+        'The hours asked amount to {{percent}}% of the person, above the {{cap}}% ceiling. Widen the period or reduce the hours.',
+      'demand-has-coverage': 'The demand still has {{count}} coverages: remove them before deleting it.',
+      'node-has-followers':
+        '{{count}} coverage boundaries follow this node’s dates, so you cannot {{operation}} from here. Move it from the board, which carries the coverage along, or pin the boundaries first.',
+      'node-in-use': '«{{node}}» cannot be deleted: it still carries {{what}}. Clear them first, then try again.',
+      'role-in-use':
+        'Role «{{role}}» is still held by {{resources}} people and {{demands}} demands: reassign them before deleting it.',
+      'team-in-use': 'Team «{{team}}» still has {{resources}} people: move them before deleting it.',
+    },
+  },
 };

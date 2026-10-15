@@ -12,6 +12,7 @@ namespace ResourcePulse.Services.Teams;
 
 public sealed class TeamService(
     IRepository<Team, Guid> repository,
+    ResourcePulseDbContext db,
     IMapper mapper) : ITeamService
 {
     public async Task<ServiceResult<LoadResult>> GetAllAsync(
@@ -77,6 +78,11 @@ public sealed class TeamService(
         var team = await repository.GetByIdAsync(id, ct);
         if (team is null) return ServiceResult.NotFound($"Team {id} not found.");
 
+        // Members hold the team by Restrict FK: counted first, so the refusal
+        // says how many (ADR-0037 TeamInUse).
+        var members = await db.Resources.CountAsync(r => r.TeamId == id, ct);
+        if (members > 0) return InUse(team, members);
+
         try
         {
             repository.Remove(team);
@@ -84,9 +90,20 @@ public sealed class TeamService(
         }
         catch (DbUpdateException ex) when (ex.IsForeignKeyViolation())
         {
-            return ServiceResult.Conflict("Team is referenced by one or more resources.");
+            db.ChangeTracker.Clear();
+            return InUse(team, await db.Resources.CountAsync(r => r.TeamId == id, ct));
         }
 
         return ServiceResult.Ok();
     }
+
+    private static ServiceResult<Unit> InUse(Team team, int resources) =>
+        ServiceResult.Failure(ServiceError.Conflict(
+            ProblemCode.TeamInUse,
+            $"Team '{team.Name}' still has {resources} member(s) and cannot be deleted.",
+            new Dictionary<string, object?>
+            {
+                ["team"] = team.Name,
+                ["resources"] = resources,
+            }));
 }

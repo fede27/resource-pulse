@@ -94,7 +94,7 @@ public sealed class SignalService(
         }
         catch (DomainException ex)
         {
-            return ServiceResult<SignalDto>.Conflict(ex.Message);
+            return ServiceResult<SignalDto>.Conflict(ex);
         }
 
         await signals.SaveChangesAsync(ct);

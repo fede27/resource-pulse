@@ -114,6 +114,7 @@ export * from './planPersonConsequence';
 export * from './planProjectRef';
 export * from './planReferentChange';
 export * from './planZeroCapacityRun';
+export * from './problemCode';
 export * from './problemDetails';
 export * from './projectNodeReadDto';
 export * from './projectNodeTagDto';

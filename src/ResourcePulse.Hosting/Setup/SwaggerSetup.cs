@@ -38,6 +38,10 @@ public static class SwaggerSetup
             // NSwag, ...) emit meaningful member names instead of NUMBER_0,
             // NUMBER_1, ... The wire format stays integer.
             c.SchemaFilter<EnumVarnamesSchemaFilter>();
+
+            // The refusal catalogue (ADR-0037): referenced by no operation, so
+            // added to the document explicitly for the client's codegen.
+            c.DocumentFilter<ProblemCodeDocumentFilter>();
         });
     }
 

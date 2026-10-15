@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using ResourcePulse.Common.Domain;
+using ResourcePulse.Http;
 
 namespace ResourcePulse.Hosting;
 
@@ -37,6 +38,8 @@ public sealed class GlobalExceptionHandler(
                 Detail = domainEx.Message,
                 Extensions = { ["correlationId"] = correlationId }
             };
+            // Same code and pieces a service would have kept by catching it.
+            ProblemCodeStamp.Apply(problem, domainEx.Code, domainEx.Args);
 
             httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
             await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);

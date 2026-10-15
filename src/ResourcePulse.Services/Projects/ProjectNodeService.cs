@@ -108,7 +108,7 @@ public sealed class ProjectNodeService(
         }
         catch (DomainException ex)
         {
-            return ServiceResult<ProjectNodeReadDto>.Conflict(ex.Message);
+            return ServiceResult<ProjectNodeReadDto>.Conflict(ex);
         }
 
         await repository.AddAsync(node, ct);
@@ -139,7 +139,7 @@ public sealed class ProjectNodeService(
         }
         catch (DomainException ex)
         {
-            return ServiceResult<ProjectNodeReadDto>.Conflict(ex.Message);
+            return ServiceResult<ProjectNodeReadDto>.Conflict(ex);
         }
 
         try
@@ -162,8 +162,13 @@ public sealed class ProjectNodeService(
         var node = await repository.GetByIdAsync(id, ct);
         if (node is null) return ServiceResult.NotFound($"ProjectNode {id} not found.");
 
-        var hasChildren = await db.ProjectNodes.AnyAsync(p => p.ParentId == id, ct);
-        if (hasChildren) return ServiceResult.Conflict("Cannot delete a node with children. Reparent or delete its children first.");
+        // Each refusal below is NodeInUse (ADR-0037) carrying only the counts of
+        // the check that refused: children first, on purpose — "reparent the
+        // children" is different advice from "clear the plan off this node".
+        var children = await db.ProjectNodes.CountAsync(p => p.ParentId == id, ct);
+        if (children > 0)
+            return NodeInUse(node, "Cannot delete a node with children. Reparent or delete its children first.",
+                ("children", children));
 
         // Demands and coverage are the other two Restrict FKs into project_nodes
         // (the third is parent_id, above). Leave them to the database and
@@ -174,9 +179,10 @@ public sealed class ProjectNodeService(
         var demandCount = await db.Demands.CountAsync(d => d.ProjectNodeId == id, ct);
         var coverageCount = await db.Allocations.CountAsync(a => a.ProjectNodeId == id, ct);
         if (demandCount > 0 || coverageCount > 0)
-            return ServiceResult.Conflict(
+            return NodeInUse(node,
                 $"Cannot delete a node that still carries {demandCount} demand(s) and " +
-                $"{coverageCount} coverage block(s). Delete them through the plan commands first.");
+                $"{coverageCount} coverage block(s). Delete them through the plan commands first.",
+                ("demands", demandCount), ("coverages", coverageCount));
 
         // No separate "boundaries follow this node" check here since ADR-0035:
         // a boundary can only follow the node its own coverage sits on, so a
@@ -187,8 +193,9 @@ public sealed class ProjectNodeService(
         // Imposed dates on a root (ADR-0035 §4) — still a Restrict FK.
         var constraints = await db.ExternalConstraints.CountAsync(x => x.RootProjectId == id, ct);
         if (constraints > 0)
-            return ServiceResult.Conflict(
-                $"Cannot delete a project that still carries {constraints} external constraint(s). Delete them first.");
+            return NodeInUse(node,
+                $"Cannot delete a project that still carries {constraints} external constraint(s). Delete them first.",
+                ("constraints", constraints));
 
         repository.Remove(node);
 
@@ -205,6 +212,13 @@ public sealed class ProjectNodeService(
         }
 
         return ServiceResult.Ok();
+    }
+
+    private static ServiceResult<Unit> NodeInUse(ProjectNode node, string message, params (string Key, int Count)[] counts)
+    {
+        var args = new Dictionary<string, object?> { ["node"] = node.Name };
+        foreach (var (key, count) in counts) args[key] = count;
+        return ServiceResult.Failure(ServiceError.Conflict(ProblemCode.NodeInUse, message, args));
     }
 
     // ── Reparent ────────────────────────────────────────────────────────────
@@ -233,7 +247,7 @@ public sealed class ProjectNodeService(
         }
         catch (DomainException ex)
         {
-            return ServiceResult.Conflict(ex.Message);
+            return ServiceResult.Conflict(ex);
         }
 
         await db.SaveChangesAsync(ct);
@@ -272,7 +286,7 @@ public sealed class ProjectNodeService(
     {
         var node = await repository.GetByIdAsync(id, ct);
         if (node is null) return ServiceResult.NotFound($"ProjectNode {id} not found.");
-        if (await AnchoredDependantsGuardAsync(id, "roll up", ct) is { } guard) return guard;
+        if (await AnchoredDependantsGuardAsync(id, "rollUp", ct) is { } guard) return guard;
 
         var children = await db.ProjectNodes.Where(p => p.ParentId == id).ToListAsync(ct);
         try
@@ -281,7 +295,7 @@ public sealed class ProjectNodeService(
         }
         catch (DomainException ex)
         {
-            return ServiceResult.Conflict(ex.Message);
+            return ServiceResult.Conflict(ex);
         }
         await repository.SaveChangesAsync(ct);
         return ServiceResult.Ok();
@@ -299,7 +313,7 @@ public sealed class ProjectNodeService(
         }
         catch (DomainException ex)
         {
-            return ServiceResult.Conflict(ex.Message);
+            return ServiceResult.Conflict(ex);
         }
         await repository.SaveChangesAsync(ct);
         return ServiceResult.Ok();
@@ -325,7 +339,7 @@ public sealed class ProjectNodeService(
         }
         catch (DomainException ex)
         {
-            return ServiceResult<ProjectNodeTagDto>.Conflict(ex.Message);
+            return ServiceResult<ProjectNodeTagDto>.Conflict(ex);
         }
 
         var added = node.Tags.Single(t => t.TagId == dto.TagId);
@@ -399,10 +413,17 @@ public sealed class ProjectNodeService(
 
             if (hardAllocationsToDemote.Count > 0 && !dto.ConfirmDemoteHardAllocations)
             {
-                return ServiceResult<ProjectNodeReadDto>.Conflict(
+                return ServiceResult<ProjectNodeReadDto>.Failure(ServiceError.Conflict(
+                    ProblemCode.CommitmentDowngradeDemotesHard,
                     $"Downgrading commitment from '{oldLevel}' to '{newLevel}' would demote " +
                     $"{hardAllocationsToDemote.Count} Hard allocation(s) on this project's subtree to Tentative. " +
-                    "Re-submit with ConfirmDemoteHardAllocations = true to proceed.");
+                    "Re-submit with ConfirmDemoteHardAllocations = true to proceed.",
+                    new Dictionary<string, object?>
+                    {
+                        ["from"] = oldLevel,
+                        ["to"] = newLevel,
+                        ["count"] = hardAllocationsToDemote.Count,
+                    }));
             }
         }
 
@@ -418,7 +439,7 @@ public sealed class ProjectNodeService(
         }
         catch (DomainException ex)
         {
-            return ServiceResult<ProjectNodeReadDto>.Conflict(ex.Message);
+            return ServiceResult<ProjectNodeReadDto>.Conflict(ex);
         }
 
         await repository.SaveChangesAsync(ct);
@@ -468,7 +489,7 @@ public sealed class ProjectNodeService(
         }
         catch (DomainException ex)
         {
-            return ServiceResult<ProjectSkillRequirementDto>.Conflict(ex.Message);
+            return ServiceResult<ProjectSkillRequirementDto>.Conflict(ex);
         }
 
         var added = node.SkillRequirements.Single(r => r.SkillId == dto.SkillId);
@@ -580,7 +601,7 @@ public sealed class ProjectNodeService(
         }
         catch (DomainException ex)
         {
-            return ServiceResult.Conflict(ex.Message);
+            return ServiceResult.Conflict(ex);
         }
 
         await repository.SaveChangesAsync(ct);
@@ -600,7 +621,7 @@ public sealed class ProjectNodeService(
         }
         catch (DomainException ex)
         {
-            return ServiceResult.Conflict(ex.Message);
+            return ServiceResult.Conflict(ex);
         }
 
         await repository.SaveChangesAsync(ct);
@@ -650,13 +671,21 @@ public sealed class ProjectNodeService(
         return starts + ends;
     }
 
-    private async Task<ServiceResult<Unit>?> AnchoredDependantsGuardAsync(Guid nodeId, string verb, CancellationToken ct)
+    // `operation` is a piece, not a word: "replan" | "rollUp" (ADR-0037).
+    private async Task<ServiceResult<Unit>?> AnchoredDependantsGuardAsync(Guid nodeId, string operation, CancellationToken ct)
     {
         var count = await AnchoredEdgeCountAsync(nodeId, ct);
         if (count == 0) return null;
-        return ServiceResult.Conflict(
+        var verb = operation == "rollUp" ? "roll up" : operation;
+        return ServiceResult.Failure(ServiceError.Conflict(
+            ProblemCode.NodeHasFollowers,
             $"{count} coverage boundary(ies) follow this node's planned dates; cannot {verb} it from here. " +
-            "Use the plan command 'replanNode' (or 'moveSubtree') to move them with it, or pin them first.");
+            "Use the plan command 'replanNode' (or 'moveSubtree') to move them with it, or pin them first.",
+            new Dictionary<string, object?>
+            {
+                ["count"] = count,
+                ["operation"] = operation,
+            }));
     }
 
     // Batch-resolve following-boundary counts for a set of nodes (ADR-0035 §8).

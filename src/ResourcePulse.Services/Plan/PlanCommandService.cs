@@ -159,7 +159,7 @@ public sealed class PlanCommandService(
                 demand.Id, c.ProjectNodeId, c.ResourceId, snap.Start, snap.End, c.Percent, c.Notes, c.Status);
             snap.ApplyTo(a, "coverInferred");
         }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         return await FinalizeAsync(c, "coverInferred",
             [ToChange(a, PlanChangeKind.Created)], toAdd: [a], toRemove: null, ct,
@@ -176,7 +176,7 @@ public sealed class PlanCommandService(
             a = Allocation.CreateCoverage(demandId, projectNodeId, resourceId, window.Start, window.End, percent, notes, status);
             window.ApplyTo(a, kind);
         }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         return await FinalizeAsync(cmd, kind, [ToChange(a, PlanChangeKind.Created)], toAdd: [a], toRemove: null, ct);
     }
@@ -189,17 +189,30 @@ public sealed class PlanCommandService(
         var cap = await CapacityInWindowAsync(resourceId, start, end, ct);
         if (cap.IsFailure) return ServiceResult<decimal>.Failure(cap.Error!);
         if (cap.Value <= TimeSpan.Zero)
-            return ServiceResult<decimal>.Conflict(
-                "Cannot allocate hours: resource has zero capacity in the requested window.");
+            return ServiceResult<decimal>.Failure(ServiceError.Conflict(
+                ProblemCode.ZeroCapacityInWindow,
+                "Cannot allocate hours: resource has zero capacity in the requested window.",
+                new Dictionary<string, object?>
+                {
+                    ["resource"] = await ResourceNameAsync(resourceId, ct),
+                    ["from"] = start,
+                    ["to"] = end,
+                }));
 
         decimal percent;
         try { percent = AllocationResolver.PercentForHours(targetHours, cap.Value); }
-        catch (DomainException ex) { return ServiceResult<decimal>.Conflict(ex.Message); }
+        catch (DomainException ex) { return ServiceResult<decimal>.Conflict(ex); }
 
         if (percent > Allocation.MaxAllocationPercent)
-            return ServiceResult<decimal>.Conflict(
+            return ServiceResult<decimal>.Failure(ServiceError.Conflict(
+                ProblemCode.HoursAbovePercentCap,
                 $"Resolved percent {percent} exceeds the {Allocation.MaxAllocationPercent}% cap. " +
-                "Widen the window or reduce target hours.");
+                "Widen the window or reduce target hours.",
+                new Dictionary<string, object?>
+                {
+                    ["percent"] = percent,
+                    ["cap"] = Allocation.MaxAllocationPercent,
+                }));
 
         return ServiceResult<decimal>.Success(percent);
     }
@@ -217,7 +230,7 @@ public sealed class PlanCommandService(
             a.ChangePercent(c.AllocationPercent);
             a.Annotate(c.Notes);
         }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         return await FinalizeAsync(c, "edit", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
     }
@@ -232,7 +245,7 @@ public sealed class PlanCommandService(
 
         Allocation second;
         try { second = a.SplitAt(c.Date, "Split"); }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         return await FinalizeAsync(c, "splitAt",
             [ToChange(a, PlanChangeKind.Modified), ToChange(second, PlanChangeKind.Created)],
@@ -247,7 +260,7 @@ public sealed class PlanCommandService(
 
         Allocation second;
         try { second = a.ChangeRateFrom(c.Date, c.NewRate, "ChangeRateFrom"); }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         return await FinalizeAsync(c, "changeRateFrom",
             [ToChange(a, PlanChangeKind.Modified), ToChange(second, PlanChangeKind.Created)],
@@ -261,7 +274,7 @@ public sealed class PlanCommandService(
         if (await CheckProjectStatusByNodeAsync(a.ProjectNodeId, ct) is { } e) return Fail(e);
 
         try { a.Shift(c.DeltaDays, "Move"); }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         return await FinalizeAsync(c, "move", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
     }
@@ -281,7 +294,7 @@ public sealed class PlanCommandService(
             return Fail(e2);
 
         try { a.RetargetToDemand(c.DemandId, newNode); }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         // The referent moved with the demand: boundaries that follow now follow
         // the NEW node and re-snap to its dates (ADR-0035 §6).
@@ -297,7 +310,7 @@ public sealed class PlanCommandService(
         if (await CheckProjectStatusByNodeAsync(a.ProjectNodeId, ct) is { } e) return Fail(e);
 
         try { a.Resize(c.NewPeriodStart, c.NewPeriodEnd, "Resize"); }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         return await FinalizeAsync(c, "resize", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
     }
@@ -325,7 +338,7 @@ public sealed class PlanCommandService(
             // overlap with blocks before FromDate is allowed and sums.
             foreach (var a in lane) a.Shift(c.DeltaDays, "ShiftFrom");
         }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         var changes = lane.Select(a => ToChange(a, PlanChangeKind.Modified)).ToList();
         return await FinalizeAsync(c, "shiftFrom", changes, null, null, ct);
@@ -342,7 +355,7 @@ public sealed class PlanCommandService(
         if (await CheckProjectStatusByNodeAsync(a.ProjectNodeId, ct) is { } e2) return Fail(e2);
 
         try { a.Reassign(c.ResourceId); }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         return await FinalizeAsync(c, "reassign", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
     }
@@ -355,7 +368,7 @@ public sealed class PlanCommandService(
             return Fail(e);
 
         try { a.ChangeStatus(c.Status, c.Reason); }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         return await FinalizeAsync(c, "changeStatus", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
     }
@@ -387,7 +400,7 @@ public sealed class PlanCommandService(
         if (err is { } e1) return Fail(e1);
 
         try { a.FollowNode(c.Edge, date!.Value, "FollowNode"); }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         return await FinalizeAsync(c, "followNode", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
     }
@@ -400,7 +413,7 @@ public sealed class PlanCommandService(
         if (a is null) return NotFound(c.Id);
 
         try { a.Pin(c.Edge, "Pin"); }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         return await FinalizeAsync(c, "pin", [ToChange(a, PlanChangeKind.Modified)], null, null, ct);
     }
@@ -418,7 +431,7 @@ public sealed class PlanCommandService(
 
         var before = NodeWindow.Of(node);
         try { node.Replan(c.PlannedStart, c.PlannedEnd); }
-        catch (DomainException ex) { db.ChangeTracker.Clear(); return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { db.ChangeTracker.Clear(); return Fail(ServiceError.Conflict(ex)); }
 
         var (propErr, dragged, moved) = await PropagateAsync(new Dictionary<Guid, ProjectNode> { [node.Id] = node }, "ReplanNode", ct);
         if (propErr is { } e2) { db.ChangeTracker.Clear(); return Fail(e2); }
@@ -450,7 +463,7 @@ public sealed class PlanCommandService(
             foreach (var p in dated)
                 p.Replan(p.PlannedStart?.AddDays(c.DeltaDays), p.PlannedEnd?.AddDays(c.DeltaDays));
         }
-        catch (DomainException ex) { db.ChangeTracker.Clear(); return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { db.ChangeTracker.Clear(); return Fail(ServiceError.Conflict(ex)); }
 
         var (propErr, dragged, moved) = await PropagateAsync(dated.ToDictionary(p => p.Id), "MoveSubtree", ct);
         if (propErr is { } e2) { db.ChangeTracker.Clear(); return Fail(e2); }
@@ -516,8 +529,10 @@ public sealed class PlanCommandService(
             catch (DomainException ex)
             {
                 return (ServiceError.Conflict(
+                    ProblemCode.FollowWouldInvertCoverage,
                     $"Coverage {a.Id} ({oldStart:yyyy-MM-dd} to {oldEnd:yyyy-MM-dd}) cannot follow " +
-                    $"'{node.Name}': {ex.Message} Pin or shorten the block first."), [], []);
+                    $"'{node.Name}': {ex.Message} Pin or shorten the block first.",
+                    await InvertArgsAsync(node.Name, a.ResourceId, oldStart, oldEnd, ct)), [], []);
             }
 
             if (a.PeriodStart != oldStart || a.PeriodEnd != oldEnd)
@@ -542,8 +557,15 @@ public sealed class PlanCommandService(
 
         var which = edge == BoundaryEdge.Start ? "start" : "end";
         return ServiceError.Conflict(
+            ProblemCode.PlannedDateFollowed,
             $"ProjectNode {node.Id} ('{node.Name}'): {following} coverage boundary(ies) follow its planned {which}, " +
-            "which cannot be cleared. Pin them first.");
+            "which cannot be cleared. Pin them first.",
+            new Dictionary<string, object?>
+            {
+                ["node"] = node.Name,
+                ["edge"] = edge,
+                ["count"] = following,
+            });
     }
 
     private sealed record NodeWindow(DateOnly? Start, DateOnly? End)
@@ -622,8 +644,14 @@ public sealed class PlanCommandService(
     {
         var which = edge == BoundaryEdge.Start ? "start" : "end";
         return ServiceError.Conflict(
+            ProblemCode.NodeHasNoPlannedDate,
             $"ProjectNode {nodeId} ('{name}') has no planned {which} for the coverage's {edge} boundary to follow. " +
-            $"Plan the node, or give the coverage an explicit {which} date.");
+            $"Plan the node, or give the coverage an explicit {which} date.",
+            new Dictionary<string, object?>
+            {
+                ["node"] = name,
+                ["edge"] = edge,
+            });
     }
 
     // After a retarget the following boundaries follow a DIFFERENT node: re-snap
@@ -654,12 +682,15 @@ public sealed class PlanCommandService(
             else a.Pin(BoundaryEdge.End, "Retarget");
         }
 
+        var (oldStart, oldEnd) = (a.PeriodStart, a.PeriodEnd);
         try { a.FollowNodes(newStart, newEnd, "Retarget"); }
         catch (DomainException ex)
         {
             return ServiceError.Conflict(
+                ProblemCode.FollowWouldInvertCoverage,
                 $"Coverage {a.Id} cannot follow '{node.Name}' after the retarget: {ex.Message} " +
-                "Pin the boundary you want to keep first.");
+                "Pin the boundary you want to keep first.",
+                await InvertArgsAsync(node.Name, a.ResourceId, oldStart, oldEnd, ct));
         }
         return null;
     }
@@ -679,7 +710,7 @@ public sealed class PlanCommandService(
             d = Demand.Create(
                 c.ProjectNodeId, c.RoleId, c.RequiredHours, DemandProvenance.Declared, c.OwnerResourceId, c.Notes, c.DecideBy);
         }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         return await FinalizeAsync(c, "createDemand", [], null, null, ct,
             demandChanges: [ToDemandChange(d, PlanChangeKind.Created)], demandsToAdd: [d]);
@@ -705,7 +736,7 @@ public sealed class PlanCommandService(
             if (c.NotesSet) d.Annotate(c.Notes);
             if (c.DecideBySet) d.ChangeDecideBy(c.DecideBy);
         }
-        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex.Message)); }
+        catch (DomainException ex) { return Fail(ServiceError.Conflict(ex)); }
 
         return await FinalizeAsync(c, "editDemand", [], null, null, ct,
             demandChanges: [ToDemandChange(d, PlanChangeKind.Modified)]);
@@ -718,9 +749,12 @@ public sealed class PlanCommandService(
 
         // A demand with coverage on it cannot be deleted (mirrors the FK Restrict).
         // Deallocation (delete the coverage) is how you free it first.
-        if (await db.Allocations.AnyAsync(a => a.DemandId == c.Id, ct))
+        var coverages = await db.Allocations.CountAsync(a => a.DemandId == c.Id, ct);
+        if (coverages > 0)
             return Fail(ServiceError.Conflict(
-                "Demand has coverage on it and cannot be deleted. Remove the coverage first."));
+                ProblemCode.DemandHasCoverage,
+                "Demand has coverage on it and cannot be deleted. Remove the coverage first.",
+                new Dictionary<string, object?> { ["count"] = coverages }));
 
         d.MarkDeleted();
         var change = ToDemandChange(d, PlanChangeKind.Deleted);
@@ -839,6 +873,22 @@ public sealed class PlanCommandService(
         return (null, n.Path);
     }
 
+    // The pieces of a refusal name people, not ids (ADR-0037). Read only on the
+    // refusal path, so the happy path pays nothing.
+    private async Task<string> ResourceNameAsync(Guid resourceId, CancellationToken ct) =>
+        await db.Resources.AsNoTracking()
+            .Where(r => r.Id == resourceId).Select(r => r.Name).FirstOrDefaultAsync(ct) ?? string.Empty;
+
+    private async Task<IReadOnlyDictionary<string, object?>> InvertArgsAsync(
+        string nodeName, Guid resourceId, DateOnly from, DateOnly to, CancellationToken ct) =>
+        new Dictionary<string, object?>
+        {
+            ["node"] = nodeName,
+            ["resource"] = await ResourceNameAsync(resourceId, ct),
+            ["from"] = from,
+            ["to"] = to,
+        };
+
     // I4: root project not Closed/Cancelled. By node id (resolves the path).
     private async Task<ServiceError?> CheckProjectStatusByNodeAsync(Guid nodeId, CancellationToken ct)
     {
@@ -849,11 +899,19 @@ public sealed class PlanCommandService(
         if (!ProjectNodePath.TryGetRootId(path, out var rootId))
             return ServiceError.Failure("ProjectNode has an invalid materialized path.");
 
-        var status = await db.ProjectNodes.AsNoTracking()
-            .Where(p => p.Id == rootId).Select(p => p.Status).FirstOrDefaultAsync(ct);
+        var root = await db.ProjectNodes.AsNoTracking()
+            .Where(p => p.Id == rootId).Select(p => new { p.Status, p.Name }).FirstOrDefaultAsync(ct);
+        var status = root?.Status;
 
         if (status == ProjectStatus.Closed || status == ProjectStatus.Cancelled)
-            return ServiceError.Conflict($"Project root is {status} and cannot accept new or modified allocations.");
+            return ServiceError.Conflict(
+                ProblemCode.ProjectRootClosed,
+                $"Project root is {status} and cannot accept new or modified allocations.",
+                new Dictionary<string, object?>
+                {
+                    ["project"] = root!.Name,
+                    ["status"] = status,
+                });
 
         return null;
     }
@@ -862,7 +920,7 @@ public sealed class PlanCommandService(
     private async Task<ServiceError?> CheckResourceActiveAsync(Guid resourceId, CancellationToken ct)
     {
         var info = await db.Resources.AsNoTracking()
-            .Where(r => r.Id == resourceId).Select(r => new { r.IsActive }).FirstOrDefaultAsync(ct);
+            .Where(r => r.Id == resourceId).Select(r => new { r.IsActive, r.Name }).FirstOrDefaultAsync(ct);
 
         if (info is null)
             return ServiceError.Validation(new Dictionary<string, string[]>
@@ -870,7 +928,10 @@ public sealed class PlanCommandService(
                 ["ResourceId"] = [$"Resource {resourceId} does not exist."]
             });
         if (!info.IsActive)
-            return ServiceError.Conflict($"Resource {resourceId} is inactive and cannot be allocated.");
+            return ServiceError.Conflict(
+                ProblemCode.ResourceInactive,
+                $"Resource {resourceId} is inactive and cannot be allocated.",
+                new Dictionary<string, object?> { ["resource"] = info.Name });
         return null;
     }
 
@@ -893,8 +954,14 @@ public sealed class PlanCommandService(
         {
             var allowed = string.Join(", ", policy.HardCommitLevels);
             return ServiceError.Conflict(
+                ProblemCode.HardRequiresCommitment,
                 $"Allocation cannot be set to Hard: the project root commitment level is " +
-                $"'{level?.ToString() ?? "Unspecified"}'. Hard requires one of: {allowed}.");
+                $"'{level?.ToString() ?? "Unspecified"}'. Hard requires one of: {allowed}.",
+                new Dictionary<string, object?>
+                {
+                    ["level"] = level,
+                    ["required"] = policy.HardCommitLevels.Order().ToArray(),
+                });
         }
         return null;
     }

@@ -417,7 +417,7 @@ public sealed class ResourceService(
         }
         catch (Common.Domain.DomainException ex)
         {
-            return ServiceResult<ResourceSkillDto>.Conflict(ex.Message);
+            return ServiceResult<ResourceSkillDto>.Conflict(ex);
         }
 
         var added = resource.Skills.Single(s => s.SkillId == dto.SkillId);
@@ -490,7 +490,7 @@ public sealed class ResourceService(
         }
         catch (Common.Domain.DomainException ex)
         {
-            return ServiceResult<ResourceTagDto>.Conflict(ex.Message);
+            return ServiceResult<ResourceTagDto>.Conflict(ex);
         }
 
         var added = resource.Tags.Single(t => t.TagId == dto.TagId);
@@ -561,7 +561,7 @@ public sealed class ResourceService(
             // The skill exists on this resource (checked above), so any
             // DomainException raised by the transition is an illegal state
             // change — surface it as Conflict.
-            return ServiceResult<ResourceSkillDto>.Conflict(ex.Message);
+            return ServiceResult<ResourceSkillDto>.Conflict(ex);
         }
 
         await repository.SaveChangesAsync(ct);

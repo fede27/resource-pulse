@@ -12,6 +12,7 @@ namespace ResourcePulse.Services.Roles;
 
 public sealed class RoleService(
     IRepository<Role, Guid> repository,
+    ResourcePulseDbContext db,
     IMapper mapper) : IRoleService
 {
     public async Task<ServiceResult<LoadResult>> GetAllAsync(
@@ -76,6 +77,14 @@ public sealed class RoleService(
         var role = await repository.GetByIdAsync(id, ct);
         if (role is null) return ServiceResult.NotFound($"Role {id} not found.");
 
+        // People and demands both hold a role by Restrict FK. Counted first, so
+        // the refusal says what is in the way (ADR-0037 RoleInUse); the catch
+        // below stays for what attaches in between.
+        var resources = await db.Resources.CountAsync(r => r.RoleId == id, ct);
+        var demands = await db.Demands.CountAsync(d => d.RoleId == id, ct);
+        if (resources > 0 || demands > 0)
+            return InUse(role, resources, demands);
+
         repository.Remove(role);
         try
         {
@@ -83,9 +92,22 @@ public sealed class RoleService(
         }
         catch (DbUpdateException ex) when (ex.IsForeignKeyViolation())
         {
-            return ServiceResult.Conflict(
-                $"Role {id} is assigned to one or more resources and cannot be deleted.");
+            db.ChangeTracker.Clear();
+            return InUse(role,
+                await db.Resources.CountAsync(r => r.RoleId == id, ct),
+                await db.Demands.CountAsync(d => d.RoleId == id, ct));
         }
         return ServiceResult.Ok();
     }
+
+    private static ServiceResult<Unit> InUse(Role role, int resources, int demands) =>
+        ServiceResult.Failure(ServiceError.Conflict(
+            ProblemCode.RoleInUse,
+            $"Role '{role.Name}' is held by {resources} resource(s) and {demands} demand(s) and cannot be deleted.",
+            new Dictionary<string, object?>
+            {
+                ["role"] = role.Name,
+                ["resources"] = resources,
+                ["demands"] = demands,
+            }));
 }

@@ -80,7 +80,7 @@ public sealed class MembershipService(
         }
         catch (DomainException ex)
         {
-            return ServiceResult<MembershipReadDto>.Conflict(ex.Message);
+            return ServiceResult<MembershipReadDto>.Conflict(ex);
         }
 
         db.Memberships.Add(membership);

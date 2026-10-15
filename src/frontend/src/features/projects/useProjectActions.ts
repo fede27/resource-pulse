@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { App } from 'antd';
-import { AxiosError } from 'axios';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { getAllocationsGetInRangeQueryKey } from '@/api/generated/allocations/allocations';
@@ -18,16 +17,13 @@ import {
   useProjectsSuspend,
   useProjectsUpdateProject,
 } from '@/api/generated/projects/projects';
-import type { CommitmentLevel } from '@/api/generated/schemas';
+import { ProblemCode, type CommitmentLevel } from '@/api/generated/schemas';
 import { useApiError } from '@/lib/errors';
+import { problemOf } from '@/lib/problems';
 import type { BoardProject, ProjectAction } from './boardModel';
 
 export type ReasonActionKind = 'suspend' | 'cancel';
 export type ReasonModalState = { action: ReasonActionKind; project: BoardProject } | null;
-
-// The backend Conflict for a commitment downgrade across the hard threshold
-// (ADR-0015 §4) — anything else on 409 is a plain conflict for the error funnel.
-const DEMOTE_CONFLICT = /(\d+) Hard allocation/;
 
 // Orchestrates the contextual actions (kebab) on a project root: lifecycle
 // transitions and commitment change. Confirm modals for the one-way gestures,
@@ -77,15 +73,14 @@ export function useProjectActions() {
       message.success(t('projects.actions.commitmentSuccess', { name: project.name }));
       invalidateBoard();
     } catch (e) {
-      const detail =
-        e instanceof AxiosError && e.response?.status === 409
-          ? ((e.response.data as { detail?: string } | undefined)?.detail ?? '')
-          : '';
-      const demote = DEMOTE_CONFLICT.exec(detail);
-      if (!confirmDemote && demote) {
+      // The cascade-demotion guard (ADR-0015 §4) names itself (ADR-0037) and
+      // carries the count: it asks, it does not fail. Anything else is a plain
+      // refusal for the error funnel.
+      const problem = problemOf(e);
+      if (!confirmDemote && problem?.code === ProblemCode.CommitmentDowngradeDemotesHard) {
         modal.confirm({
           title: t('projects.actions.demoteTitle', { name: project.name }),
-          content: t('projects.actions.demoteBody', { n: Number(demote[1]) }),
+          content: t('projects.actions.demoteBody', { n: Number(problem.args.count) }),
           okText: t('projects.actions.demoteCta'),
           okButtonProps: { danger: true },
           onOk: () => applyCommitment(project, level, true),

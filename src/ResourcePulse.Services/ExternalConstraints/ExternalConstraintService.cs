@@ -52,7 +52,7 @@ public sealed class ExternalConstraintService(
 
         ExternalConstraint c;
         try { c = ExternalConstraint.Create(rootProjectId, dto.Name, dto.Date, dto.Authority, dto.Notes); }
-        catch (DomainException ex) { return ServiceResult<ExternalConstraintReadDto>.Conflict(ex.Message); }
+        catch (DomainException ex) { return ServiceResult<ExternalConstraintReadDto>.Conflict(ex); }
 
         await repository.AddAsync(c, ct);
         await repository.SaveChangesAsync(ct);
@@ -78,7 +78,7 @@ public sealed class ExternalConstraintService(
             c.Annotate(dto.Notes);
             c.MoveTo(dto.Date);
         }
-        catch (DomainException ex) { return ServiceResult<ExternalConstraintReadDto>.Conflict(ex.Message); }
+        catch (DomainException ex) { return ServiceResult<ExternalConstraintReadDto>.Conflict(ex); }
 
         await repository.SaveChangesAsync(ct);
         return ServiceResult<ExternalConstraintReadDto>.Success(mapper.Map<ExternalConstraintReadDto>(c));

@@ -1336,4 +1336,46 @@ export const it = {
         'La regola I6 non cambia: lo stato Hard richiede un progetto «hard-committed». Qui si configura soltanto quali livelli rientrano nella soglia; la soglia è letta da un’unica fonte sia in scrittura sia nella cascade demotion.',
     },
   },
+  // Refusals the server names (ADR-0037), keyed by ProblemCode. A code without
+  // an entry here fails the build (src/lib/problems.ts). The pieces arrive as
+  // args and are already translated when they reach the sentence.
+  problems: {
+    unspecifiedLevel: 'non indicato',
+    edgeStart: 'inizio',
+    edgeEnd: 'fine',
+    statusClosed: 'chiuso',
+    statusCancelled: 'annullato',
+    operationReplan: 'ripianificarlo',
+    operationRollUp: 'ricalcolarne le date dai figli',
+    inUseChildren: 'nodi figli: {{n}}',
+    inUseDemands: 'domande: {{n}}',
+    inUseCoverages: 'coperture: {{n}}',
+    inUseConstraints: 'vincoli esterni: {{n}}',
+    codes: {
+      'hard-requires-commitment':
+        'Una copertura può diventare Hard solo su un progetto con commitment {{required}}. Questo progetto è «{{level}}»: alza il commitment dal menu ⋮ del progetto e riprova.',
+      'commitment-downgrade-demotes-hard':
+        'Portare il commitment da «{{from}}» a «{{to}}» riporterebbe a Tentative {{count}} coperture Hard: serve una conferma esplicita.',
+      'project-root-closed': 'Il progetto «{{project}}» è {{status}}: il suo piano non si modifica più.',
+      'resource-inactive': 'La persona {{resource}} non è attiva: non le si possono dare coperture. Riattivala da Ruoli e team.',
+      'node-has-no-planned-date':
+        '«{{node}}» non ha una data di {{edge}} pianificata, quindi la copertura non ha una data da seguire. Pianifica il nodo, oppure indica una data esplicita.',
+      'planned-date-followed':
+        'La data di {{edge}} di «{{node}}» non si può togliere: la seguono {{count}} bordi di copertura. Fissali prima, poi riprova.',
+      'follow-would-invert-coverage':
+        'Seguendo le date di «{{node}}», la copertura di {{resource}} ({{from}} – {{to}}) finirebbe prima di cominciare. Niente viene accorciato da solo: fissa il bordo che vuoi tenere, o accorcia il blocco, e riprova.',
+      'zero-capacity-in-window':
+        '{{resource}} non ha capacità tra il {{from}} e il {{to}}: non ci sono ore da assegnare. Scegli un altro periodo o un’altra persona.',
+      'hours-above-percent-cap':
+        'Le ore richieste corrispondono al {{percent}}% della persona, oltre il tetto del {{cap}}%. Allarga il periodo o riduci le ore.',
+      'demand-has-coverage':
+        'La domanda ha ancora {{count}} coperture: rimuovile prima di eliminarla.',
+      'node-has-followers':
+        '{{count}} bordi di copertura seguono le date di questo nodo, quindi non si può {{operation}} da qui. Spostalo dalla board, che porta con sé le coperture, oppure fissa prima i bordi.',
+      'node-in-use': 'Non si può eliminare «{{node}}», che porta ancora {{what}}. Toglili prima, poi riprova.',
+      'role-in-use':
+        'Il ruolo «{{role}}» è ancora usato da {{resources}} persone e {{demands}} domande: riassegnali prima di eliminarlo.',
+      'team-in-use': 'Il team «{{team}}» ha ancora {{resources}} persone: spostale prima di eliminarlo.',
+    },
+  },
 } as const;

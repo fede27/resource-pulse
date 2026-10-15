@@ -4,6 +4,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using ResourcePulse.Common.Domain;
+using ResourcePulse.Common.Results;
 using ResourcePulse.Hosting;
 
 namespace ResourcePulse.Application.Tests;
@@ -47,6 +48,19 @@ public class GlobalExceptionHandlerTests
         body.GetProperty("title").GetString().Should().Be("Conflict");
         body.GetProperty("detail").GetString().Should().Be("Work windows must not overlap.");
         body.GetProperty("correlationId").GetString().Should().Be("trace-1");
+    }
+
+    [Fact]
+    public async Task AnUncaughtCodedDomainException_KeepsItsCodeAndPieces()
+    {
+        // ADR-0037: the same contract a service would have produced by catching it.
+        var (_, body) = await HandleAsync(new DomainException(
+            ProblemCode.CommitmentDowngradeDemotesHard, "Would demote 2.",
+            new Dictionary<string, object?> { ["count"] = 2 }));
+
+        body.GetProperty("type").GetString().Should().Be("urn:resourcepulse:problem:commitment-downgrade-demotes-hard");
+        body.GetProperty("args").GetProperty("count").GetInt32().Should().Be(2);
+        body.GetProperty("detail").GetString().Should().Be("Would demote 2.");
     }
 
     [Fact]

@@ -45,6 +45,41 @@ describe('useApiError', () => {
     expect(await screen.findByText('Resource is locked')).toBeInTheDocument();
   });
 
+  // ADR-0037: a refusal the server names is said in our words, with its
+  // pieces (here enum integers) translated — not the English `detail`.
+  it('translates a coded refusal from its pieces', async () => {
+    const { user } = renderWithProviders(
+      <Reporter
+        error={axiosWith({
+          type: 'urn:resourcepulse:problem:hard-requires-commitment',
+          detail: 'Allocation cannot be set to Hard.',
+          args: { level: 2, required: [3, 4] },
+        })}
+      />,
+    );
+    await user.click(screen.getByText('report'));
+    expect(
+      await screen.findByText(
+        'Una copertura può diventare Hard solo su un progetto con commitment «Committed», «Critico». Questo progetto è «Pianificato»: alza il commitment dal menu ⋮ del progetto e riprova.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Allocation cannot be set to Hard.')).not.toBeInTheDocument();
+  });
+
+  it('falls back to detail for a code this client does not know yet', async () => {
+    const { user } = renderWithProviders(
+      <Reporter
+        error={axiosWith({
+          type: 'urn:resourcepulse:problem:from-a-newer-server',
+          detail: 'Something the server knows',
+          args: {},
+        })}
+      />,
+    );
+    await user.click(screen.getByText('report'));
+    expect(await screen.findByText('Something the server knows')).toBeInTheDocument();
+  });
+
   it('shows the supplied fallback for a non-Axios error', async () => {
     const { user } = renderWithProviders(
       <Reporter error={new Error('boom')} fallback="Qualcosa è andato storto" />,

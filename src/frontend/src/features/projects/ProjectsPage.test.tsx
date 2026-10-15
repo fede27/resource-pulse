@@ -218,11 +218,14 @@ describe('<ProjectsPage>', () => {
         const body = (await request.json()) as UpdateProjectDto;
         bodies.push(body);
         if (!body.confirmDemoteHardAllocations) {
-          // Mirrors the backend Conflict of the cascade-demotion guard (ADR-0015 §4).
+          // Mirrors the backend Conflict of the cascade-demotion guard (ADR-0015
+          // §4), named by its code with the count as a piece (ADR-0037).
           return HttpResponse.json(
             {
+              type: 'urn:resourcepulse:problem:commitment-downgrade-demotes-hard',
               status: 409,
               title: 'Conflict',
+              args: { from: CommitmentLevel.Committed, to: CommitmentLevel.Planned, count: 3 },
               detail:
                 "Downgrading commitment from 'Committed' to 'Planned' would demote 3 Hard allocation(s) " +
                 "on this project's subtree to Tentative. Re-submit with ConfirmDemoteHardAllocations = true to proceed.",

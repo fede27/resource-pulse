@@ -14,7 +14,6 @@ import { getProjectsGetActiveInRangeQueryKey } from '@/api/generated/projects/pr
 import {
   AllocationStatus,
   BoundaryEdge,
-  CommitmentLevel,
   type ChangeStatusCommand,
   type CreateByHoursCommand,
   type CreateCommand,
@@ -28,6 +27,7 @@ import {
   type RetargetCommand,
 } from '@/api/generated/schemas';
 import { useApiError } from '@/lib/errors';
+import { commitmentLabel } from '@/lib/problems';
 import type { BoardProject, CoverageBlock, DemandRow, LaneAction } from './boardModel';
 import type { CoverSubmitRow } from './CoverDemandModal';
 import { hoursToTimeSpan as hoursToWire } from './coverModel';
@@ -123,19 +123,6 @@ export function useLaneActions() {
     }
   };
 
-  const commitmentLabel = (level: CommitmentLevel): string => {
-    switch (level) {
-      case CommitmentLevel.Exploratory:
-        return t('projects.newProject.commitmentExploratory');
-      case CommitmentLevel.Planned:
-        return t('projects.newProject.commitmentPlanned');
-      case CommitmentLevel.Committed:
-        return t('projects.newProject.commitmentCommitted');
-      default:
-        return t('projects.newProject.commitmentCritical');
-    }
-  };
-
   const impl = (action: LaneAction) => {
     switch (action.kind) {
       case 'promote':
@@ -149,7 +136,7 @@ export function useLaneActions() {
           modal.warning({
             title: t('projects.lane.actions.promoteBlockedTitle', { project: action.project.name }),
             content: t('projects.lane.actions.promoteBlockedBody', {
-              level: commitmentLabel(action.project.commitmentLevel),
+              level: commitmentLabel(t, action.project.commitmentLevel),
             }),
           });
           break;

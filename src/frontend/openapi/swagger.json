@@ -13661,6 +13661,42 @@
           "FixedDuration"
         ]
       },
+      "ProblemCode": {
+        "enum": [
+          "hard-requires-commitment",
+          "commitment-downgrade-demotes-hard",
+          "project-root-closed",
+          "resource-inactive",
+          "node-has-no-planned-date",
+          "planned-date-followed",
+          "follow-would-invert-coverage",
+          "zero-capacity-in-window",
+          "hours-above-percent-cap",
+          "demand-has-coverage",
+          "node-has-followers",
+          "node-in-use",
+          "role-in-use",
+          "team-in-use"
+        ],
+        "type": "string",
+        "description": "A refusal the client can tell apart. Travels as ProblemDetails.type = \"urn:resourcepulse:problem:{code}\", with its pieces in the `args` extension.",
+        "x-enum-varnames": [
+          "HardRequiresCommitment",
+          "CommitmentDowngradeDemotesHard",
+          "ProjectRootClosed",
+          "ResourceInactive",
+          "NodeHasNoPlannedDate",
+          "PlannedDateFollowed",
+          "FollowWouldInvertCoverage",
+          "ZeroCapacityInWindow",
+          "HoursAbovePercentCap",
+          "DemandHasCoverage",
+          "NodeHasFollowers",
+          "NodeInUse",
+          "RoleInUse",
+          "TeamInUse"
+        ]
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {

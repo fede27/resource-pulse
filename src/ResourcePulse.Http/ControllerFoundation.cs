@@ -31,13 +31,23 @@ public abstract class ControllerFoundation : ControllerBase
     private IActionResult ErrorResponse(ServiceError error) =>
         error.Kind switch
         {
-            ServiceErrorKind.NotFound   => Problem(error.Message, statusCode: 404, title: "Not Found"),
+            ServiceErrorKind.NotFound   => ProblemFor(error, 404, "Not Found"),
             ServiceErrorKind.Validation => BadRequest(CreateValidationProblem(error)),
-            ServiceErrorKind.Conflict   => Problem(error.Message, statusCode: 409, title: "Conflict"),
-            ServiceErrorKind.Forbidden  => Problem(error.Message, statusCode: 403, title: "Forbidden"),
-            ServiceErrorKind.Failure    => Problem(error.Message, statusCode: 500, title: "Internal Server Error"),
-            _                           => Problem(error.Message, statusCode: 500, title: "Internal Server Error")
+            ServiceErrorKind.Conflict   => ProblemFor(error, 409, "Conflict"),
+            ServiceErrorKind.Forbidden  => ProblemFor(error, 403, "Forbidden"),
+            ServiceErrorKind.Failure    => ProblemFor(error, 500, "Internal Server Error"),
+            _                           => ProblemFor(error, 500, "Internal Server Error")
         };
+
+    // The English message stays as `detail`; a coded error adds WHICH rule
+    // refused and its pieces (ADR-0037), which is what the client translates.
+    private ObjectResult ProblemFor(ServiceError error, int statusCode, string title)
+    {
+        var result = Problem(error.Message, statusCode: statusCode, title: title);
+        if (result.Value is ProblemDetails problem)
+            ProblemCodeStamp.Apply(problem, error.Code, error.Args);
+        return result;
+    }
 
     private static ValidationProblemDetails CreateValidationProblem(ServiceError error)
     {

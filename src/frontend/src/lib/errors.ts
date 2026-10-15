@@ -3,6 +3,7 @@ import { App } from 'antd';
 import { useTranslation } from 'react-i18next';
 import type { ProblemDetails } from '@/api/client';
 import { AuthProblemType } from '@/auth/problems';
+import { problemMessage, problemOf } from './problems';
 
 export type ApiErrorReporter = (error: unknown, fallback?: string) => void;
 
@@ -20,6 +21,14 @@ export function useApiError(): ApiErrorReporter {
       // server's wording: it is an operator problem and the detail is the clue.
       if (pd.type === AuthProblemType.insufficientRole) {
         message.warning(t('access.insufficientRole'));
+        return;
+      }
+
+      // A refusal the server named (ADR-0037): our sentence, built from its
+      // pieces. Uncoded errors keep falling through to `detail` below.
+      const problem = problemOf(error);
+      if (problem) {
+        message.error(problemMessage(t, problem));
         return;
       }
 
