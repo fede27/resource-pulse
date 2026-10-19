@@ -35,7 +35,7 @@ public class ExternalConstraintServiceTests
 
     private static (Guid root, Guid phase) SeedProject(ResourcePulseDbContext db)
     {
-        var root = ProjectNode.CreateRoot("Apollo", "AP", ProjectType.Customer, CommitmentLevel.Committed, null);
+        var root = ProjectNode.CreateRoot("Apollo", "AP", ProjectType.Grow, CommitmentLevel.Committed, null);
         var phase = ProjectNode.CreateChild(root, ProjectNodeType.Phase, "Fase 1", null);
         db.ProjectNodes.AddRange(root, phase);
         db.SaveChanges();

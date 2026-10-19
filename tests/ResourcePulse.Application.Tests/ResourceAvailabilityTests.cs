@@ -54,7 +54,7 @@ public class ResourceAvailabilityTests
         var calendar = BusinessCalendar.Create("Std", isDefault: true);
         var person = Resource.Create("Tizio", calendar.Id);
         person.SetAvailability(null, Until);
-        var root = ProjectNode.CreateRoot("Apollo", "AP", ProjectType.Customer, CommitmentLevel.Committed, null);
+        var root = ProjectNode.CreateRoot("Apollo", "AP", ProjectType.Grow, CommitmentLevel.Committed, null);
         root.Replan(BlockStart, Until);
         var role = Role.Create("Dev");
         var demand = Demand.Create(root.Id, role.Id, null, DemandProvenance.Declared);

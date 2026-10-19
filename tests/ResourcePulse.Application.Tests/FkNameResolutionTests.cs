@@ -36,7 +36,7 @@ public class FkNameResolutionTests
         var devRole = Role.Create("Dev senior");
         var r = Resource.Create("Tizio", Guid.NewGuid());
         r.AssignToRole(devRole.Id);
-        var node = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var node = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Transform, CommitmentLevel.Committed, null);
         var demand = Demand.Create(node.Id, devRole.Id, null, DemandProvenance.Declared);
         var alloc = Allocation.CreateCoverage(demand.Id, node.Id, r.Id, D1, D5, 50m);
 
@@ -64,7 +64,7 @@ public class FkNameResolutionTests
         var db = NewDb();
         var role = Role.Create("Backend");
         var r = Resource.Create("Tizio", Guid.NewGuid()); // no role
-        var node = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var node = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Transform, CommitmentLevel.Committed, null);
         var demand = Demand.Create(node.Id, role.Id, null, DemandProvenance.Declared);
         var alloc = Allocation.CreateCoverage(demand.Id, node.Id, r.Id, D1, D5, 50m);
 
@@ -93,7 +93,7 @@ public class FkNameResolutionTests
         var personRole = Role.Create("Dev senior");
         var r = Resource.Create("Tizio", Guid.NewGuid());
         r.AssignToRole(personRole.Id);
-        var node = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var node = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Transform, CommitmentLevel.Committed, null);
         var demand = Demand.Create(node.Id, demandRole.Id, null, DemandProvenance.Declared);
         var alloc = Allocation.CreateCoverage(demand.Id, node.Id, r.Id, D1, D5, 50m);
 
@@ -139,7 +139,7 @@ public class FkNameResolutionTests
         {
             NodeType = ProjectNodeType.Project,
             Name = "Apollo",
-            Type = ProjectType.Customer,
+            Type = ProjectType.Grow,
             CommitmentLevel = CommitmentLevel.Committed,
             LeadResourceId = pm.Id
         });
@@ -162,7 +162,7 @@ public class FkNameResolutionTests
         {
             NodeType = ProjectNodeType.Project,
             Name = "Apollo",
-            Type = ProjectType.Internal,
+            Type = ProjectType.Transform,
             CommitmentLevel = CommitmentLevel.Planned
         });
 
@@ -184,7 +184,7 @@ public class FkNameResolutionTests
         {
             NodeType = ProjectNodeType.Project,
             Name = "Apollo",
-            Type = ProjectType.Customer,
+            Type = ProjectType.Grow,
             CommitmentLevel = CommitmentLevel.Committed,
             LeadResourceId = pm.Id
         });

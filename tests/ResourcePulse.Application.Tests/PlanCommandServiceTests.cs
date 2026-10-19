@@ -313,7 +313,7 @@ public class PlanCommandServiceTests
         var h = PlanCommandHarness.Create();
         var id = h.SeedAllocation(D1, D14, 50m);
         // A second demand on a second Project root.
-        var node2 = ProjectNode.CreateRoot("Proj2", "P2", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var node2 = ProjectNode.CreateRoot("Proj2", "P2", ProjectType.Transform, CommitmentLevel.Committed, null);
         h.Db.ProjectNodes.Add(node2);
         h.Db.SaveChanges();
         h.Db.ChangeTracker.Clear();
@@ -403,7 +403,7 @@ public class PlanCommandServiceTests
         await h.Service.ExecuteAsync(new ChangeStatusCommand { Id = id, Status = AllocationStatus.Hard });
 
         // A demand on an Exploratory project — cannot host a Hard coverage (I6).
-        var expl = ProjectNode.CreateRoot("Expl", "PX", ProjectType.Internal, CommitmentLevel.Exploratory, null);
+        var expl = ProjectNode.CreateRoot("Expl", "PX", ProjectType.Transform, CommitmentLevel.Exploratory, null);
         h.Db.ProjectNodes.Add(expl);
         h.Db.SaveChanges();
         h.Db.ChangeTracker.Clear();

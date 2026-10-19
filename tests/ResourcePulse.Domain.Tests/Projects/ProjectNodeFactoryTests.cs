@@ -8,7 +8,7 @@ public class ProjectNodeFactoryTests
     public void CreateRoot_EmptyName_Throws()
     {
         var act = () => ProjectNode.CreateRoot("   ", null,
-            ProjectType.Internal, CommitmentLevel.Planned, null);
+            ProjectType.Transform, CommitmentLevel.Planned, null);
 
         act.Should().Throw<DomainException>()
             .WithMessage("*name must not be empty*");
@@ -18,7 +18,7 @@ public class ProjectNodeFactoryTests
     public void CreateRoot_TrimsNameAndCode()
     {
         var node = ProjectNode.CreateRoot("  Apollo  ", "  AP-01  ",
-            ProjectType.Customer, CommitmentLevel.Committed, null);
+            ProjectType.Grow, CommitmentLevel.Committed, null);
 
         node.Name.Should().Be("Apollo");
         node.Code.Should().Be("AP-01");
@@ -28,7 +28,7 @@ public class ProjectNodeFactoryTests
     public void CreateRoot_BlankCode_StoresNull()
     {
         var node = ProjectNode.CreateRoot("Apollo", "   ",
-            ProjectType.Internal, CommitmentLevel.Planned, null);
+            ProjectType.Transform, CommitmentLevel.Planned, null);
 
         node.Code.Should().BeNull();
     }
@@ -37,14 +37,14 @@ public class ProjectNodeFactoryTests
     public void CreateRoot_SetsRootDefaults()
     {
         var node = ProjectNode.CreateRoot("Apollo", null,
-            ProjectType.Customer, CommitmentLevel.Critical, Guid.NewGuid());
+            ProjectType.Grow, CommitmentLevel.Critical, Guid.NewGuid());
 
         node.NodeType.Should().Be(ProjectNodeType.Project);
         node.ParentId.Should().BeNull();
         node.Depth.Should().Be(0);
         node.Path.Should().Be("/" + node.Id.ToString("D"));
         node.Status.Should().Be(ProjectStatus.Draft);
-        node.Type.Should().Be(ProjectType.Customer);
+        node.Type.Should().Be(ProjectType.Grow);
         node.CommitmentLevel.Should().Be(CommitmentLevel.Critical);
     }
 
@@ -52,7 +52,7 @@ public class ProjectNodeFactoryTests
     public void CreateRoot_EmptyLeadGuid_StoresNull()
     {
         var node = ProjectNode.CreateRoot("Apollo", null,
-            ProjectType.Internal, CommitmentLevel.Planned, Guid.Empty);
+            ProjectType.Transform, CommitmentLevel.Planned, Guid.Empty);
 
         node.LeadResourceId.Should().BeNull();
     }
@@ -63,7 +63,7 @@ public class ProjectNodeFactoryTests
     public void CreateRoot_WithClient_StoresTrimmed()
     {
         var node = ProjectNode.CreateRoot("Apollo", null,
-            ProjectType.Customer, CommitmentLevel.Committed, null, "  ACME S.p.A.  ");
+            ProjectType.Grow, CommitmentLevel.Committed, null, "  ACME S.p.A.  ");
 
         node.Client.Should().Be("ACME S.p.A.");
     }
@@ -72,7 +72,7 @@ public class ProjectNodeFactoryTests
     public void CreateRoot_NoClient_DefaultsToNull()
     {
         var node = ProjectNode.CreateRoot("Apollo", null,
-            ProjectType.Internal, CommitmentLevel.Planned, null);
+            ProjectType.Transform, CommitmentLevel.Planned, null);
 
         node.Client.Should().BeNull();
     }
@@ -81,7 +81,7 @@ public class ProjectNodeFactoryTests
     public void CreateRoot_BlankClient_StoresNull()
     {
         var node = ProjectNode.CreateRoot("Apollo", null,
-            ProjectType.Internal, CommitmentLevel.Planned, null, "   ");
+            ProjectType.Transform, CommitmentLevel.Planned, null, "   ");
 
         node.Client.Should().BeNull();
     }

@@ -411,8 +411,7 @@ public static class BulkDevSeeder
             var plannedEnd = plannedStart.AddDays(duration);
 
             var type = PickWeighted(rng, [
-                (ProjectType.Customer, 55), (ProjectType.Internal, 20),
-                (ProjectType.Maintenance, 15), (ProjectType.Investment, 10)
+                (ProjectType.Run, 20), (ProjectType.Grow, 55), (ProjectType.Transform, 25)
             ]);
             var commitment = fate == Fate.Pipeline
                 ? PickWeighted(rng, [
@@ -421,7 +420,15 @@ public static class BulkDevSeeder
                     (CommitmentLevel.Committed, 60), (CommitmentLevel.Critical, 15),
                     (CommitmentLevel.Planned, 20), (CommitmentLevel.Exploratory, 5)]);
 
-            var client = type is ProjectType.Customer or ProjectType.Maintenance ? Pick(rng, Clients) : null;
+            // Who pays is Client, not the type (ADR-0038): Grow is customer work, most
+            // Run is a maintenance contract, Transform is the company investing in itself.
+            var hasClient = type switch
+            {
+                ProjectType.Grow => true,
+                ProjectType.Run => rng.NextDouble() < 0.75,
+                _ => false
+            };
+            var client = hasClient ? Pick(rng, Clients) : null;
             var lead = Pick(rng, leadPool);
             var code = NextCode(codeCounters, plannedStart.Year);
 

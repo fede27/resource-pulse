@@ -37,9 +37,9 @@ public class DemandCoverageInRangeTests
 
         var tizio = Resource.Create("Tizio", Guid.NewGuid());
         var role = Role.Create("Backend");
-        var alpha = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var alpha = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Transform, CommitmentLevel.Committed, null);
         var phase = ProjectNode.CreateChild(alpha, ProjectNodeType.Phase, "Fase 1", "A1");
-        var omega = ProjectNode.CreateRoot("Omega", "O", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var omega = ProjectNode.CreateRoot("Omega", "O", ProjectType.Transform, CommitmentLevel.Committed, null);
         omega.Cancel("archiviato");
 
         var dRoot = Demand.Create(alpha.Id, role.Id, TimeSpan.FromHours(40), DemandProvenance.Declared);

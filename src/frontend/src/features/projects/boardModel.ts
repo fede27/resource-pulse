@@ -249,7 +249,7 @@ export function buildBoardProject(
     critical: root.commitmentLevel === CommitmentLevel.Critical,
     proposed: root.isProposed ?? false,
     status: root.status ?? ProjectStatus.Active,
-    type: root.type ?? ProjectType.Customer,
+    type: root.type ?? ProjectType.Grow,
     commitmentLevel: root.commitmentLevel ?? CommitmentLevel.Planned,
     from: root.plannedStart ?? null,
     to: root.plannedEnd ?? null,

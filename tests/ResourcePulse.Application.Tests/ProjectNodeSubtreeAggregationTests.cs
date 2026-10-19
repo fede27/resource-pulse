@@ -44,10 +44,10 @@ public class ProjectNodeSubtreeAggregationTests
         var r2 = Resource.Create("Caio", calendar);
         var role = Role.Create("Backend");
 
-        var root = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var root = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Transform, CommitmentLevel.Committed, null);
         var phase = ProjectNode.CreateChild(root, ProjectNodeType.Phase, "Phase 1", null);
         var wp = ProjectNode.CreateChild(phase, ProjectNodeType.WorkPackage, "WP 1", null);
-        var otherRoot = ProjectNode.CreateRoot("Other", "P2", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var otherRoot = ProjectNode.CreateRoot("Other", "P2", ProjectType.Transform, CommitmentLevel.Committed, null);
 
         var dRoot = Demand.Create(root.Id, role.Id, null, DemandProvenance.Declared);
         var dPhase = Demand.Create(phase.Id, role.Id, null, DemandProvenance.Declared);

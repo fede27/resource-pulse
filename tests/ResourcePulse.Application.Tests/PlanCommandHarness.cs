@@ -74,7 +74,7 @@ internal sealed class PlanCommandHarness
 
         var resource = Resource.Create("Tizio", h.CalendarId);
         var other = Resource.Create("Caio", h.CalendarId);
-        var node = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Internal, commitment, leadResourceId: null);
+        var node = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Transform, commitment, leadResourceId: null);
         var role = Role.Create("Backend");
         var demand = Demand.Create(node.Id, role.Id, requiredHours: null, DemandProvenance.Declared);
 
@@ -181,7 +181,7 @@ internal sealed class PlanCommandHarness
     // Persists a second root project (for retarget arrange).
     public Guid SeedRoot(string name = "Proj2", CommitmentLevel commitment = CommitmentLevel.Committed)
     {
-        var node = ProjectNode.CreateRoot(name, name, ProjectType.Internal, commitment, leadResourceId: null);
+        var node = ProjectNode.CreateRoot(name, name, ProjectType.Transform, commitment, leadResourceId: null);
         Db.ProjectNodes.Add(node);
         Db.SaveChanges();
         Db.ChangeTracker.Clear();

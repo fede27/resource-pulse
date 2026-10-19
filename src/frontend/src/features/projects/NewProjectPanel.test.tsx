@@ -82,11 +82,31 @@ describe('<NewProjectPanel>', () => {
       name: 'Rollout CRM',
       client: 'ACME S.p.A.',
       ownerId: 'r-anna',
-      type: ProjectType.Customer,
+      type: ProjectType.Grow,
       commitmentLevel: CommitmentLevel.Planned,
       startISO: '2026-09-01',
       endISO: '2026-09-30',
       phases: [{ name: 'Analisi', startISO: '2026-09-01', endISO: '2026-09-30' }],
     });
+  });
+
+  it('explains the chosen kind of work and submits it (ADR-0038)', async () => {
+    const { props, user } = setup();
+
+    // Grow is the default, and its definition is on screen from the start.
+    expect(await screen.findByText(/Espande il business attuale/)).toBeInTheDocument();
+
+    await user.click(screen.getByText('Transform'));
+    expect(await screen.findByText(/Cambia ciò che l'azienda è/)).toBeInTheDocument();
+    expect(screen.queryByText(/Espande il business attuale/)).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Nome del progetto'), 'Nuova piattaforma');
+    await user.type(screen.getByLabelText('Data inizio'), '01/09/2026{enter}');
+    await user.type(screen.getByLabelText('Data fine'), '30/09/2026{enter}');
+    await user.click(screen.getByRole('button', { name: /Crea progetto/ }));
+
+    expect(props.onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: ProjectType.Transform, client: null }),
+    );
   });
 });

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Button, DatePicker, Form, Input, Select, Space } from 'antd';
+import { Button, DatePicker, Form, Input, Segmented, Select, Space } from 'antd';
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -61,6 +61,7 @@ export function NewProjectPanel({
   const [form] = Form.useForm<FormValues>();
 
   const start = Form.useWatch('start', form);
+  const type = Form.useWatch('type', form);
   const end = Form.useWatch('end', form);
   const hasDates = !!start && !!end;
   // exactOptionalPropertyTypes: antd's minDate/maxDate don't accept undefined,
@@ -91,12 +92,18 @@ export function NewProjectPanel({
     });
   };
 
+  // Run / Grow / Transform (ADR-0038): the definition of the chosen value is
+  // shown under the control, so the classification means the same to everyone.
   const typeOptions = [
-    { value: ProjectType.Internal, label: t('projects.newProject.typeInternal') },
-    { value: ProjectType.Customer, label: t('projects.newProject.typeCustomer') },
-    { value: ProjectType.Investment, label: t('projects.newProject.typeInvestment') },
-    { value: ProjectType.Maintenance, label: t('projects.newProject.typeMaintenance') },
+    { value: ProjectType.Run, label: t('projects.newProject.typeRun') },
+    { value: ProjectType.Grow, label: t('projects.newProject.typeGrow') },
+    { value: ProjectType.Transform, label: t('projects.newProject.typeTransform') },
   ];
+  const typeHints: Record<ProjectType, string> = {
+    [ProjectType.Run]: t('projects.newProject.typeRunHint'),
+    [ProjectType.Grow]: t('projects.newProject.typeGrowHint'),
+    [ProjectType.Transform]: t('projects.newProject.typeTransformHint'),
+  };
 
   const commitmentOptions = [
     { value: CommitmentLevel.Exploratory, label: t('projects.newProject.commitmentExploratory') },
@@ -128,7 +135,7 @@ export function NewProjectPanel({
         layout="vertical"
         onFinish={handleFinish}
         initialValues={{
-          type: ProjectType.Customer,
+          type: ProjectType.Grow,
           commitmentLevel: CommitmentLevel.Planned,
           ownerId: defaultOwnerId ?? undefined,
           phases: [],
@@ -154,20 +161,23 @@ export function NewProjectPanel({
           <Input placeholder={t('projects.newProject.clientPlaceholder')} />
         </Form.Item>
 
-        <div className={styles.fieldPair}>
-          <Form.Item name="ownerId" label={t('projects.newProject.ownerLabel')}>
-            <Select
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              placeholder={t('projects.newProject.ownerPlaceholder')}
-              options={personPool.map((p) => ({ value: p.id, label: p.name }))}
-            />
-          </Form.Item>
-          <Form.Item name="type" label={t('projects.newProject.typeLabel')}>
-            <Select options={typeOptions} />
-          </Form.Item>
-        </div>
+        <Form.Item name="ownerId" label={t('projects.newProject.ownerLabel')}>
+          <Select
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            placeholder={t('projects.newProject.ownerPlaceholder')}
+            options={personPool.map((p) => ({ value: p.id, label: p.name }))}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="type"
+          label={t('projects.newProject.typeLabel')}
+          extra={type ? typeHints[type] : undefined}
+        >
+          <Segmented<ProjectType> block options={typeOptions} />
+        </Form.Item>
 
         <Form.Item
           name="commitmentLevel"

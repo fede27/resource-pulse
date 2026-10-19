@@ -41,7 +41,7 @@ public class ProjectNodeProvenanceAndClientTests
     {
         NodeType = ProjectNodeType.Project,
         Name = "Apollo",
-        Type = ProjectType.Customer,
+        Type = ProjectType.Grow,
         CommitmentLevel = commitment,
         Client = client
     };
@@ -70,7 +70,7 @@ public class ProjectNodeProvenanceAndClientTests
 
         var updated = await svc.UpdateProjectAsync(created.Value.Id, new UpdateProjectDto
         {
-            Type = ProjectType.Customer,
+            Type = ProjectType.Grow,
             CommitmentLevel = CommitmentLevel.Committed,
             Client = "Globex"
         });

@@ -42,8 +42,8 @@ public class ResourceCommitmentProfileTests
         var other = Resource.Create("Caio", calendar);
         var role = Role.Create("Backend");
 
-        var alpha = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Internal, CommitmentLevel.Committed, null);
-        var beta = ProjectNode.CreateRoot("Beta", "B", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var alpha = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Transform, CommitmentLevel.Committed, null);
+        var beta = ProjectNode.CreateRoot("Beta", "B", ProjectType.Transform, CommitmentLevel.Committed, null);
         var betaPhase = ProjectNode.CreateChild(beta, ProjectNodeType.Phase, "Beta Phase 1", null);
 
         var dAlpha = Demand.Create(alpha.Id, role.Id, null, DemandProvenance.Declared);
@@ -125,7 +125,7 @@ public class ResourceCommitmentProfileTests
 
         var r = Resource.Create("Tizio", Guid.NewGuid());
         var role = Role.Create("Backend");
-        var alpha = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var alpha = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Transform, CommitmentLevel.Committed, null);
         var d = Demand.Create(alpha.Id, role.Id, null, DemandProvenance.Declared);
         var hard = Allocation.CreateCoverage(d.Id, alpha.Id, r.Id, Mon, Fri, 50m, status: AllocationStatus.Hard);
         var tentative = Allocation.CreateCoverage(d.Id, alpha.Id, r.Id, Mon, Fri, 30m);

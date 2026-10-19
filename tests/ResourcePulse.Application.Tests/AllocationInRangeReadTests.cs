@@ -35,7 +35,7 @@ public class AllocationInRangeReadTests
 
         var resource = Resource.Create("Tizio", Guid.NewGuid());
         var role = Role.Create("Backend");
-        var root = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var root = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Transform, CommitmentLevel.Committed, null);
         var phase = ProjectNode.CreateChild(root, ProjectNodeType.Phase, "Fase 1", "A1");
         var demandRoot = Demand.Create(root.Id, role.Id, null, DemandProvenance.Declared);
         var demandPhase = Demand.Create(phase.Id, role.Id, null, DemandProvenance.Declared);

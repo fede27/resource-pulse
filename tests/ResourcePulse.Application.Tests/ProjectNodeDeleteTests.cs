@@ -45,7 +45,7 @@ public class ProjectNodeDeleteTests
         {
             NodeType = ProjectNodeType.Project,
             Name = name,
-            Type = ProjectType.Customer,
+            Type = ProjectType.Grow,
             CommitmentLevel = CommitmentLevel.Committed
         })).Value.Id;
 

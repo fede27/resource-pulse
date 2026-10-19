@@ -47,9 +47,9 @@ public class OpenDemandsReadModelTests
         var tizio = Resource.Create("Tizio", cal);
         tizio.AssignToRole(dev.Id);
 
-        var alpha = ProjectNode.CreateRoot("Alpha", "A1", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var alpha = ProjectNode.CreateRoot("Alpha", "A1", ProjectType.Transform, CommitmentLevel.Committed, null);
         var phase = ProjectNode.CreateChild(alpha, ProjectNodeType.Phase, "Phase 1", null);
-        var omega = ProjectNode.CreateRoot("Omega", "O1", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var omega = ProjectNode.CreateRoot("Omega", "O1", ProjectType.Transform, CommitmentLevel.Committed, null);
         omega.Start();
         omega.Complete(); // Closed root — its demands must not surface
 

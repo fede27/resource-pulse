@@ -27,7 +27,7 @@ public class ResourceLoadStatusFilterTests
 
         var r = Resource.Create("Tizio", Guid.NewGuid());
         var role = Role.Create("Backend");
-        var alpha = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var alpha = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Transform, CommitmentLevel.Committed, null);
         var d = Demand.Create(alpha.Id, role.Id, null, DemandProvenance.Declared);
         var hard = Allocation.CreateCoverage(d.Id, alpha.Id, r.Id, Mon, Fri, 50m, status: AllocationStatus.Hard);
         var tentative = Allocation.CreateCoverage(d.Id, alpha.Id, r.Id, Mon, Fri, 30m);

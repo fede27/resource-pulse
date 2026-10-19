@@ -41,8 +41,8 @@ public class LoadProfilesBatchTests
         inactive.Deactivate();
 
         var role = Role.Create("Backend");
-        var alpha = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Internal, CommitmentLevel.Committed, null);
-        var beta = ProjectNode.CreateRoot("Beta", "B", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var alpha = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Transform, CommitmentLevel.Committed, null);
+        var beta = ProjectNode.CreateRoot("Beta", "B", ProjectType.Transform, CommitmentLevel.Committed, null);
         var dAlpha = Demand.Create(alpha.Id, role.Id, null, DemandProvenance.Declared);
         var dBeta = Demand.Create(beta.Id, role.Id, null, DemandProvenance.Declared);
 

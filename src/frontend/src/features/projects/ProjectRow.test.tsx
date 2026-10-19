@@ -59,7 +59,7 @@ const project = (blocks: CoverageBlock[], over: Partial<BoardProject> = {}): Boa
   critical: false,
   proposed: false,
   status: ProjectStatus.Active,
-  type: ProjectType.Customer,
+  type: ProjectType.Grow,
   commitmentLevel: CommitmentLevel.Committed,
   from: '2026-06-01',
   to: '2026-09-25',

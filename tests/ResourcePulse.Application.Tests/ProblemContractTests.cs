@@ -177,7 +177,7 @@ public class ProblemContractTests
 
         UpdateProjectDto Downgrade(bool confirm) => new()
         {
-            Type = ProjectType.Internal,
+            Type = ProjectType.Transform,
             CommitmentLevel = CommitmentLevel.Planned,
             ConfirmDemoteHardAllocations = confirm,
         };

@@ -64,11 +64,11 @@ public static class DevSeeder
     // name, code, type, commitment, start? (Active vs Draft)
     private static readonly (string Name, string Code, ProjectType Type, CommitmentLevel Commitment, bool Start)[] Projects =
     [
-        ("Apollo",          "APL", ProjectType.Customer,    CommitmentLevel.Committed,   true),
-        ("Borealis",        "BOR", ProjectType.Internal,    CommitmentLevel.Planned,     false),
-        ("Cosmos",          "CSM", ProjectType.Investment,  CommitmentLevel.Critical,    true),
-        ("Delta Migration", "DLT", ProjectType.Maintenance, CommitmentLevel.Committed,   false),
-        ("Echo R&D",        "ECO", ProjectType.Internal,    CommitmentLevel.Exploratory, false),
+        ("Apollo",          "APL", ProjectType.Grow,        CommitmentLevel.Committed,   true),
+        ("Borealis",        "BOR", ProjectType.Run,         CommitmentLevel.Planned,     false),
+        ("Cosmos",          "CSM", ProjectType.Transform,   CommitmentLevel.Critical,    true),
+        ("Delta Migration", "DLT", ProjectType.Run,         CommitmentLevel.Committed,   false),
+        ("Echo R&D",        "ECO", ProjectType.Transform,   CommitmentLevel.Exploratory, false),
     ];
 
     public static async Task SeedAsync(IServiceProvider services, ILogger logger)

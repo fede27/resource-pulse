@@ -48,7 +48,7 @@ public class ProjectNodeAnchorGuardTests
     // `following` false leaves both edges pinned instead.
     private static (Guid root, Guid phase) SeedPlan(ResourcePulseDbContext db, bool following = true)
     {
-        var root = ProjectNode.CreateRoot("Apollo", "AP", ProjectType.Customer, CommitmentLevel.Committed, null);
+        var root = ProjectNode.CreateRoot("Apollo", "AP", ProjectType.Grow, CommitmentLevel.Committed, null);
         var phase = ProjectNode.CreateChild(root, ProjectNodeType.Phase, "Fase 1", null);
         phase.Replan(PhaseStart, PhaseEnd);
         var role = Role.Create("Dev");

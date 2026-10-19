@@ -42,7 +42,7 @@ public class DemandCoverageReadModelTests
         var tizio = Resource.Create("Tizio", cal);
         tizio.AssignToRole(dev.Id);
 
-        var root = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Internal, CommitmentLevel.Committed, null);
+        var root = ProjectNode.CreateRoot("Proj", "P1", ProjectType.Transform, CommitmentLevel.Committed, null);
         var phase = ProjectNode.CreateChild(root, ProjectNodeType.Phase, "Phase 1", null);
 
         var targeted = Demand.Create(root.Id, dev.Id, TimeSpan.FromHours(40), DemandProvenance.Declared);

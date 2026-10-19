@@ -13927,16 +13927,14 @@
         "enum": [
           1,
           2,
-          3,
-          4
+          3
         ],
         "type": "integer",
         "format": "int32",
         "x-enum-varnames": [
-          "Internal",
-          "Customer",
-          "Investment",
-          "Maintenance"
+          "Run",
+          "Grow",
+          "Transform"
         ]
       },
       "ReasonDto": {

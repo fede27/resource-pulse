@@ -7,7 +7,7 @@ public static class ProjectNodes
     public static ProjectNode Project(
         string name = "Test Project",
         string? code = null,
-        ProjectType type = ProjectType.Internal,
+        ProjectType type = ProjectType.Transform,
         CommitmentLevel commitment = CommitmentLevel.Planned,
         Guid? leadResourceId = null) =>
         ProjectNode.CreateRoot(name, code, type, commitment, leadResourceId);

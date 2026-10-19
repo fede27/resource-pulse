@@ -10,8 +10,7 @@ export type ProjectType = typeof ProjectType[keyof typeof ProjectType];
 
 
 export const ProjectType = {
-  Internal: 1,
-  Customer: 2,
-  Investment: 3,
-  Maintenance: 4,
+  Run: 1,
+  Grow: 2,
+  Transform: 3,
 } as const;

@@ -86,7 +86,7 @@ internal sealed class SignalDetectionHarness
         var calendar = BusinessCalendar.Create("Standard", isDefault: true);
         var role = Role.Create("Backend");
         var resource = Resource.Create("Tizio", calendar.Id);
-        var project = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Internal, commitment, leadResourceId: null);
+        var project = ProjectNode.CreateRoot("Alpha", "A", ProjectType.Transform, commitment, leadResourceId: null);
         project.Replan(Today.AddDays(30), Today.AddDays(180));
         project.Start();
 
@@ -156,7 +156,7 @@ internal sealed class SignalDetectionHarness
         DateOnly? plannedEnd = null,
         bool cancelled = false)
     {
-        var p = ProjectNode.CreateRoot(name, name[..1], ProjectType.Internal, commitment, leadResourceId: null);
+        var p = ProjectNode.CreateRoot(name, name[..1], ProjectType.Transform, commitment, leadResourceId: null);
         if (plannedStart is not null || plannedEnd is not null) p.Replan(plannedStart, plannedEnd);
         if (cancelled) p.Cancel("archiviato"); else p.Start();
         Db.ProjectNodes.Add(p);
