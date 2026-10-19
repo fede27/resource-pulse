@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.4",
   "info": {
-    "title": "ResourcePulse.Hosting",
+    "title": "TimeSloth.Hosting",
     "version": "1.0"
   },
   "paths": {
@@ -13679,7 +13679,7 @@
           "team-in-use"
         ],
         "type": "string",
-        "description": "A refusal the client can tell apart. Travels as ProblemDetails.type = \"urn:resourcepulse:problem:{code}\", with its pieces in the `args` extension.",
+        "description": "A refusal the client can tell apart. Travels as ProblemDetails.type = \"urn:timesloth:problem:{code}\", with its pieces in the `args` extension.",
         "x-enum-varnames": [
           "HardRequiresCommitment",
           "CommitmentDowngradeDemotesHard",

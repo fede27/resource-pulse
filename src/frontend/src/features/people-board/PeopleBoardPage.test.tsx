@@ -153,7 +153,7 @@ describe('<PeopleBoardPage>', () => {
       getMeGetMockHandler({
         isAuthenticated: true,
         sub: 'dev',
-        email: 'viewer@resourcepulse.local',
+        email: 'viewer@timesloth.local',
         name: 'Viewer',
         isMember: true,
         accessRole: AppRole.Viewer,

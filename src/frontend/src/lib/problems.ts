@@ -5,7 +5,7 @@ import type { ProblemDetails } from '@/api/client';
 import { BoundaryEdge, CommitmentLevel, ProblemCode, ProjectStatus } from '@/api/generated/schemas';
 
 // The refusal contract (ADR-0037). A refusal the client can tell apart arrives
-// as a ProblemDetails whose `type` is `urn:resourcepulse:problem:{code}`, with
+// as a ProblemDetails whose `type` is `urn:timesloth:problem:{code}`, with
 // its pieces in `args` — in wire format (enums as integers), never a sentence.
 // The server's `detail` is English and stays the fallback for an uncoded error.
 //
@@ -13,7 +13,7 @@ import { BoundaryEdge, CommitmentLevel, ProblemCode, ProjectStatus } from '@/api
 // on it exhaustively and names each locale key literally, so a code the server
 // adds fails this build twice over: no branch, and (once given one) no sentence.
 
-const TYPE_PREFIX = 'urn:resourcepulse:problem:';
+const TYPE_PREFIX = 'urn:timesloth:problem:';
 const KNOWN = new Set<string>(Object.values(ProblemCode));
 
 export type Problem = { code: ProblemCode; args: Record<string, unknown> };

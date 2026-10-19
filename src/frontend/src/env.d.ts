@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-// OIDC configuration, generated into .env.local by ResourcePulse.DevBootstrap
+// OIDC configuration, generated into .env.local by TimeSloth.DevBootstrap
 // (ADR-0029). All optional: when they are absent the SPA runs against the API's
 // FakeAuth development scheme. None of them is a secret — a SPA is a public
 // client and holds no client secret by design.

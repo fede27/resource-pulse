@@ -222,7 +222,7 @@ describe('<ProjectsPage>', () => {
           // §4), named by its code with the count as a piece (ADR-0037).
           return HttpResponse.json(
             {
-              type: 'urn:resourcepulse:problem:commitment-downgrade-demotes-hard',
+              type: 'urn:timesloth:problem:commitment-downgrade-demotes-hard',
               status: 409,
               title: 'Conflict',
               args: { from: CommitmentLevel.Committed, to: CommitmentLevel.Planned, count: 3 },
@@ -463,7 +463,7 @@ describe('<ProjectsPage>', () => {
         getMeGetMockHandler({
           isAuthenticated: true,
           sub: 'dev',
-          email: 'viewer@resourcepulse.local',
+          email: 'viewer@timesloth.local',
           name: 'Viewer',
           isMember: true,
           accessRole: AppRole.Viewer,

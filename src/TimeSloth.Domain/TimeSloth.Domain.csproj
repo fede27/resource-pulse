@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\TimeSloth.Common\TimeSloth.Common.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="TimeSloth.Services" />
+    <InternalsVisibleTo Include="TimeSloth.Domain.Tests" />
+  </ItemGroup>
+</Project>

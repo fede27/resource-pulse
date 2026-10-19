@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ServiceDefaults targets the ASP.NET Core shared framework; a plain
+         console host still needs the reference to consume it. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TimeSloth.Persistence\TimeSloth.Persistence.csproj" />
+    <ProjectReference Include="..\TimeSloth.Domain\TimeSloth.Domain.csproj" />
+    <ProjectReference Include="..\TimeSloth.Common\TimeSloth.Common.csproj" />
+    <ProjectReference Include="..\TimeSloth.ServiceDefaults\TimeSloth.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

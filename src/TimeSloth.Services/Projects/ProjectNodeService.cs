@@ -1,0 +1,743 @@
+using DevExtreme.AspNet.Data;
+using DevExtreme.AspNet.Data.ResponseModel;
+using Mapster;
+using MapsterMapper;
+using Microsoft.EntityFrameworkCore;
+using TimeSloth.Common.Domain;
+using TimeSloth.Common.Results;
+using TimeSloth.Domain;
+using TimeSloth.Domain.Allocations;
+using TimeSloth.Domain.Configuration;
+using TimeSloth.Domain.Projects;
+using TimeSloth.Persistence;
+using TimeSloth.Services.Configuration;
+using TimeSloth.Services.Shared;
+
+namespace TimeSloth.Services.Projects;
+
+public sealed class ProjectNodeService(
+    IRepository<ProjectNode, Guid> repository,
+    TimeSlothDbContext db,
+    IMapper mapper,
+    ICommitmentPolicyService commitmentPolicy) : IProjectNodeService
+{
+    // ── Reads ───────────────────────────────────────────────────────────────
+
+    public async Task<ServiceResult<LoadResult>> GetAllAsync(
+        DataSourceLoadOptionsBase? loadOptions = null,
+        CancellationToken ct = default)
+    {
+        var query = repository.Query().ProjectToType<ProjectNodeReadDto>();
+        var result = await DataSourceLoader.LoadAsync(query, loadOptions ?? new DataSourceLoadOptionsBase(), ct);
+        return ServiceResult<LoadResult>.Success(result);
+    }
+
+    public async Task<ServiceResult<ProjectNodeReadDto>> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        var node = await repository.GetByIdAsync(id, ct);
+        if (node is null) return ServiceResult<ProjectNodeReadDto>.NotFound($"ProjectNode {id} not found.");
+        var policy = await commitmentPolicy.GetConfigurationAsync(ct);
+        var leadNames = await ResolveLeadNamesAsync([node], ct);
+        var anchoredCounts = await ResolveAnchoredEdgeCountsAsync([node], ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames, anchoredCounts));
+    }
+
+    public async Task<ServiceResult<IReadOnlyList<ProjectNodeReadDto>>> GetSubtreeAsync(Guid id, CancellationToken ct = default)
+    {
+        var rootPath = await db.ProjectNodes
+            .Where(p => p.Id == id)
+            .Select(p => p.Path)
+            .FirstOrDefaultAsync(ct);
+
+        if (rootPath is null)
+            return ServiceResult<IReadOnlyList<ProjectNodeReadDto>>.NotFound($"ProjectNode {id} not found.");
+
+        var prefix = rootPath + "/";
+        var nodes = await db.ProjectNodes
+            .AsNoTracking()
+            .Where(p => p.Id == id || p.Path.StartsWith(prefix))
+            .OrderBy(p => p.Path)
+            .ToListAsync(ct);
+
+        var policy = await commitmentPolicy.GetConfigurationAsync(ct);
+        var leadNames = await ResolveLeadNamesAsync(nodes, ct);
+        var anchoredCounts = await ResolveAnchoredEdgeCountsAsync(nodes, ct);
+        var dtos = nodes.Select(n => ToDtoWithMetrics(n, policy, leadNames, anchoredCounts)).ToList();
+        return ServiceResult<IReadOnlyList<ProjectNodeReadDto>>.Success(dtos);
+    }
+
+    // ── CRUD ────────────────────────────────────────────────────────────────
+
+    public async Task<ServiceResult<ProjectNodeReadDto>> CreateAsync(CreateProjectNodeDto dto, CancellationToken ct = default)
+    {
+        ProjectNode node;
+        try
+        {
+            if (dto.NodeType == ProjectNodeType.Project)
+            {
+                if (dto.LeadResourceId is { } lid && lid != Guid.Empty)
+                {
+                    var exists = await db.Resources.AnyAsync(r => r.Id == lid, ct);
+                    if (!exists)
+                        return ServiceResult<ProjectNodeReadDto>.Validation(new Dictionary<string, string[]>
+                        {
+                            [nameof(CreateProjectNodeDto.LeadResourceId)] = [$"Resource {lid} does not exist."]
+                        });
+                }
+
+                node = ProjectNode.CreateRoot(
+                    dto.Name, dto.Code,
+                    dto.Type!.Value, dto.CommitmentLevel!.Value, dto.LeadResourceId, dto.Client);
+            }
+            else
+            {
+                var parent = await repository.GetByIdAsync(dto.ParentId!.Value, ct);
+                if (parent is null)
+                    return ServiceResult<ProjectNodeReadDto>.Validation(new Dictionary<string, string[]>
+                    {
+                        [nameof(CreateProjectNodeDto.ParentId)] = [$"Parent {dto.ParentId} does not exist."]
+                    });
+
+                node = ProjectNode.CreateChild(parent, dto.NodeType, dto.Name, dto.Code);
+            }
+
+            // Optional planned window at creation — same mutator as /replan, so
+            // event + capacity-level rules apply identically (single SaveChanges).
+            if (dto.PlannedStart.HasValue || dto.PlannedEnd.HasValue)
+                node.Replan(dto.PlannedStart, dto.PlannedEnd);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult<ProjectNodeReadDto>.Conflict(ex);
+        }
+
+        await repository.AddAsync(node, ct);
+        try
+        {
+            await repository.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            return ServiceResult<ProjectNodeReadDto>.Conflict("Code is already in use under this parent.");
+        }
+
+        var policy = await commitmentPolicy.GetConfigurationAsync(ct);
+        var leadNames = await ResolveLeadNamesAsync([node], ct);
+        var anchoredCounts = await ResolveAnchoredEdgeCountsAsync([node], ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames, anchoredCounts));
+    }
+
+    public async Task<ServiceResult<ProjectNodeReadDto>> UpdateAsync(Guid id, UpdateProjectNodeDto dto, CancellationToken ct = default)
+    {
+        var node = await repository.GetByIdAsync(id, ct);
+        if (node is null) return ServiceResult<ProjectNodeReadDto>.NotFound($"ProjectNode {id} not found.");
+
+        try
+        {
+            node.Rename(dto.Name);
+            node.ChangeCode(dto.Code);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult<ProjectNodeReadDto>.Conflict(ex);
+        }
+
+        try
+        {
+            await repository.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
+        {
+            return ServiceResult<ProjectNodeReadDto>.Conflict("Code is already in use under this parent.");
+        }
+
+        var policy = await commitmentPolicy.GetConfigurationAsync(ct);
+        var leadNames = await ResolveLeadNamesAsync([node], ct);
+        var anchoredCounts = await ResolveAnchoredEdgeCountsAsync([node], ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames, anchoredCounts));
+    }
+
+    public async Task<ServiceResult<Unit>> DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        var node = await repository.GetByIdAsync(id, ct);
+        if (node is null) return ServiceResult.NotFound($"ProjectNode {id} not found.");
+
+        // Each refusal below is NodeInUse (ADR-0037) carrying only the counts of
+        // the check that refused: children first, on purpose — "reparent the
+        // children" is different advice from "clear the plan off this node".
+        var children = await db.ProjectNodes.CountAsync(p => p.ParentId == id, ct);
+        if (children > 0)
+            return NodeInUse(node, "Cannot delete a node with children. Reparent or delete its children first.",
+                ("children", children));
+
+        // Demands and coverage are the other two Restrict FKs into project_nodes
+        // (the third is parent_id, above). Leave them to the database and
+        // SaveChanges throws, which the global handler turns into a 500 — a plain
+        // conflict reported as a server fault, and a gesture the UI had to disable.
+        // Counted rather than probed: the caller has to go and clear them, so the
+        // message says how much is in the way.
+        var demandCount = await db.Demands.CountAsync(d => d.ProjectNodeId == id, ct);
+        var coverageCount = await db.Allocations.CountAsync(a => a.ProjectNodeId == id, ct);
+        if (demandCount > 0 || coverageCount > 0)
+            return NodeInUse(node,
+                $"Cannot delete a node that still carries {demandCount} demand(s) and " +
+                $"{coverageCount} coverage block(s). Delete them through the plan commands first.",
+                ("demands", demandCount), ("coverages", coverageCount));
+
+        // No separate "boundaries follow this node" check here since ADR-0035:
+        // a boundary can only follow the node its own coverage sits on, so a
+        // follower implies a coverage on this node and the count above has
+        // already refused. The check was real under ADR-0034, where a block on
+        // one node could be anchored to another.
+
+        // Imposed dates on a root (ADR-0035 §4) — still a Restrict FK.
+        var constraints = await db.ExternalConstraints.CountAsync(x => x.RootProjectId == id, ct);
+        if (constraints > 0)
+            return NodeInUse(node,
+                $"Cannot delete a project that still carries {constraints} external constraint(s). Delete them first.",
+                ("constraints", constraints));
+
+        repository.Remove(node);
+
+        try
+        {
+            await repository.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.IsForeignKeyViolation())
+        {
+            // The checks above are read-then-write and something can be attached in
+            // between. Rare, and still a conflict rather than a fault.
+            return ServiceResult.Conflict(
+                "Cannot delete a node that is still referenced by demands or coverage.");
+        }
+
+        return ServiceResult.Ok();
+    }
+
+    private static ServiceResult<Unit> NodeInUse(ProjectNode node, string message, params (string Key, int Count)[] counts)
+    {
+        var args = new Dictionary<string, object?> { ["node"] = node.Name };
+        foreach (var (key, count) in counts) args[key] = count;
+        return ServiceResult.Failure(ServiceError.Conflict(ProblemCode.NodeInUse, message, args));
+    }
+
+    // ── Reparent ────────────────────────────────────────────────────────────
+
+    public async Task<ServiceResult<Unit>> ReparentAsync(Guid id, ReparentDto dto, CancellationToken ct = default)
+    {
+        var node = await db.ProjectNodes.FirstOrDefaultAsync(p => p.Id == id, ct);
+        if (node is null) return ServiceResult.NotFound($"ProjectNode {id} not found.");
+
+        var newParent = await db.ProjectNodes.FirstOrDefaultAsync(p => p.Id == dto.NewParentId, ct);
+        if (newParent is null)
+            return ServiceResult.Validation(new Dictionary<string, string[]>
+            {
+                [nameof(ReparentDto.NewParentId)] = [$"Parent {dto.NewParentId} does not exist."]
+            });
+
+        // Load all descendants (path prefix match). Tracked, so updates flow through SaveChangesAsync.
+        var oldPrefix = node.Path + "/";
+        var descendants = await db.ProjectNodes
+            .Where(p => p.Path.StartsWith(oldPrefix))
+            .ToListAsync(ct);
+
+        try
+        {
+            node.Reparent(newParent, descendants);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult.Conflict(ex);
+        }
+
+        await db.SaveChangesAsync(ct);
+        return ServiceResult.Ok();
+    }
+
+    // ── Dates (Project + Phase) ─────────────────────────────────────────────
+
+    public Task<ServiceResult<Unit>> BaselineAsync(Guid id, BaselineDto dto, CancellationToken ct = default) =>
+        MutateAsync(id, n => n.Baseline(dto.Start, dto.End), ct);
+
+    public Task<ServiceResult<Unit>> RebaselineAsync(Guid id, RebaselineDto dto, CancellationToken ct = default) =>
+        MutateAsync(id, n => n.Rebaseline(dto.Start, dto.End, dto.Reason), ct);
+
+    // A node whose planned dates other blocks are anchored to is not replanned
+    // from here (ADR-0034 §5): that is a plan mutation — replanNode / moveSubtree
+    // on the envelope, where dryRun shows what moves — and this endpoint refuses
+    // it with the count, the same way the commitment downgrade refuses with the
+    // number of Hard blocks it would demote.
+    public async Task<ServiceResult<Unit>> ReplanAsync(Guid id, ReplanDto dto, CancellationToken ct = default)
+    {
+        if (await AnchoredDependantsGuardAsync(id, "replan", ct) is { } guard) return guard;
+        return await MutateAsync(id, n => n.Replan(dto.Start, dto.End), ct);
+    }
+
+    public Task<ServiceResult<Unit>> BackfillActualsAsync(Guid id, BackfillActualsDto dto, CancellationToken ct = default) =>
+        MutateAsync(id, n => n.BackfillActuals(dto.Start, dto.End), ct);
+
+    public Task<ServiceResult<Unit>> SetPlanningModeAsync(Guid id, SetPlanningModeDto dto, CancellationToken ct = default) =>
+        MutateAsync(id, n => n.SetPlanningMode(dto.Mode, dto.EstimatedWork), ct);
+
+    public Task<ServiceResult<Unit>> UpdateEstimatedWorkAsync(Guid id, UpdateEstimatedWorkDto dto, CancellationToken ct = default) =>
+        MutateAsync(id, n => n.UpdateEstimatedWork(dto.EstimatedWork), ct);
+
+    public async Task<ServiceResult<Unit>> RecalculatePlannedFromChildrenAsync(Guid id, CancellationToken ct = default)
+    {
+        var node = await repository.GetByIdAsync(id, ct);
+        if (node is null) return ServiceResult.NotFound($"ProjectNode {id} not found.");
+        if (await AnchoredDependantsGuardAsync(id, "rollUp", ct) is { } guard) return guard;
+
+        var children = await db.ProjectNodes.Where(p => p.ParentId == id).ToListAsync(ct);
+        try
+        {
+            node.RecalculatePlannedFromChildren(children);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult.Conflict(ex);
+        }
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult.Ok();
+    }
+
+    public async Task<ServiceResult<Unit>> RecalculateBaselineFromChildrenAsync(Guid id, CancellationToken ct = default)
+    {
+        var node = await repository.GetByIdAsync(id, ct);
+        if (node is null) return ServiceResult.NotFound($"ProjectNode {id} not found.");
+
+        var children = await db.ProjectNodes.Where(p => p.ParentId == id).ToListAsync(ct);
+        try
+        {
+            node.RecalculateBaselineFromChildren(children);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult.Conflict(ex);
+        }
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult.Ok();
+    }
+
+    // ── Tags ────────────────────────────────────────────────────────────────
+
+    public async Task<ServiceResult<ProjectNodeTagDto>> AddTagAsync(Guid id, AddProjectNodeTagDto dto, CancellationToken ct = default)
+    {
+        var node = await LoadWithOwnedAsync(id, ct);
+        if (node is null) return ServiceResult<ProjectNodeTagDto>.NotFound($"ProjectNode {id} not found.");
+
+        var tagExists = await db.Tags.AnyAsync(t => t.Id == dto.TagId, ct);
+        if (!tagExists)
+            return ServiceResult<ProjectNodeTagDto>.Validation(new Dictionary<string, string[]>
+            {
+                [nameof(AddProjectNodeTagDto.TagId)] = [$"Tag {dto.TagId} does not exist."]
+            });
+
+        try
+        {
+            node.AddTag(dto.TagId);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult<ProjectNodeTagDto>.Conflict(ex);
+        }
+
+        var added = node.Tags.Single(t => t.TagId == dto.TagId);
+        db.MarkOwnedAdded(node, n => n.Tags, added);
+
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult<ProjectNodeTagDto>.Success(new ProjectNodeTagDto { TagId = dto.TagId });
+    }
+
+    public async Task<ServiceResult<Unit>> RemoveTagAsync(Guid id, Guid tagId, CancellationToken ct = default)
+    {
+        var node = await LoadWithOwnedAsync(id, ct);
+        if (node is null) return ServiceResult.NotFound($"ProjectNode {id} not found.");
+
+        try
+        {
+            node.RemoveTag(tagId);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult.NotFound(ex.Message);
+        }
+
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult.Ok();
+    }
+
+    // ── Project-only: metadata ──────────────────────────────────────────────
+
+    public async Task<ServiceResult<ProjectNodeReadDto>> UpdateProjectAsync(Guid id, UpdateProjectDto dto, CancellationToken ct = default)
+    {
+        var node = await repository.GetByIdAsync(id, ct);
+        if (node is null) return ServiceResult<ProjectNodeReadDto>.NotFound($"ProjectNode {id} not found.");
+        if (node.NodeType != ProjectNodeType.Project)
+            return ServiceResult<ProjectNodeReadDto>.NotFound($"ProjectNode {id} is not a Project root.");
+
+        if (dto.LeadResourceId is { } lid && lid != Guid.Empty)
+        {
+            var exists = await db.Resources.AnyAsync(r => r.Id == lid, ct);
+            if (!exists)
+                return ServiceResult<ProjectNodeReadDto>.Validation(new Dictionary<string, string[]>
+                {
+                    [nameof(UpdateProjectDto.LeadResourceId)] = [$"Resource {lid} does not exist."]
+                });
+        }
+
+        // Cascade demotion guard (ADR-0015 §4). When the downgrade crosses the
+        // hard-committed → non-hard threshold, Hard allocations in the project
+        // subtree must be demoted explicitly: either the caller confirms with
+        // ConfirmDemoteHardAllocations = true and we proceed, or we return
+        // Conflict carrying the count.
+        // Hard-commit threshold read from CommitmentPolicy (ADR-0020) — no longer
+        // cabled; same single source as the PlanCommandService Hard gate (I6).
+        var policy = await commitmentPolicy.GetConfigurationAsync(ct);
+        var oldLevel = node.CommitmentLevel;
+        var newLevel = dto.CommitmentLevel;
+        var crossesHardThreshold = policy.IsHardCommitted(oldLevel) && !policy.IsHardCommitted(newLevel);
+
+        List<Allocation> hardAllocationsToDemote = [];
+        if (crossesHardThreshold)
+        {
+            // Subtree = root + children whose path starts with "/{rootId}/".
+            var subtreePathPrefix = node.Path + "/";
+            hardAllocationsToDemote = await (
+                from a in db.Allocations
+                join p in db.ProjectNodes on a.ProjectNodeId equals p.Id
+                where a.Status == AllocationStatus.Hard
+                   && (p.Id == node.Id || p.Path.StartsWith(subtreePathPrefix))
+                select a
+            ).ToListAsync(ct);
+
+            if (hardAllocationsToDemote.Count > 0 && !dto.ConfirmDemoteHardAllocations)
+            {
+                return ServiceResult<ProjectNodeReadDto>.Failure(ServiceError.Conflict(
+                    ProblemCode.CommitmentDowngradeDemotesHard,
+                    $"Downgrading commitment from '{oldLevel}' to '{newLevel}' would demote " +
+                    $"{hardAllocationsToDemote.Count} Hard allocation(s) on this project's subtree to Tentative. " +
+                    "Re-submit with ConfirmDemoteHardAllocations = true to proceed.",
+                    new Dictionary<string, object?>
+                    {
+                        ["from"] = oldLevel,
+                        ["to"] = newLevel,
+                        ["count"] = hardAllocationsToDemote.Count,
+                    }));
+            }
+        }
+
+        try
+        {
+            node.ChangeType(dto.Type);
+            node.ChangeCommitmentLevel(dto.CommitmentLevel);
+            node.AssignLead(dto.LeadResourceId);
+            node.ChangeClient(dto.Client);
+
+            foreach (var a in hardAllocationsToDemote)
+                a.ChangeStatus(AllocationStatus.Tentative, "ProjectCommitmentDowngrade");
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult<ProjectNodeReadDto>.Conflict(ex);
+        }
+
+        await repository.SaveChangesAsync(ct);
+        // Reuse the policy already fetched above for the cascade-demotion check.
+        var leadNames = await ResolveLeadNamesAsync([node], ct);
+        var anchoredCounts = await ResolveAnchoredEdgeCountsAsync([node], ct);
+        return ServiceResult<ProjectNodeReadDto>.Success(ToDtoWithMetrics(node, policy, leadNames, anchoredCounts));
+    }
+
+    // ── Project-only: state transitions ─────────────────────────────────────
+
+    public Task<ServiceResult<Unit>> StartAsync(Guid id, CancellationToken ct = default) =>
+        ProjectOnlyMutateAsync(id, n => n.Start(), ct);
+
+    public Task<ServiceResult<Unit>> CompleteAsync(Guid id, CancellationToken ct = default) =>
+        ProjectOnlyMutateAsync(id, n => n.Complete(), ct);
+
+    public Task<ServiceResult<Unit>> SuspendAsync(Guid id, ReasonDto dto, CancellationToken ct = default) =>
+        ProjectOnlyMutateAsync(id, n => n.Suspend(dto.Reason), ct);
+
+    public Task<ServiceResult<Unit>> ResumeAsync(Guid id, CancellationToken ct = default) =>
+        ProjectOnlyMutateAsync(id, n => n.Resume(), ct);
+
+    public Task<ServiceResult<Unit>> CancelAsync(Guid id, ReasonDto dto, CancellationToken ct = default) =>
+        ProjectOnlyMutateAsync(id, n => n.Cancel(dto.Reason), ct);
+
+    // ── Project-only: skill requirements ────────────────────────────────────
+
+    public async Task<ServiceResult<ProjectSkillRequirementDto>> AddSkillRequirementAsync(
+        Guid id, AddOrUpdateProjectSkillRequirementDto dto, CancellationToken ct = default)
+    {
+        var node = await LoadWithOwnedAsync(id, ct);
+        if (node is null) return ServiceResult<ProjectSkillRequirementDto>.NotFound($"ProjectNode {id} not found.");
+        if (node.NodeType != ProjectNodeType.Project)
+            return ServiceResult<ProjectSkillRequirementDto>.NotFound($"ProjectNode {id} is not a Project root.");
+
+        var skillExists = await db.Skills.AnyAsync(s => s.Id == dto.SkillId, ct);
+        if (!skillExists)
+            return ServiceResult<ProjectSkillRequirementDto>.Validation(new Dictionary<string, string[]>
+            {
+                [nameof(AddOrUpdateProjectSkillRequirementDto.SkillId)] = [$"Skill {dto.SkillId} does not exist."]
+            });
+
+        try
+        {
+            node.AddSkillRequirement(dto.SkillId, dto.MinLevel);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult<ProjectSkillRequirementDto>.Conflict(ex);
+        }
+
+        var added = node.SkillRequirements.Single(r => r.SkillId == dto.SkillId);
+        db.MarkOwnedAdded(node, n => n.SkillRequirements, added);
+
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult<ProjectSkillRequirementDto>.Success(
+            new ProjectSkillRequirementDto { SkillId = dto.SkillId, MinLevel = dto.MinLevel });
+    }
+
+    public async Task<ServiceResult<ProjectSkillRequirementDto>> UpdateSkillRequirementLevelAsync(
+        Guid id, Guid skillId, AddOrUpdateProjectSkillRequirementDto dto, CancellationToken ct = default)
+    {
+        if (skillId != dto.SkillId)
+            return ServiceResult<ProjectSkillRequirementDto>.Validation(new Dictionary<string, string[]>
+            {
+                [nameof(AddOrUpdateProjectSkillRequirementDto.SkillId)] = ["SkillId in route and body must match."]
+            });
+
+        var node = await LoadWithOwnedAsync(id, ct);
+        if (node is null) return ServiceResult<ProjectSkillRequirementDto>.NotFound($"ProjectNode {id} not found.");
+        if (node.NodeType != ProjectNodeType.Project)
+            return ServiceResult<ProjectSkillRequirementDto>.NotFound($"ProjectNode {id} is not a Project root.");
+
+        try
+        {
+            node.UpdateSkillRequirementLevel(skillId, dto.MinLevel);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult<ProjectSkillRequirementDto>.NotFound(ex.Message);
+        }
+
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult<ProjectSkillRequirementDto>.Success(
+            new ProjectSkillRequirementDto { SkillId = skillId, MinLevel = dto.MinLevel });
+    }
+
+    public async Task<ServiceResult<Unit>> RemoveSkillRequirementAsync(Guid id, Guid skillId, CancellationToken ct = default)
+    {
+        var node = await LoadWithOwnedAsync(id, ct);
+        if (node is null) return ServiceResult.NotFound($"ProjectNode {id} not found.");
+        if (node.NodeType != ProjectNodeType.Project)
+            return ServiceResult.NotFound($"ProjectNode {id} is not a Project root.");
+
+        try
+        {
+            node.RemoveSkillRequirement(skillId);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult.NotFound(ex.Message);
+        }
+
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult.Ok();
+    }
+
+    // ── Listing: active projects in range ───────────────────────────────────
+
+    public async Task<ServiceResult<IReadOnlyList<ProjectNodeReadDto>>> GetProjectsActiveInRangeAsync(
+        DateOnly from, DateOnly to, DateSource dateSource, CancellationToken ct = default)
+    {
+        // Bounded by the number of projects, not by the span, so ordering only.
+        if (DateRangeGuard.ValidateOrdering(from, to) is { } rangeError)
+            return ServiceResult<IReadOnlyList<ProjectNodeReadDto>>.Failure(rangeError);
+
+        IQueryable<ProjectNode> baseQuery = db.ProjectNodes
+            .AsNoTracking()
+            .Where(p => p.NodeType == ProjectNodeType.Project);
+
+        // For each date source: the project is "active in [from, to]" if its date range
+        // overlaps the requested window. Null endpoints are treated as open-ended.
+        IQueryable<ProjectNode> filtered = dateSource switch
+        {
+            DateSource.Planned => baseQuery.Where(p =>
+                (p.PlannedStart == null || p.PlannedStart <= to) &&
+                (p.PlannedEnd == null || p.PlannedEnd >= from)),
+            DateSource.Baseline => baseQuery.Where(p =>
+                (p.BaselineStart == null || p.BaselineStart <= to) &&
+                (p.BaselineEnd == null || p.BaselineEnd >= from)),
+            DateSource.Effective => baseQuery.Where(p =>
+                ((p.ActualStart ?? p.PlannedStart) == null || (p.ActualStart ?? p.PlannedStart) <= to) &&
+                ((p.ActualEnd ?? p.PlannedEnd) == null || (p.ActualEnd ?? p.PlannedEnd) >= from)),
+            _ => baseQuery
+        };
+
+        var results = await filtered
+            .OrderBy(p => p.Name)
+            .ToListAsync(ct);
+
+        var policy = await commitmentPolicy.GetConfigurationAsync(ct);
+        var leadNames = await ResolveLeadNamesAsync(results, ct);
+        var anchoredCounts = await ResolveAnchoredEdgeCountsAsync(results, ct);
+        var dtos = results.Select(n => ToDtoWithMetrics(n, policy, leadNames, anchoredCounts)).ToList();
+        return ServiceResult<IReadOnlyList<ProjectNodeReadDto>>.Success(dtos);
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    private async Task<ServiceResult<Unit>> MutateAsync(Guid id, Action<ProjectNode> mutator, CancellationToken ct)
+    {
+        var node = await repository.GetByIdAsync(id, ct);
+        if (node is null) return ServiceResult.NotFound($"ProjectNode {id} not found.");
+
+        try
+        {
+            mutator(node);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult.Conflict(ex);
+        }
+
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult.Ok();
+    }
+
+    private async Task<ServiceResult<Unit>> ProjectOnlyMutateAsync(Guid id, Action<ProjectNode> mutator, CancellationToken ct)
+    {
+        var node = await repository.GetByIdAsync(id, ct);
+        if (node is null) return ServiceResult.NotFound($"ProjectNode {id} not found.");
+        if (node.NodeType != ProjectNodeType.Project)
+            return ServiceResult.NotFound($"ProjectNode {id} is not a Project root.");
+
+        try
+        {
+            mutator(node);
+        }
+        catch (DomainException ex)
+        {
+            return ServiceResult.Conflict(ex);
+        }
+
+        await repository.SaveChangesAsync(ct);
+        return ServiceResult.Ok();
+    }
+
+    private ProjectNodeReadDto ToDtoWithMetrics(
+        ProjectNode node,
+        CommitmentPolicyConfiguration policy,
+        IReadOnlyDictionary<Guid, string>? leadNames = null,
+        IReadOnlyDictionary<Guid, int>? anchoredCounts = null)
+    {
+        var dto = mapper.Map<ProjectNodeReadDto>(node);
+        // ADR-0034 §8: how many boundaries follow this node's dates — the
+        // client knows BEFORE a date edit whether it must go through the envelope.
+        dto.AnchoredEdgeCount = anchoredCounts?.GetValueOrDefault(node.Id) ?? 0;
+        dto.ScheduleVarianceStart = ProjectNodeMetrics.ScheduleVarianceStart(node);
+        dto.ScheduleVarianceEnd = ProjectNodeMetrics.ScheduleVarianceEnd(node);
+        dto.ForecastVarianceEnd = ProjectNodeMetrics.ForecastVarianceEnd(node);
+        dto.IsLate = ProjectNodeMetrics.IsLate(node);
+        dto.DerivedStatus = ProjectNodeMetrics.DerivedStatus(node);
+
+        // M3: project-level provenance. "Proposed" = the complement of the
+        // hard-commit threshold (ADR-0020 / CommitmentPolicy). Project roots only;
+        // null on Phase/WorkPackage (no commitment level).
+        dto.IsProposed = node.NodeType == ProjectNodeType.Project
+            ? !policy.IsHardCommitted(node.CommitmentLevel)
+            : null;
+
+        // #7 (ADR-0024): resolve the owner (PM) name from LeadResourceId.
+        if (node.LeadResourceId is { } lid && leadNames is not null)
+            dto.LeadResourceName = leadNames.GetValueOrDefault(lid);
+        return dto;
+    }
+
+    // Boundaries that FOLLOW this node (ADR-0035): the coverages sitting on it
+    // whose start or end still takes the node's planned date. The referent is
+    // implicit, so this is a plain ProjectNodeId filter — no referent column to
+    // join, and the count is a property of the node rather than of three
+    // different entities.
+    private async Task<int> AnchoredEdgeCountAsync(Guid nodeId, CancellationToken ct)
+    {
+        var starts = await db.Allocations.AsNoTracking()
+            .CountAsync(a => a.ProjectNodeId == nodeId && a.StartAnchor == AnchorKind.FollowsNode, ct);
+        var ends = await db.Allocations.AsNoTracking()
+            .CountAsync(a => a.ProjectNodeId == nodeId && a.EndAnchor == AnchorKind.FollowsNode, ct);
+        return starts + ends;
+    }
+
+    // `operation` is a piece, not a word: "replan" | "rollUp" (ADR-0037).
+    private async Task<ServiceResult<Unit>?> AnchoredDependantsGuardAsync(Guid nodeId, string operation, CancellationToken ct)
+    {
+        var count = await AnchoredEdgeCountAsync(nodeId, ct);
+        if (count == 0) return null;
+        var verb = operation == "rollUp" ? "roll up" : operation;
+        return ServiceResult.Failure(ServiceError.Conflict(
+            ProblemCode.NodeHasFollowers,
+            $"{count} coverage boundary(ies) follow this node's planned dates; cannot {verb} it from here. " +
+            "Use the plan command 'replanNode' (or 'moveSubtree') to move them with it, or pin them first.",
+            new Dictionary<string, object?>
+            {
+                ["count"] = count,
+                ["operation"] = operation,
+            }));
+    }
+
+    // Batch-resolve following-boundary counts for a set of nodes (ADR-0035 §8).
+    // A block that follows on both edges counts twice: the count is of
+    // BOUNDARIES that would move, which is what the confirmation shows.
+    private async Task<IReadOnlyDictionary<Guid, int>> ResolveAnchoredEdgeCountsAsync(
+        IEnumerable<ProjectNode> nodes, CancellationToken ct)
+    {
+        var ids = nodes.Select(n => n.Id).Distinct().ToList();
+        var counts = new Dictionary<Guid, int>();
+        if (ids.Count == 0) return counts;
+
+        var starts = await db.Allocations.AsNoTracking()
+            .Where(a => ids.Contains(a.ProjectNodeId) && a.StartAnchor == AnchorKind.FollowsNode)
+            .GroupBy(a => a.ProjectNodeId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        var ends = await db.Allocations.AsNoTracking()
+            .Where(a => ids.Contains(a.ProjectNodeId) && a.EndAnchor == AnchorKind.FollowsNode)
+            .GroupBy(a => a.ProjectNodeId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        foreach (var s in starts) counts[s.Key] = counts.GetValueOrDefault(s.Key) + s.Count;
+        foreach (var e in ends) counts[e.Key] = counts.GetValueOrDefault(e.Key) + e.Count;
+        return counts;
+    }
+
+    // Batch-resolve lead (PM) names for a set of nodes (gap #7 / ADR-0024).
+    private async Task<IReadOnlyDictionary<Guid, string>> ResolveLeadNamesAsync(
+        IEnumerable<ProjectNode> nodes, CancellationToken ct)
+    {
+        var ids = nodes
+            .Select(n => n.LeadResourceId)
+            .Where(id => id is not null)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+
+        if (ids.Count == 0)
+            return new Dictionary<Guid, string>();
+
+        return await db.Resources.AsNoTracking()
+            .Where(r => ids.Contains(r.Id))
+            .ToDictionaryAsync(r => r.Id, r => r.Name, ct);
+    }
+
+    // FindAsync (used by the generic repository) does not include OwnsMany
+    // navigations. Operations that mutate the owned graph (tags, skill
+    // requirements) need the collections populated so the domain can enforce
+    // invariants and EF can correctly diff change tracking. Use this loader
+    // anywhere we touch owned state.
+    private Task<ProjectNode?> LoadWithOwnedAsync(Guid id, CancellationToken ct) =>
+        db.ProjectNodes.FirstOrDefaultAsync(n => n.Id == id, ct);
+}

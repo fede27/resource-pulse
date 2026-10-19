@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Mapster" />
+    <PackageReference Include="Mapster.DependencyInjection" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="DevExtreme.AspNet.Data" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TimeSloth.Persistence\TimeSloth.Persistence.csproj" />
+    <ProjectReference Include="..\TimeSloth.Domain\TimeSloth.Domain.csproj" />
+    <ProjectReference Include="..\TimeSloth.Common\TimeSloth.Common.csproj" />
+  </ItemGroup>
+</Project>

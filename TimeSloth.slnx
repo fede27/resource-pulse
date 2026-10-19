@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TimeSloth.AppHost/TimeSloth.AppHost.csproj" />
+    <Project Path="src/TimeSloth.Common/TimeSloth.Common.csproj" />
+    <Project Path="src/TimeSloth.DevBootstrap/TimeSloth.DevBootstrap.csproj" />
+    <Project Path="src/TimeSloth.Domain/TimeSloth.Domain.csproj" />
+    <Project Path="src/TimeSloth.Hosting/TimeSloth.Hosting.csproj" />
+    <Project Path="src/TimeSloth.Http/TimeSloth.Http.csproj" />
+    <Project Path="src/TimeSloth.Persistence/TimeSloth.Persistence.csproj" />
+    <Project Path="src/TimeSloth.ServiceDefaults/TimeSloth.ServiceDefaults.csproj" />
+    <Project Path="src/TimeSloth.Services/TimeSloth.Services.csproj" />
+    <Project Path="src/TimeSloth.SignalWorker/TimeSloth.SignalWorker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TimeSloth.Domain.Tests/TimeSloth.Domain.Tests.csproj" />
+    <Project Path="tests/TimeSloth.Application.Tests/TimeSloth.Application.Tests.csproj" />
+  </Folder>
+</Solution>

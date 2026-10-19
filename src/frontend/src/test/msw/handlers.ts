@@ -42,7 +42,7 @@ export const handlers: RequestHandler[] = [
   getMeGetMockHandler({
     isAuthenticated: true,
     sub: 'test-user',
-    email: 'test@resourcepulse.local',
+    email: 'test@timesloth.local',
     name: 'Test User',
     isMember: true,
     accessRole: AppRole.Owner,

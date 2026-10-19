@@ -1,0 +1,205 @@
+using DevExtreme.AspNet.Data;
+using DevExtreme.AspNet.Data.ResponseModel;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using TimeSloth.Http.Auth;
+using TimeSloth.Services.Capacity;
+using TimeSloth.Services.Resources;
+using TimeSloth.Services.Shared;
+
+namespace TimeSloth.Http.Resources;
+
+[Route("api/resources")]
+public sealed class ResourcesController(
+    IResourceService service,
+    ICapacityQueryService capacityService)
+    : CrudController<CreateResourceDto, UpdateResourceDto, ResourceReadDto, Guid>
+{
+    [HttpGet]
+    [ProducesResponseType<LoadResult>(StatusCodes.Status200OK)]
+    public override async Task<IActionResult> GetAllAsync(DataSourceLoadOptionsBase? loadOptions, CancellationToken ct) =>
+        FromResult(await service.GetAllAsync(loadOptions, ct));
+
+    [HttpGet("{id}")]
+    [ProducesResponseType<ResourceReadDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public override async Task<IActionResult> GetByIdAsync(Guid id, CancellationToken ct) =>
+        FromResult(await service.GetByIdAsync(id, ct));
+
+    [RequirePlanner]
+    [HttpPost]
+    [ProducesResponseType<ResourceReadDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public override async Task<IActionResult> CreateAsync([FromBody] CreateResourceDto dto, CancellationToken ct) =>
+        FromCreateResult(await service.CreateAsync(dto, ct), x => x.Id);
+
+    [RequirePlanner]
+    [HttpPut("{id}")]
+    [ProducesResponseType<ResourceReadDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public override async Task<IActionResult> UpdateAsync(Guid id, [FromBody] UpdateResourceDto dto, CancellationToken ct) =>
+        FromResult(await service.UpdateAsync(id, dto, ct));
+
+    [RequirePlanner]
+    [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public override async Task<IActionResult> DeleteAsync(Guid id, CancellationToken ct) =>
+        FromResult(await service.DeleteAsync(id, ct));
+
+    [RequirePlanner]
+    [HttpPost("{id}/work-windows")]
+    [ProducesResponseType<WorkWindowDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AddWorkWindowAsync(Guid id, [FromBody] WorkWindowDto dto, CancellationToken ct) =>
+        FromCreateResult(await service.AddWorkWindowAsync(id, dto, ct), x => x.Id);
+
+    [RequirePlanner]
+    [HttpDelete("{id}/work-windows/{windowId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveWorkWindowAsync(Guid id, Guid windowId, CancellationToken ct) =>
+        FromResult(await service.RemoveWorkWindowAsync(id, windowId, ct));
+
+    [RequirePlanner]
+    [HttpPost("{id}/adjustments")]
+    [ProducesResponseType<IndividualAdjustmentDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddAdjustmentAsync(Guid id, [FromBody] IndividualAdjustmentDto dto, CancellationToken ct) =>
+        FromCreateResult(await service.AddAdjustmentAsync(id, dto, ct), x => x.Id);
+
+    [RequirePlanner]
+    [HttpPut("{id}/adjustments/{adjustmentId}")]
+    [ProducesResponseType<IndividualAdjustmentDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateAdjustmentAsync(Guid id, Guid adjustmentId, [FromBody] IndividualAdjustmentDto dto, CancellationToken ct) =>
+        FromResult(await service.UpdateAdjustmentAsync(id, adjustmentId, dto, ct));
+
+    [RequirePlanner]
+    [HttpDelete("{id}/adjustments/{adjustmentId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveAdjustmentAsync(Guid id, Guid adjustmentId, CancellationToken ct) =>
+        FromResult(await service.RemoveAdjustmentAsync(id, adjustmentId, ct));
+
+    [RequirePlanner]
+    [HttpPut("{id}/team")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AssignTeamAsync(Guid id, [FromBody] AssignTeamDto dto, CancellationToken ct) =>
+        FromResult(await service.AssignTeamAsync(id, dto, ct));
+
+    [RequirePlanner]
+    [HttpPut("{id}/role")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AssignRoleAsync(Guid id, [FromBody] AssignRoleDto dto, CancellationToken ct) =>
+        FromResult(await service.AssignRoleAsync(id, dto, ct));
+
+    [RequirePlanner]
+    [HttpPut("{id}/calendar")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AssignCalendarAsync(Guid id, [FromBody] AssignCalendarDto dto, CancellationToken ct) =>
+        FromResult(await service.AssignCalendarAsync(id, dto, ct));
+
+    [RequirePlanner]
+    [HttpPost("{id}/skills")]
+    [ProducesResponseType<ResourceSkillDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AddSkillAsync(Guid id, [FromBody] AddOrUpdateResourceSkillDto dto, CancellationToken ct) =>
+        FromCreateResult(await service.AddSkillAsync(id, dto, ct), x => x.SkillId);
+
+    [RequirePlanner]
+    [HttpPut("{id}/skills/{skillId}")]
+    [ProducesResponseType<ResourceSkillDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateSkillLevelAsync(Guid id, Guid skillId, [FromBody] AddOrUpdateResourceSkillDto dto, CancellationToken ct) =>
+        FromResult(await service.UpdateSkillLevelAsync(id, skillId, dto, ct));
+
+    [RequirePlanner]
+    [HttpDelete("{id}/skills/{skillId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveSkillAsync(Guid id, Guid skillId, CancellationToken ct) =>
+        FromResult(await service.RemoveSkillAsync(id, skillId, ct));
+
+    [RequirePlanner]
+    [HttpPost("{id}/skills/{skillId}/approve")]
+    [ProducesResponseType<ResourceSkillDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ApproveSkillAsync(Guid id, Guid skillId, CancellationToken ct) =>
+        FromResult(await service.ApproveSkillAsync(id, skillId, ct));
+
+    [RequirePlanner]
+    [HttpPost("{id}/skills/{skillId}/reject")]
+    [ProducesResponseType<ResourceSkillDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RejectSkillAsync(Guid id, Guid skillId, CancellationToken ct) =>
+        FromResult(await service.RejectSkillAsync(id, skillId, ct));
+
+    [RequirePlanner]
+    [HttpPost("{id}/skills/{skillId}/return-to-pending")]
+    [ProducesResponseType<ResourceSkillDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ReturnSkillToPendingAsync(Guid id, Guid skillId, CancellationToken ct) =>
+        FromResult(await service.ReturnSkillToPendingAsync(id, skillId, ct));
+
+    [RequirePlanner]
+    [HttpPost("{id}/tags")]
+    [ProducesResponseType<ResourceTagDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AddTagAsync(Guid id, [FromBody] AddResourceTagDto dto, CancellationToken ct) =>
+        FromCreateResult(await service.AddTagAsync(id, dto, ct), x => x.TagId);
+
+    [RequirePlanner]
+    [HttpDelete("{id}/tags/{tagId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveTagAsync(Guid id, Guid tagId, CancellationToken ct) =>
+        FromResult(await service.RemoveTagAsync(id, tagId, ct));
+
+    [HttpGet("{id}/capacity")]
+    [ProducesResponseType<IReadOnlyList<DailyCapacityDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCapacityAsync(
+        Guid id,
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        CancellationToken ct) =>
+        FromResult(await capacityService.GetForResourceAsync(id, from, to, ct));
+
+    // Batch capacity read-model (api-roundtrip-consolidation.md P1): run-length
+    // segments per resource over the range — days outside every segment have zero
+    // capacity. `ids` omitted/empty = all active resources; explicit ids are
+    // honoured regardless of active state; unknown ids are absent from the result.
+    // The literal segment wins over GET {id}/... by route precedence (same
+    // pattern as api/demands/open).
+    [HttpGet("capacity")]
+    [ProducesResponseType<IReadOnlyList<ResourceCapacityDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetCapacitiesAsync(
+        [FromQuery] DateOnly from,
+        [FromQuery] DateOnly to,
+        [FromQuery] Guid[]? ids = null,
+        CancellationToken ct = default) =>
+        FromResult(await capacityService.GetSegmentsForResourcesAsync(ids, from, to, ct));
+}

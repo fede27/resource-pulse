@@ -1,0 +1,24 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.4.6">
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.NodeJs" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Zitadel" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.MailPit" />
+    <!-- Security pin (see Directory.Packages.props): overrides the vulnerable
+         transitive MessagePack pulled in by the Aspire hosting packages. -->
+    <PackageReference Include="MessagePack" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TimeSloth.Hosting\TimeSloth.Hosting.csproj" />
+    <ProjectReference Include="..\TimeSloth.DevBootstrap\TimeSloth.DevBootstrap.csproj" />
+    <ProjectReference Include="..\TimeSloth.SignalWorker\TimeSloth.SignalWorker.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UserSecretsId>b89452c0-727e-4310-9ed7-85b2318609c5</UserSecretsId>
+  </PropertyGroup>
+
+</Project>

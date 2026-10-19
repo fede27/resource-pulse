@@ -18,7 +18,7 @@ export const en: Loose<typeof it> = {
     retry: 'Retry',
     completingSignIn: 'Completing sign-in…',
     login: {
-      productName: 'Resource Pulse',
+      productName: 'TimeSloth',
       productTagline: 'Capacity planner',
       title: 'Sign in',
       subtitle: 'Welcome back. Enter your credentials to continue.',
@@ -470,7 +470,7 @@ export const en: Loose<typeof it> = {
   },
   home: {
     title: 'Welcome',
-    intro: 'Resource Pulse — capacity planning for teams and projects.',
+    intro: 'TimeSloth — capacity planning for teams and projects.',
     hint: 'Open "Calendars & closures" from the menu to configure the time foundations of the system.',
   },
   dashboard: {

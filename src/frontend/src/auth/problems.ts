@@ -7,7 +7,7 @@
  * gesture. Branch on `type` — the title is display copy and free to change.
  */
 export const AuthProblemType = {
-  tenantNotResolved: 'urn:resourcepulse:problem:tenant-not-resolved',
-  notAMember: 'urn:resourcepulse:problem:not-a-member',
-  insufficientRole: 'urn:resourcepulse:problem:insufficient-role',
+  tenantNotResolved: 'urn:timesloth:problem:tenant-not-resolved',
+  notAMember: 'urn:timesloth:problem:not-a-member',
+  insufficientRole: 'urn:timesloth:problem:insufficient-role',
 } as const;

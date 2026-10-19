@@ -51,7 +51,7 @@ describe('useApiError', () => {
     const { user } = renderWithProviders(
       <Reporter
         error={axiosWith({
-          type: 'urn:resourcepulse:problem:hard-requires-commitment',
+          type: 'urn:timesloth:problem:hard-requires-commitment',
           detail: 'Allocation cannot be set to Hard.',
           args: { level: 2, required: [3, 4] },
         })}
@@ -70,7 +70,7 @@ describe('useApiError', () => {
     const { user } = renderWithProviders(
       <Reporter
         error={axiosWith({
-          type: 'urn:resourcepulse:problem:from-a-newer-server',
+          type: 'urn:timesloth:problem:from-a-newer-server',
           detail: 'Something the server knows',
           args: {},
         })}

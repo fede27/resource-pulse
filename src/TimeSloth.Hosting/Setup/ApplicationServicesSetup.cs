@@ -1,0 +1,91 @@
+using FluentValidation;
+using Mapster;
+using MapsterMapper;
+using TimeSloth.Services;
+using TimeSloth.Services.Access;
+using TimeSloth.Services.Allocations;
+using TimeSloth.Services.BusinessCalendars;
+using TimeSloth.Services.Capacity;
+using TimeSloth.Services.CompanyClosures;
+using TimeSloth.Services.Configuration;
+using TimeSloth.Services.Demands;
+using TimeSloth.Services.ExternalConstraints;
+using TimeSloth.Services.Identity;
+using TimeSloth.Services.Load;
+using TimeSloth.Services.Plan;
+using TimeSloth.Services.Projects;
+using TimeSloth.Services.Resources;
+using TimeSloth.Services.Roles;
+using TimeSloth.Services.Signals;
+using TimeSloth.Services.Skills;
+using TimeSloth.Services.Tags;
+using TimeSloth.Services.Teams;
+using TimeSloth.Services.Tenancy;
+
+namespace TimeSloth.Hosting.Setup;
+
+/// <summary>
+/// The application layer: mapping, validation, and one registration per service.
+/// </summary>
+/// <remarks>
+/// A flat list on purpose. It is long because the domain is, and grouping it by
+/// phase or aggregate would only invite the question of which group a new service
+/// belongs to — a question with no useful answer. Adding a service here should
+/// stay a one-line edit in an obvious place.
+/// </remarks>
+public static class ApplicationServicesSetup
+{
+    public static void AddTimeSlothApplicationServices(this WebApplicationBuilder builder)
+    {
+        // Mapster — scan Services assembly for IRegister implementations
+        var mapsterConfig = TypeAdapterConfig.GlobalSettings;
+        mapsterConfig.Scan(typeof(ServicesAssemblyMarker).Assembly);
+        builder.Services.AddSingleton(mapsterConfig);
+        builder.Services.AddScoped<IMapper, ServiceMapper>();
+
+        // FluentValidation — scan Services assembly for validators
+        builder.Services.AddValidatorsFromAssembly(typeof(ServicesAssemblyMarker).Assembly);
+
+        builder.Services.AddScoped<IBusinessCalendarService, BusinessCalendarService>();
+        builder.Services.AddScoped<ICompanyClosureService, CompanyClosureService>();
+        builder.Services.AddScoped<IResourceService, ResourceService>();
+        builder.Services.AddScoped<ICapacityQueryService, LiveCapacityQueryService>();
+        builder.Services.AddScoped<ITeamService, TeamService>();
+        builder.Services.AddScoped<IRoleService, RoleService>();
+        builder.Services.AddScoped<ISkillService, SkillService>();
+        builder.Services.AddScoped<ITagService, TagService>();
+        builder.Services.AddScoped<IProjectNodeService, ProjectNodeService>();
+        builder.Services.AddScoped<IExternalConstraintService, ExternalConstraintService>();
+        builder.Services.AddScoped<IAllocationService, AllocationService>();
+        builder.Services.AddScoped<IDemandService, DemandService>();
+        builder.Services.AddScoped<IPlanCommandService, PlanCommandService>();
+        builder.Services.AddScoped<IPlanConsequenceService, PlanConsequenceService>();
+        builder.Services.AddScoped<ILoadQueryService, LiveLoadQueryService>();
+        builder.Services.AddScoped<IMeService, MeService>();
+        builder.Services.AddScoped<ITenantResolver, TenantResolver>();
+
+        // Access control (ADR-0030): membership resolution + administration.
+        builder.Services.AddScoped<IAccessResolver, AccessResolver>();
+        builder.Services.AddScoped<IMembershipService, MembershipService>();
+        if (builder.Environment.IsDevelopment())
+            builder.Services.AddScoped<IDevAccessService, DevAccessService>();
+
+        // Org-level configuration singletons (ADR-0020): boundaries & thresholds.
+        builder.Services.AddScoped<ILoadBandConfigurationService, LoadBandConfigurationService>();
+        builder.Services.AddScoped<ITimeFenceConfigurationService, TimeFenceConfigurationService>();
+        builder.Services.AddScoped<IBucketingDefaultsService, BucketingDefaultsService>();
+        builder.Services.AddScoped<ICommitmentPolicyService, CommitmentPolicyService>();
+        builder.Services.AddScoped<ISignalPolicyService, SignalPolicyService>();
+
+        // Triage (ADR-0032). The detector is registered here too — the API never runs it
+        // on a schedule (that is the dedicated worker's job, so N replicas cannot mean N
+        // concurrent sweeps on the same tenant), but the resolve-only hook on the plan
+        // envelope resolves it per request.
+        builder.Services.AddScoped<ISignalDetectionService, SignalDetectionService>();
+        builder.Services.AddScoped<ISignalService, SignalService>();
+        // Operational, not organizational (ADR-0032 §12): the cadence belongs to the
+        // worker's settings. The API only echoes the tolerance so no client invents one.
+        builder.Services.AddSingleton<ISweepCadence>(_ => new SweepCadence(
+            builder.Configuration.GetValue("Signals:StaleAfterHours", SweepCadence.DefaultStaleAfterHours)));
+    }
+}

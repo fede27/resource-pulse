@@ -1,0 +1,186 @@
+using TimeSloth.Domain.Projects;
+using TimeSloth.Domain.Skills;
+
+namespace TimeSloth.Services.Projects;
+
+// ── Read DTOs ───────────────────────────────────────────────────────────────
+
+public sealed class ProjectSkillRequirementDto
+{
+    public Guid SkillId { get; init; }
+    public SkillLevel MinLevel { get; init; }
+}
+
+public sealed class ProjectNodeTagDto
+{
+    public Guid TagId { get; init; }
+}
+
+public sealed class ProjectNodeReadDto
+{
+    public Guid Id { get; init; }
+    public Guid? ParentId { get; init; }
+    public ProjectNodeType NodeType { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string? Code { get; init; }
+    public string Path { get; init; } = string.Empty;
+    public int Depth { get; init; }
+
+    public ProjectType? Type { get; init; }
+    public CommitmentLevel? CommitmentLevel { get; init; }
+    public Guid? LeadResourceId { get; init; }
+    // Owner (PM) name resolved from LeadResourceId (gap #7 / ADR-0024). Populated
+    // on detail/subtree/range reads; null on the DevExtreme list projection
+    // (GetAllAsync), like the derived metrics below.
+    public string? LeadResourceName { get; set; }
+    public ProjectStatus? Status { get; init; }
+
+    // Customer / committente (M1). Project-only; null on Phase/WorkPackage.
+    public string? Client { get; init; }
+
+    public DateOnly? BaselineStart { get; init; }
+    public DateOnly? BaselineEnd { get; init; }
+    public DateTimeOffset? BaselinedAt { get; init; }
+    public DateOnly? PlannedStart { get; init; }
+    public DateOnly? PlannedEnd { get; init; }
+    public DateOnly? ActualStart { get; init; }
+    public DateOnly? ActualEnd { get; init; }
+
+    public PlanningMode? PlanningMode { get; init; }
+    public TimeSpan? EstimatedWork { get; init; }
+
+    // Derived — populated on detail reads (GetByIdAsync, GetSubtreeAsync). Listing
+    // endpoints that go through DevExtreme projection leave these null; clients can
+    // compute them locally with the same formulas.
+    public int? ScheduleVarianceStart { get; set; }
+    public int? ScheduleVarianceEnd { get; set; }
+    public int? ForecastVarianceEnd { get; set; }
+    public bool? IsLate { get; set; }
+    public DerivedExecutionStatus? DerivedStatus { get; set; }
+
+    // Provenance "proposto" (M3 / project-gap.md §M3): a project root is
+    // "proposed" when its CommitmentLevel is NOT in CommitmentPolicy.HardCommitLevels
+    // (i.e. not Committed/Critical by default) — the complement of the hard-commit
+    // threshold (ADR-0020). It is the PROJECT axis, distinct from the per-block
+    // Allocation.Status (Tentative/Hard). No new storage: computed in
+    // ToDtoWithMetrics from the policy. Null on non-root nodes and on listing
+    // endpoints that skip the derived enrichment.
+    public bool? IsProposed { get; set; }
+
+    // Coverage boundaries that FOLLOW this node's planned dates (ADR-0035 §8).
+    // Non-zero means a date change on this node is a plan mutation: it goes
+    // through replanNode / moveSubtree, and the project endpoints refuse it.
+    // This is now the ONLY entity that carries such a count — availability and
+    // external constraints stopped being referents — and the board shows it on
+    // the node ribbon so the cost of the gesture is visible before it starts.
+    // Null on the DevExtreme list projection, like the derived metrics.
+    public int? AnchoredEdgeCount { get; set; }
+
+    public IReadOnlyList<ProjectSkillRequirementDto> SkillRequirements { get; init; } = Array.Empty<ProjectSkillRequirementDto>();
+    public IReadOnlyList<ProjectNodeTagDto> Tags { get; init; } = Array.Empty<ProjectNodeTagDto>();
+}
+
+// ── Create / Update DTOs ────────────────────────────────────────────────────
+
+public sealed class CreateProjectNodeDto
+{
+    public Guid? ParentId { get; init; }
+    public ProjectNodeType NodeType { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string? Code { get; init; }
+
+    // Required when NodeType == Project; ignored otherwise.
+    public ProjectType? Type { get; init; }
+    public CommitmentLevel? CommitmentLevel { get; init; }
+    public Guid? LeadResourceId { get; init; }
+
+    // Customer / committente (M1). Project-only; ignored on non-root nodes.
+    public string? Client { get; init; }
+
+    // Optional planned window applied at creation (Project/Phase only —
+    // WorkPackage rejects dates). Later edits still go through /replan.
+    public DateOnly? PlannedStart { get; init; }
+    public DateOnly? PlannedEnd { get; init; }
+}
+
+public sealed class UpdateProjectNodeDto
+{
+    public string Name { get; init; } = string.Empty;
+    public string? Code { get; init; }
+}
+
+public sealed class UpdateProjectDto
+{
+    public ProjectType Type { get; init; }
+    public CommitmentLevel CommitmentLevel { get; init; }
+    public Guid? LeadResourceId { get; init; }
+
+    // Customer / committente (M1).
+    public string? Client { get; init; }
+
+    // Explicit confirmation demanded by invariant I6 (ADR-0015 §4): downgrading
+    // from {Committed, Critical} to {Exploratory, Planned} while Hard
+    // allocations exist in the project subtree demotes them to Tentative.
+    // The operation is never silent — it requires ConfirmDemoteHardAllocations =
+    // true; otherwise it returns Conflict carrying the count.
+    public bool ConfirmDemoteHardAllocations { get; init; }
+}
+
+// ── Operation DTOs ──────────────────────────────────────────────────────────
+
+public sealed class ReparentDto
+{
+    public Guid NewParentId { get; init; }
+}
+
+public sealed class BaselineDto
+{
+    public DateOnly Start { get; init; }
+    public DateOnly End { get; init; }
+}
+
+public sealed class RebaselineDto
+{
+    public DateOnly Start { get; init; }
+    public DateOnly End { get; init; }
+    public string Reason { get; init; } = string.Empty;
+}
+
+public sealed class ReplanDto
+{
+    public DateOnly? Start { get; init; }
+    public DateOnly? End { get; init; }
+}
+
+public sealed class BackfillActualsDto
+{
+    public DateOnly? Start { get; init; }
+    public DateOnly? End { get; init; }
+}
+
+public sealed class ReasonDto
+{
+    public string Reason { get; init; } = string.Empty;
+}
+
+public sealed class AddOrUpdateProjectSkillRequirementDto
+{
+    public Guid SkillId { get; init; }
+    public SkillLevel MinLevel { get; init; }
+}
+
+public sealed class AddProjectNodeTagDto
+{
+    public Guid TagId { get; init; }
+}
+
+public sealed class SetPlanningModeDto
+{
+    public PlanningMode Mode { get; init; }
+    public TimeSpan? EstimatedWork { get; init; }
+}
+
+public sealed class UpdateEstimatedWorkDto
+{
+    public TimeSpan EstimatedWork { get; init; }
+}

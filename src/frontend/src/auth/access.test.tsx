@@ -12,7 +12,7 @@ const meAs = (isMember: boolean, accessRole?: AppRole) =>
   getMeGetMockHandler({
     isAuthenticated: true,
     sub: 'dev',
-    email: 'dev@resourcepulse.local',
+    email: 'dev@timesloth.local',
     name: 'Dev User',
     isMember,
     ...(accessRole === undefined ? {} : { accessRole }),
@@ -85,7 +85,7 @@ describe('AccessGate', () => {
     );
 
     expect(await screen.findByText(/Non hai accesso a questo spazio/i)).toBeInTheDocument();
-    expect(screen.getByText('dev@resourcepulse.local')).toBeInTheDocument();
+    expect(screen.getByText('dev@timesloth.local')).toBeInTheDocument();
     expect(screen.queryByText('contenuto')).not.toBeInTheDocument();
   });
 });

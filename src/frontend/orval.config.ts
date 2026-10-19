@@ -1,7 +1,7 @@
 import { defineConfig } from 'orval';
 
 export default defineConfig({
-  resourcePulse: {
+  timeSloth: {
     input: {
       // Snapshot of the backend spec (refresh with: npm run snapshot:api).
       // Decouples client + MSW mock generation from a running backend / CI.

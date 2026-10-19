@@ -80,7 +80,7 @@ export function AppSidebar({ collapsed }: AppSidebarProps) {
         <div className={styles.mark}>RP</div>
         {!collapsed && (
           <div className={styles.titleWrap}>
-            <div className={styles.title}>Resource Pulse</div>
+            <div className={styles.title}>TimeSloth</div>
             <div className={styles.subtitle}>Capacity planner</div>
           </div>
         )}

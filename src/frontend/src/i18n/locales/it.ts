@@ -5,7 +5,7 @@ export const it = {
     retry: 'Riprova',
     completingSignIn: 'Completamento accesso…',
     login: {
-      productName: 'Resource Pulse',
+      productName: 'TimeSloth',
       productTagline: 'Capacity planner',
       title: 'Accedi',
       subtitle: 'Bentornato. Inserisci le tue credenziali per continuare.',
@@ -461,7 +461,7 @@ export const it = {
   },
   home: {
     title: 'Benvenuto',
-    intro: 'Resource Pulse — pianificazione di capacità per team e progetti.',
+    intro: 'TimeSloth — pianificazione di capacità per team e progetti.',
     hint: 'Apri "Calendari & chiusure" dal menu per configurare le basi temporali del sistema.',
   },
   dashboard: {

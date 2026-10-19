@@ -71,7 +71,7 @@ describe('problemOf', () => {
   };
 
   it('reads the code and the pieces', () => {
-    expect(problemOf(axiosWith({ type: 'urn:resourcepulse:problem:team-in-use', args: { resources: 2 } }))).toEqual({
+    expect(problemOf(axiosWith({ type: 'urn:timesloth:problem:team-in-use', args: { resources: 2 } }))).toEqual({
       code: ProblemCode.TeamInUse,
       args: { resources: 2 },
     });
@@ -79,8 +79,8 @@ describe('problemOf', () => {
 
   it('is null for an uncoded error, an unknown code, the auth types and a non-API error', () => {
     expect(problemOf(axiosWith({ detail: 'x' }))).toBeNull();
-    expect(problemOf(axiosWith({ type: 'urn:resourcepulse:problem:from-the-future', args: {} }))).toBeNull();
-    expect(problemOf(axiosWith({ type: 'urn:resourcepulse:problem:insufficient-role' }))).toBeNull();
+    expect(problemOf(axiosWith({ type: 'urn:timesloth:problem:from-the-future', args: {} }))).toBeNull();
+    expect(problemOf(axiosWith({ type: 'urn:timesloth:problem:insufficient-role' }))).toBeNull();
     expect(problemOf(new Error('boom'))).toBeNull();
   });
 });

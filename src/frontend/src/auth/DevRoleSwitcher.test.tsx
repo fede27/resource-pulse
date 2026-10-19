@@ -12,7 +12,7 @@ const meAs = (isMember: boolean, accessRole?: AppRole) =>
   getMeGetMockHandler({
     isAuthenticated: true,
     sub: 'dev',
-    email: 'dev@resourcepulse.local',
+    email: 'dev@timesloth.local',
     name: 'Dev User',
     isMember,
     ...(accessRole === undefined ? {} : { accessRole }),

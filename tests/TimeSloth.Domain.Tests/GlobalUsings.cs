@@ -1,0 +1,12 @@
+global using FluentAssertions;
+global using TimeSloth.Common.Domain;
+global using TimeSloth.Domain.Allocations;
+global using TimeSloth.Domain.Calendars;
+global using TimeSloth.Domain.Capacity;
+global using TimeSloth.Domain.Projects;
+global using TimeSloth.Domain.Resources;
+global using TimeSloth.Domain.Skills;
+global using TimeSloth.Domain.Tags;
+global using TimeSloth.Domain.Teams;
+global using TimeSloth.Domain.Tests.Builders;
+global using Xunit;

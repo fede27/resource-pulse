@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TimeSloth.Services\TimeSloth.Services.csproj" />
+    <ProjectReference Include="..\TimeSloth.Domain\TimeSloth.Domain.csproj" />
+    <ProjectReference Include="..\TimeSloth.Common\TimeSloth.Common.csproj" />
+  </ItemGroup>
+
+</Project>
